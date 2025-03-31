@@ -15,6 +15,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Badge } from "@/components/ui/badge";
 import { FilterOptions } from "@/types/models";
 import { CalendarIcon, Filter, X } from "lucide-react";
 import { format } from "date-fns";
