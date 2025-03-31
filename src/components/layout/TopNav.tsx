@@ -1,14 +1,21 @@
 
-import { Bell, ChevronDown, Menu, Search } from "lucide-react";
+import { Bell, ChevronDown, Menu, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface TopNavProps {
   toggleSidebar: () => void;
   sidebarOpen: boolean;
+  onLogout: () => void;
 }
 
-export const TopNav = ({ toggleSidebar, sidebarOpen }: TopNavProps) => {
+export const TopNav = ({ toggleSidebar, sidebarOpen, onLogout }: TopNavProps) => {
   return (
     <header className="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 shadow-sm z-30">
       <div className="flex items-center justify-between px-4 py-3 h-16">
@@ -42,14 +49,28 @@ export const TopNav = ({ toggleSidebar, sidebarOpen }: TopNavProps) => {
             </Button>
           </div>
           
-          <div className="hidden sm:flex items-center">
-            <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
-              AD
-            </div>
-            <div className="ml-2 mr-1">
-              <p className="text-sm font-medium">Admin</p>
-            </div>
-            <ChevronDown className="h-4 w-4 text-gray-500" />
+          <div className="hidden sm:block">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" className="flex items-center space-x-2">
+                  <div className="w-8 h-8 rounded-full bg-primary flex items-center justify-center text-primary-foreground">
+                    <User className="h-4 w-4" />
+                  </div>
+                  <div className="flex items-center">
+                    <span className="mr-1">Admin</span>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </div>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                <DropdownMenuItem>Profil</DropdownMenuItem>
+                <DropdownMenuItem>Paramètres</DropdownMenuItem>
+                <DropdownMenuItem onClick={onLogout}>
+                  <LogOut className="h-4 w-4 mr-2" />
+                  Déconnexion
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>

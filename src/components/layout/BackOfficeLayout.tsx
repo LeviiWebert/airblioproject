@@ -1,8 +1,10 @@
 
-import { ReactNode, useState } from "react";
+import { ReactNode, useState, useEffect } from "react";
 import { SidebarNav } from "./SidebarNav";
 import { TopNav } from "./TopNav";
 import { Toaster } from "@/components/ui/toaster";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 interface BackOfficeLayoutProps {
   children: ReactNode;
@@ -10,14 +12,37 @@ interface BackOfficeLayoutProps {
 
 export const BackOfficeLayout = ({ children }: BackOfficeLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const navigate = useNavigate();
   
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  useEffect(() => {
+    // Vérifier si l'utilisateur est connecté
+    const checkAuth = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      if (!data.session) {
+        navigate('/login');
+      }
+    };
+
+    checkAuth();
+  }, [navigate]);
+  
+  const handleLogout = async () => {
+    await supabase.auth.signOut();
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
-      <TopNav toggleSidebar={toggleSidebar} sidebarOpen={sidebarOpen} />
+      <TopNav 
+        toggleSidebar={toggleSidebar} 
+        sidebarOpen={sidebarOpen} 
+        onLogout={handleLogout}
+      />
       
       <div className="flex flex-1 overflow-hidden">
         <SidebarNav isOpen={sidebarOpen} />
