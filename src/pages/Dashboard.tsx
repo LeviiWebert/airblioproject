@@ -6,7 +6,7 @@ import {
   CalendarClock,
   Clock,
   Users,
-  Tool,
+  Wrench,
   ClipboardList,
   Receipt,
 } from "lucide-react";
@@ -95,7 +95,7 @@ const Dashboard = () => {
         <StatCard
           title="Matériel disponible"
           value={stats?.materielsDisponibles || 0}
-          icon={<Tool className="h-5 w-5" />}
+          icon={<Wrench className="h-5 w-5" />}
           colorClass="text-amber-600"
         />
         <StatCard

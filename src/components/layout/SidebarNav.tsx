@@ -4,7 +4,7 @@ import { Link, useLocation } from "react-router-dom";
 import {
   LayoutDashboard,
   ClipboardList,
-  Tool,
+  Wrench,
   Users,
   FileText,
   Truck,
@@ -69,7 +69,7 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
     {
       title: "Matériel",
       href: "/equipment",
-      icon: Tool,
+      icon: Wrench,
     },
     {
       title: "Clients",
