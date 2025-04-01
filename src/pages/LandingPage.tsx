@@ -1,9 +1,44 @@
-
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import { Session } from "@supabase/supabase-js";
 
 const LandingPage = () => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [userType, setUserType] = useState<string | null>(null);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Get existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setSession(session);
+      setUserType(session?.user?.user_metadata?.user_type || null);
+    });
+
+    // Listen for auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUserType(session?.user?.user_metadata?.user_type || null);
+    });
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  const handleLoginClick = () => {
+    if (session) {
+      // If already logged in, redirect to appropriate dashboard
+      if (userType === "admin") {
+        navigate("/admin");
+      } else if (userType === "client") {
+        navigate("/client-dashboard");
+      }
+    } else {
+      navigate("/auth");
+    }
+  };
+
   return (
     <div className="min-h-screen flex flex-col">
       {/* Navigation Bar */}
@@ -15,22 +50,25 @@ const LandingPage = () => {
               <span className="ml-2 text-sm font-medium text-muted-foreground">Sous-Marine</span>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
-              <Link to="/public/interventions" className="text-sm font-medium text-gray-700 hover:text-primary">
-                Demandes d'intervention
-              </Link>
-              <Link to="/public/account" className="text-sm font-medium text-gray-700 hover:text-primary">
-                Mon compte
-              </Link>
-              <Link to="/public/history" className="text-sm font-medium text-gray-700 hover:text-primary">
-                Historique
-              </Link>
+              {/* Only show these links for authenticated clients */}
+              {session && userType === "client" && (
+                <>
+                  <Link to="/client/requests" className="text-sm font-medium text-gray-700 hover:text-primary">
+                    Demandes d'intervention
+                  </Link>
+                  <Link to="/client/profile" className="text-sm font-medium text-gray-700 hover:text-primary">
+                    Mon compte
+                  </Link>
+                  <Link to="/client/interventions" className="text-sm font-medium text-gray-700 hover:text-primary">
+                    Historique
+                  </Link>
+                </>
+              )}
             </nav>
             <div>
-              <Link to="/auth">
-                <Button variant="default" size="sm">
-                  Se connecter
-                </Button>
-              </Link>
+              <Button variant="default" size="sm" onClick={handleLoginClick}>
+                {session ? 'Accéder au tableau de bord' : 'Se connecter'}
+              </Button>
             </div>
           </div>
         </div>
@@ -49,12 +87,10 @@ const LandingPage = () => {
                 Notre équipe d'experts répond à vos besoins avec précision et sécurité.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Link to="/auth">
-                  <Button size="lg" className="gap-2">
-                    Demander une intervention
-                    <ArrowRight className="h-4 w-4" />
-                  </Button>
-                </Link>
+                <Button size="lg" className="gap-2" onClick={handleLoginClick}>
+                  Demander une intervention
+                  <ArrowRight className="h-4 w-4" />
+                </Button>
                 <Link to="/contact">
                   <Button variant="outline" size="lg">
                     Nous contacter
@@ -173,8 +209,15 @@ const LandingPage = () => {
             <div>
               <h4 className="text-md font-bold mb-4">Liens utiles</h4>
               <ul className="space-y-2">
-                <li><Link to="/public/interventions" className="text-gray-400 hover:text-white">Demandes d'intervention</Link></li>
-                <li><Link to="/public/history" className="text-gray-400 hover:text-white">Historique</Link></li>
+                {/* Only show client-specific links when logged in as client */}
+                {session && userType === "client" ? (
+                  <>
+                    <li><Link to="/client/requests" className="text-gray-400 hover:text-white">Demandes d'intervention</Link></li>
+                    <li><Link to="/client/interventions" className="text-gray-400 hover:text-white">Historique</Link></li>
+                  </>
+                ) : (
+                  <li><Link to="/auth" className="text-gray-400 hover:text-white">Accéder à votre espace</Link></li>
+                )}
                 <li><Link to="/faq" className="text-gray-400 hover:text-white">FAQ</Link></li>
               </ul>
             </div>
