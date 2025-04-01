@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
@@ -36,6 +37,16 @@ const LandingPage = () => {
       }
     } else {
       navigate("/auth");
+    }
+  };
+  
+  const handleInterventionRequest = () => {
+    // Si connecté en tant que client, rediriger vers la demande d'intervention
+    if (session && userType === "client") {
+      navigate("/intervention/request");
+    } else {
+      // Sinon rediriger vers l'authentification
+      navigate("/auth", { state: { returnTo: "/intervention/request" } });
     }
   };
 
@@ -87,7 +98,7 @@ const LandingPage = () => {
                 Notre équipe d'experts répond à vos besoins avec précision et sécurité.
               </p>
               <div className="flex flex-col sm:flex-row gap-4">
-                <Button size="lg" className="gap-2" onClick={handleLoginClick}>
+                <Button size="lg" className="gap-2" onClick={handleInterventionRequest}>
                   Demander une intervention
                   <ArrowRight className="h-4 w-4" />
                 </Button>
@@ -218,7 +229,8 @@ const LandingPage = () => {
                 ) : (
                   <li><Link to="/auth" className="text-gray-400 hover:text-white">Accéder à votre espace</Link></li>
                 )}
-                <li><Link to="/faq" className="text-gray-400 hover:text-white">FAQ</Link></li>
+                <li><Link to="/contact" className="text-gray-400 hover:text-white">Nous contacter</Link></li>
+                <li><Link to="/intervention/request" className="text-gray-400 hover:text-white">Demander une intervention</Link></li>
               </ul>
             </div>
             <div>

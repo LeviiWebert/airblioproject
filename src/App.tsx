@@ -16,6 +16,10 @@ import Login from "./pages/Login";
 import LandingPage from "./pages/LandingPage";
 import Auth from "./pages/Auth";
 import ClientDashboard from "./pages/client/ClientDashboard";
+import Contact from "./pages/Contact";
+import RequestIntervention from "./pages/intervention/RequestIntervention";
+import InterventionDetails from "./pages/intervention/InterventionDetails";
+import InterventionSchedule from "./pages/intervention/InterventionSchedule";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -52,6 +56,12 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={<Auth />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/contact" element={<Contact />} />
+            
+            {/* Routes de demande d'intervention */}
+            <Route path="/intervention/request" element={<RequestIntervention />} />
+            <Route path="/intervention/details" element={<InterventionDetails />} />
+            <Route path="/intervention/schedule" element={<InterventionSchedule />} />
             
             {/* Routes du back-office (admin) */}
             <Route path="/admin" element={
