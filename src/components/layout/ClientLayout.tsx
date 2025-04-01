@@ -101,11 +101,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuItem as={Link} to="/client/profile">
+                  <DropdownMenuItem onClick={() => navigate('/client/profile')}>
                     <User className="h-4 w-4 mr-2" />
                     Profil
                   </DropdownMenuItem>
-                  <DropdownMenuItem as={Link} to="/client/settings">
+                  <DropdownMenuItem onClick={() => navigate('/client/settings')}>
                     <Settings className="h-4 w-4 mr-2" />
                     Paramètres
                   </DropdownMenuItem>
