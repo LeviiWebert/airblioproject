@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   Client, Utilisateur, Equipe, Materiel,
@@ -952,15 +951,25 @@ export const dashboardService = {
       // Compter les interventions par statut
       const { data: interventionsStats, error: interventionsError } = await supabase
         .from('interventions')
-        .select('statut, count(*)', { count: 'exact' })
-        .group('statut');
+        .select('statut, count')
+        .select('statut, count(*)')
+        .then(result => {
+          // Transformer le résultat sous forme d'objets avec comptage
+          const stats = {};
+          if (result.data) {
+            result.data.forEach(row => {
+              stats[row.statut] = parseInt(row.count);
+            });
+          }
+          return { data: stats, error: result.error };
+        });
 
       if (interventionsError) throw interventionsError;
 
       // Compter les équipes disponibles et en mission
       const { data: equipesCount, error: equipesError } = await supabase
         .from('equipes')
-        .select('count(*)', { count: 'exact' });
+        .select('*', { count: 'exact', head: true });
 
       if (equipesError) throw equipesError;
 
@@ -975,33 +984,54 @@ export const dashboardService = {
       // Compter les matériels par état
       const { data: materielsStats, error: materielsError } = await supabase
         .from('materiels')
-        .select('etat, count(*)', { count: 'exact' })
-        .group('etat');
+        .select('etat, count')
+        .select('etat, count(*)')
+        .then(result => {
+          // Transformer le résultat sous forme d'objets avec comptage
+          const stats = {};
+          if (result.data) {
+            result.data.forEach(row => {
+              stats[row.etat] = parseInt(row.count);
+            });
+          }
+          return { data: stats, error: result.error };
+        });
 
       if (materielsError) throw materielsError;
 
       // Compter les facturations par statut
       const { data: facturationsStats, error: facturationsError } = await supabase
         .from('facturations')
-        .select('statut_paiement, count(*)', { count: 'exact' })
-        .group('statut_paiement');
+        .select('statut_paiement, count')
+        .select('statut_paiement, count(*)')
+        .then(result => {
+          // Transformer le résultat sous forme d'objets avec comptage
+          const stats = {};
+          if (result.data) {
+            result.data.forEach(row => {
+              stats[row.statut_paiement] = parseInt(row.count);
+            });
+          }
+          return { data: stats, error: result.error };
+        });
 
       if (facturationsError) throw facturationsError;
 
       // Calculer les statistiques
-      const totalInterventions = interventionsStats.reduce((acc, curr) => acc + curr.count, 0);
-      const interventionsEnCours = interventionsStats.find(i => i.statut === 'en_cours')?.count || 0;
-      const interventionsPlanifiees = interventionsStats.find(i => i.statut === 'planifiée')?.count || 0;
-      const interventionsTerminees = interventionsStats.find(i => i.statut === 'terminée')?.count || 0;
+      const totalInterventions = Object.values(interventionsStats || {}).reduce((acc: number, curr: number) => acc + curr, 0);
+      const interventionsEnCours = interventionsStats?.en_cours || 0;
+      const interventionsPlanifiees = interventionsStats?.planifiée || 0;
+      const interventionsTerminees = interventionsStats?.terminée || 0;
 
-      const equipesDisponibles = equipesCount[0]?.count - (new Set(equipesEnMission.map(e => e.equipe_id)).size) || 0;
-      const equipesEnMissionCount = new Set(equipesEnMission.map(e => e.equipe_id)).size;
+      const totalEquipes = equipesCount?.count || 0;
+      const equipesEnMissionCount = new Set(equipesEnMission?.map(e => e.equipe_id) || []).size;
+      const equipesDisponibles = totalEquipes - equipesEnMissionCount;
 
-      const materielsDisponibles = materielsStats.find(m => m.etat === 'disponible')?.count || 0;
-      const materielsEnUtilisation = materielsStats.find(m => m.etat === 'en utilisation')?.count || 0;
+      const materielsDisponibles = materielsStats?.disponible || 0;
+      const materielsEnUtilisation = materielsStats?.['en utilisation'] || 0;
 
-      const facturationEnAttente = facturationsStats.find(f => f.statut_paiement === 'en_attente')?.count || 0;
-      const facturationPayee = facturationsStats.find(f => f.statut_paiement === 'payée')?.count || 0;
+      const facturationEnAttente = facturationsStats?.en_attente || 0;
+      const facturationPayee = facturationsStats?.payée || 0;
 
       return {
         totalInterventions,
