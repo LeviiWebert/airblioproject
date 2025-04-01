@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import type { 
   Client, Utilisateur, Equipe, Materiel,
@@ -948,28 +949,31 @@ export const suiviMaterielService = {
 export const dashboardService = {
   getStats: async (): Promise<DashboardStats> => {
     try {
-      // Compter les interventions par statut
-      const { data: interventionsStats, error: interventionsError } = await supabase
+      // Récupérer toutes les interventions pour compter par statut
+      const { data: interventionsData, error: interventionsError } = await supabase
         .from('interventions')
-        .select('statut, count')
-        .select('statut, count(*)')
-        .then(result => {
-          // Transformer le résultat sous forme d'objets avec comptage
-          const stats = {};
-          if (result.data) {
-            result.data.forEach(row => {
-              stats[row.statut] = parseInt(row.count);
-            });
-          }
-          return { data: stats, error: result.error };
-        });
+        .select('statut');
 
       if (interventionsError) throw interventionsError;
 
+      // Compter manuellement par statut
+      const interventionsByStatus = {
+        planifiée: 0,
+        en_cours: 0,
+        terminée: 0,
+        annulée: 0
+      };
+      
+      interventionsData?.forEach(intervention => {
+        if (intervention.statut && interventionsByStatus.hasOwnProperty(intervention.statut)) {
+          interventionsByStatus[intervention.statut as keyof typeof interventionsByStatus]++;
+        }
+      });
+
       // Compter les équipes disponibles et en mission
-      const { data: equipesCount, error: equipesError } = await supabase
+      const { data: equipesData, error: equipesError } = await supabase
         .from('equipes')
-        .select('*', { count: 'exact', head: true });
+        .select('id');
 
       if (equipesError) throw equipesError;
 
@@ -982,56 +986,61 @@ export const dashboardService = {
       if (equipesEnMissionError) throw equipesEnMissionError;
 
       // Compter les matériels par état
-      const { data: materielsStats, error: materielsError } = await supabase
+      const { data: materielsData, error: materielsError } = await supabase
         .from('materiels')
-        .select('etat, count')
-        .select('etat, count(*)')
-        .then(result => {
-          // Transformer le résultat sous forme d'objets avec comptage
-          const stats = {};
-          if (result.data) {
-            result.data.forEach(row => {
-              stats[row.etat] = parseInt(row.count);
-            });
-          }
-          return { data: stats, error: result.error };
-        });
+        .select('etat');
 
       if (materielsError) throw materielsError;
 
+      // Compter manuellement par état
+      const materielsByState = {
+        disponible: 0,
+        'en utilisation': 0,
+        'en maintenance': 0,
+        'hors service': 0
+      };
+      
+      materielsData?.forEach(materiel => {
+        if (materiel.etat && materielsByState.hasOwnProperty(materiel.etat)) {
+          materielsByState[materiel.etat as keyof typeof materielsByState]++;
+        }
+      });
+
       // Compter les facturations par statut
-      const { data: facturationsStats, error: facturationsError } = await supabase
+      const { data: facturationsData, error: facturationsError } = await supabase
         .from('facturations')
-        .select('statut_paiement, count')
-        .select('statut_paiement, count(*)')
-        .then(result => {
-          // Transformer le résultat sous forme d'objets avec comptage
-          const stats = {};
-          if (result.data) {
-            result.data.forEach(row => {
-              stats[row.statut_paiement] = parseInt(row.count);
-            });
-          }
-          return { data: stats, error: result.error };
-        });
+        .select('statut_paiement');
 
       if (facturationsError) throw facturationsError;
 
-      // Calculer les statistiques
-      const totalInterventions = Object.values(interventionsStats || {}).reduce((acc: number, curr: number) => acc + curr, 0);
-      const interventionsEnCours = interventionsStats?.en_cours || 0;
-      const interventionsPlanifiees = interventionsStats?.planifiée || 0;
-      const interventionsTerminees = interventionsStats?.terminée || 0;
+      // Compter manuellement par état de paiement
+      const facturationsByStatus = {
+        en_attente: 0,
+        payée: 0,
+        annulée: 0
+      };
+      
+      facturationsData?.forEach(facturation => {
+        if (facturation.statut_paiement && facturationsByStatus.hasOwnProperty(facturation.statut_paiement)) {
+          facturationsByStatus[facturation.statut_paiement as keyof typeof facturationsByStatus]++;
+        }
+      });
 
-      const totalEquipes = equipesCount?.count || 0;
+      // Calculer les statistiques
+      const totalInterventions = (interventionsData?.length || 0);
+      const interventionsEnCours = interventionsByStatus.en_cours;
+      const interventionsPlanifiees = interventionsByStatus.planifiée;
+      const interventionsTerminees = interventionsByStatus.terminée;
+
+      const totalEquipes = equipesData?.length || 0;
       const equipesEnMissionCount = new Set(equipesEnMission?.map(e => e.equipe_id) || []).size;
       const equipesDisponibles = totalEquipes - equipesEnMissionCount;
 
-      const materielsDisponibles = materielsStats?.disponible || 0;
-      const materielsEnUtilisation = materielsStats?.['en utilisation'] || 0;
+      const materielsDisponibles = materielsByState.disponible;
+      const materielsEnUtilisation = materielsByState['en utilisation'];
 
-      const facturationEnAttente = facturationsStats?.en_attente || 0;
-      const facturationPayee = facturationsStats?.payée || 0;
+      const facturationEnAttente = facturationsByStatus.en_attente;
+      const facturationPayee = facturationsByStatus.payée;
 
       return {
         totalInterventions,
