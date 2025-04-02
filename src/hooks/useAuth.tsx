@@ -144,6 +144,13 @@ export function useAuth() {
         }
         
         toast.success("Connexion réussie");
+        
+        // Redirection automatique vers le dashboard approprié
+        if (type === "admin") {
+          // Les administrateurs sont toujours redirigés vers le dashboard admin
+          navigate("/admin", { replace: true });
+        }
+        
         return type;
       }
     } catch (error: any) {

@@ -1,5 +1,6 @@
+
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, Navigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
@@ -78,6 +79,11 @@ const LandingPage = () => {
       subscription.unsubscribe();
     };
   }, []);
+
+  // Si l'utilisateur est connecté en tant qu'admin, le rediriger immédiatement vers le dashboard
+  if (session && userType === "admin") {
+    return <Navigate to="/admin" replace />;
+  }
 
   const handleLoginClick = () => {
     if (session) {

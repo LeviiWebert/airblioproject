@@ -150,15 +150,20 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Pages publiques */}
-            <Route path="/" element={<LandingPage />} />
+            {/* Page d'accueil - Redirection si admin */}
+            <Route path="/" element={
+              session && userType === "admin" ? 
+                <Navigate to="/admin" replace /> : 
+                <LandingPage />
+            } />
+            
             <Route path="/contact" element={<Contact />} />
             
-            {/* Page d'authentification unifiée */}
+            {/* Page d'authentification unifiée - Redirection si déjà authentifié */}
             <Route path="/auth" element={
               session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                userType === "admin" ? <Navigate to="/admin" replace /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" replace /> : 
                 <Auth />
               ) : (
                 <Auth />
@@ -166,7 +171,7 @@ const App = () => {
             } />
             
             {/* Route deprecated de login (redirection vers auth) */}
-            <Route path="/login" element={<Navigate to="/auth" />} />
+            <Route path="/login" element={<Navigate to="/auth" replace />} />
             
             {/* Routes de demande d'intervention */}
             <Route path="/intervention/request" element={
@@ -186,7 +191,7 @@ const App = () => {
                   <Dashboard />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
               )
             } />
             <Route path="/admin/interventions" element={
@@ -195,7 +200,7 @@ const App = () => {
                   <InterventionsPage />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
               )
             } />
             <Route path="/admin/interventions/requests" element={
@@ -204,7 +209,7 @@ const App = () => {
                   <InterventionRequests />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
               )
             } />
             
@@ -215,7 +220,7 @@ const App = () => {
                   <ClientDashboard />
                 </ClientLayout>
               ) : (
-                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/auth" />
+                session && userType === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/auth" replace />
               )
             } />
             <Route path="/client/profile" element={
@@ -224,7 +229,7 @@ const App = () => {
                   <ClientProfile />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/auth" replace />
               )
             } />
             <Route path="/client/interventions" element={
@@ -233,7 +238,7 @@ const App = () => {
                   <ClientInterventionsList />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/auth" replace />
               )
             } />
             <Route path="/client/intervention/:id" element={
@@ -242,7 +247,7 @@ const App = () => {
                   <ClientInterventionDetails />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/auth" replace />
               )
             } />
             
@@ -253,19 +258,26 @@ const App = () => {
                   <InterventionRecap />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/auth" replace />
               )
             } />
             
             {/* Pour compatibilité avec l'ancienne structure */}
             <Route path="/dashboard" element={
               session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <Navigate to="/auth" />
+                userType === "admin" ? <Navigate to="/admin" replace /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" replace /> : 
+                <Navigate to="/auth" replace />
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/auth" replace />
               )
+            } />
+            
+            {/* Pour la page Index, assurer aussi une redirection si admin */}
+            <Route path="/index" element={
+              session && userType === "admin" ? 
+                <Navigate to="/admin" replace /> : 
+                <Navigate to="/" replace />
             } />
             
             {/* Route 404 */}
