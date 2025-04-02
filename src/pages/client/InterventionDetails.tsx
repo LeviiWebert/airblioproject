@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
@@ -48,7 +47,7 @@ const InterventionDetails = () => {
           return;
         }
 
-        // Récupérer les détails complets de la demande d'intervention
+        // Récupérer les détails de la demande d'intervention
         const { data, error } = await supabase
           .from('demande_interventions')
           .select(`
@@ -58,30 +57,7 @@ const InterventionDetails = () => {
             urgence,
             statut,
             intervention_id,
-            client_id,
-            interventions:intervention_id (
-              id,
-              date_debut,
-              date_fin,
-              rapport,
-              statut,
-              localisation,
-              pv_intervention_id,
-              intervention_equipes:intervention_equipes (
-                equipe_id,
-                equipes:equipes (
-                  id,
-                  nom,
-                  specialisation
-                )
-              ),
-              pv_interventions:pv_intervention_id (
-                id,
-                validation_client,
-                date_validation,
-                commentaire
-              )
-            )
+            client_id
           `)
           .eq('id', id)
           .single();
@@ -99,11 +75,68 @@ const InterventionDetails = () => {
           return;
         }
         
-        setIntervention(data);
-        
-        if (data.interventions?.pv_interventions?.commentaire) {
-          setFeedback(data.interventions.pv_interventions.commentaire);
+        // Si une intervention est associée, récupérer ses détails
+        if (data.intervention_id) {
+          const { data: interventionData, error: interventionError } = await supabase
+            .from('interventions')
+            .select(`
+              id,
+              date_debut,
+              date_fin,
+              rapport,
+              statut,
+              localisation,
+              pv_intervention_id
+            `)
+            .eq('id', data.intervention_id)
+            .single();
+          
+          if (!interventionError && interventionData) {
+            // Joindre les données d'intervention à l'objet principal
+            data.interventions = interventionData;
+            
+            // Si un PV est associé, récupérer ses détails
+            if (interventionData.pv_intervention_id) {
+              const { data: pvData, error: pvError } = await supabase
+                .from('pv_interventions')
+                .select(`
+                  id,
+                  validation_client,
+                  date_validation,
+                  commentaire
+                `)
+                .eq('id', interventionData.pv_intervention_id)
+                .single();
+              
+              if (!pvError && pvData) {
+                data.interventions.pv_interventions = pvData;
+                
+                if (pvData.commentaire) {
+                  setFeedback(pvData.commentaire);
+                }
+              }
+            }
+            
+            // Récupérer les équipes associées à l'intervention
+            const { data: equipesData, error: equipesError } = await supabase
+              .from('intervention_equipes')
+              .select(`
+                equipe_id,
+                equipes:equipe_id (
+                  id,
+                  nom,
+                  specialisation
+                )
+              `)
+              .eq('intervention_id', data.intervention_id);
+            
+            if (!equipesError && equipesData) {
+              data.interventions.intervention_equipes = equipesData;
+            }
+          }
         }
+        
+        setIntervention(data);
       } catch (error) {
         console.error("Erreur lors du chargement de l'intervention:", error);
         toast({
@@ -164,6 +197,14 @@ const InterventionDetails = () => {
             statut,
             localisation,
             pv_intervention_id,
+            intervention_equipes:intervention_equipes (
+              equipe_id,
+              equipes:equipes (
+                id,
+                nom,
+                specialisation
+              )
+            ),
             pv_interventions:pv_intervention_id (
               id,
               validation_client,

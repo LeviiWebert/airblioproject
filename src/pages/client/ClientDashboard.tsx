@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -57,16 +56,7 @@ const ClientDashboard = () => {
               date_fin,
               rapport,
               localisation,
-              statut,
-              intervention_equipes:intervention_equipes (
-                equipe_id,
-                equipes:equipes (
-                  id,
-                  nom,
-                  specialisation
-                )
-              ),
-              pv_intervention_id
+              statut
             )
           `)
           .eq('client_id', user.id)
@@ -75,40 +65,68 @@ const ClientDashboard = () => {
         if (demandesError) throw demandesError;
         setInterventions(demandesData || []);
         
-        // Récupérer les techniciens associés aux équipes travaillant pour ce client
-        const equipeIds = demandesData
-          ?.filter(demande => demande.interventions?.intervention_equipes?.length > 0)
-          .flatMap(demande => 
-            demande.interventions.intervention_equipes.map((ie: any) => ie.equipe_id)
-          );
-        
-        if (equipeIds && equipeIds.length > 0) {
-          // Récupérer les membres des équipes
-          const { data: equipeMembres, error: equipeMembresError } = await supabase
-            .from('equipe_membres')
-            .select(`
-              equipe_id,
-              utilisateur:utilisateur_id (
-                id,
-                nom,
-                role,
-                email,
-                disponibilite
-              )
-            `)
-            .in('equipe_id', equipeIds);
+        // Récupérer les équipes d'intervention pour les demandes
+        if (demandesData && demandesData.length > 0) {
+          // Filtrer pour ne récupérer que les interventions qui ont un ID
+          const interventionIds = demandesData
+            .filter(demande => demande.intervention_id)
+            .map(demande => demande.intervention_id);
             
-          if (equipeMembresError) throw equipeMembresError;
-          
-          // Extraire les techniciens uniques par ID
-          const technicienMap = new Map();
-          equipeMembres?.forEach((membre: any) => {
-            if (membre.utilisateur && membre.utilisateur.role === 'technicien') {
-              technicienMap.set(membre.utilisateur.id, membre.utilisateur);
+          if (interventionIds.length > 0) {
+            // Récupérer les équipes par intervention
+            const { data: interventionEquipes, error: equipesError } = await supabase
+              .from('intervention_equipes')
+              .select(`
+                equipe_id,
+                intervention_id,
+                equipes:equipe_id (
+                  id,
+                  nom,
+                  specialisation
+                )
+              `)
+              .in('intervention_id', interventionIds);
+              
+            if (equipesError) throw equipesError;
+            
+            // Si des équipes sont trouvées, récupérer les membres
+            if (interventionEquipes && interventionEquipes.length > 0) {
+              const equipeIds = interventionEquipes
+                .map(ie => ie.equipe_id)
+                .filter((id): id is string => id !== null);
+              
+              if (equipeIds.length > 0) {
+                // Récupérer les membres des équipes
+                const { data: equipeMembres, error: equipeMembresError } = await supabase
+                  .from('equipe_membres')
+                  .select(`
+                    equipe_id,
+                    utilisateur:utilisateur_id (
+                      id,
+                      nom,
+                      role,
+                      email,
+                      disponibilite
+                    )
+                  `)
+                  .in('equipe_id', equipeIds);
+                  
+                if (equipeMembresError) throw equipeMembresError;
+                
+                // Extraire les techniciens uniques par ID
+                const technicienMap = new Map();
+                if (equipeMembres) {
+                  equipeMembres.forEach((membre: any) => {
+                    if (membre.utilisateur && membre.utilisateur.role === 'technicien') {
+                      technicienMap.set(membre.utilisateur.id, membre.utilisateur);
+                    }
+                  });
+                }
+                
+                setTechniciens(Array.from(technicienMap.values()));
+              }
             }
-          });
-          
-          setTechniciens(Array.from(technicienMap.values()));
+          }
         }
       } catch (error: any) {
         console.error("Erreur lors du chargement des données:", error);
