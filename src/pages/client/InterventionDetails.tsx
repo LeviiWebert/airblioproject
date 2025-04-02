@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
@@ -26,11 +27,52 @@ import {
   X 
 } from "lucide-react";
 
+// Define the types we're using
+interface Intervention {
+  id: string;
+  date_debut: string | null;
+  date_fin: string | null;
+  rapport: string | null;
+  statut: string;
+  localisation: string;
+  pv_intervention_id: string | null;
+  pv_interventions?: PVIntervention;
+  intervention_equipes?: InterventionEquipe[];
+}
+
+interface PVIntervention {
+  id: string;
+  validation_client: boolean | null;
+  date_validation: string | null;
+  commentaire: string | null;
+}
+
+interface InterventionEquipe {
+  equipe_id: string;
+  equipes: {
+    id: string;
+    nom: string;
+    specialisation: string | null;
+  };
+}
+
+interface DemandeIntervention {
+  id: string;
+  description: string;
+  date_demande: string;
+  urgence: string;
+  statut: string;
+  intervention_id: string | null;
+  client_id: string;
+  intervention?: Intervention; // Optional related intervention
+}
+
 const InterventionDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [intervention, setIntervention] = useState<any>(null);
+  const [demande, setDemande] = useState<DemandeIntervention | null>(null);
+  const [intervention, setIntervention] = useState<Intervention | null>(null);
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
@@ -48,7 +90,7 @@ const InterventionDetails = () => {
         }
 
         // Récupérer les détails de la demande d'intervention
-        const { data, error } = await supabase
+        const { data: demandeData, error: demandeError } = await supabase
           .from('demande_interventions')
           .select(`
             id,
@@ -62,10 +104,10 @@ const InterventionDetails = () => {
           .eq('id', id)
           .single();
           
-        if (error) throw error;
+        if (demandeError) throw demandeError;
         
         // Vérifier que l'utilisateur est bien le propriétaire de la demande
-        if (data.client_id !== user.id) {
+        if (demandeData.client_id !== user.id) {
           navigate('/client-dashboard');
           toast({
             variant: "destructive",
@@ -75,8 +117,10 @@ const InterventionDetails = () => {
           return;
         }
         
+        setDemande(demandeData);
+        
         // Si une intervention est associée, récupérer ses détails
-        if (data.intervention_id) {
+        if (demandeData.intervention_id) {
           const { data: interventionData, error: interventionError } = await supabase
             .from('interventions')
             .select(`
@@ -88,55 +132,58 @@ const InterventionDetails = () => {
               localisation,
               pv_intervention_id
             `)
-            .eq('id', data.intervention_id)
+            .eq('id', demandeData.intervention_id)
             .single();
           
-          if (!interventionError && interventionData) {
-            // Joindre les données d'intervention à l'objet principal
-            data.interventions = interventionData;
+          if (interventionError) throw interventionError;
+          
+          setIntervention(interventionData);
+          
+          // Si un PV est associé, récupérer ses détails
+          if (interventionData.pv_intervention_id) {
+            const { data: pvData, error: pvError } = await supabase
+              .from('pv_interventions')
+              .select(`
+                id,
+                validation_client,
+                date_validation,
+                commentaire
+              `)
+              .eq('id', interventionData.pv_intervention_id)
+              .single();
             
-            // Si un PV est associé, récupérer ses détails
-            if (interventionData.pv_intervention_id) {
-              const { data: pvData, error: pvError } = await supabase
-                .from('pv_interventions')
-                .select(`
-                  id,
-                  validation_client,
-                  date_validation,
-                  commentaire
-                `)
-                .eq('id', interventionData.pv_intervention_id)
-                .single();
+            if (!pvError && pvData) {
+              setIntervention(prev => ({
+                ...prev!,
+                pv_interventions: pvData
+              }));
               
-              if (!pvError && pvData) {
-                data.interventions.pv_interventions = pvData;
-                
-                if (pvData.commentaire) {
-                  setFeedback(pvData.commentaire);
-                }
+              if (pvData.commentaire) {
+                setFeedback(pvData.commentaire);
               }
             }
-            
-            // Récupérer les équipes associées à l'intervention
-            const { data: equipesData, error: equipesError } = await supabase
-              .from('intervention_equipes')
-              .select(`
-                equipe_id,
-                equipes:equipe_id (
-                  id,
-                  nom,
-                  specialisation
-                )
-              `)
-              .eq('intervention_id', data.intervention_id);
-            
-            if (!equipesError && equipesData) {
-              data.interventions.intervention_equipes = equipesData;
-            }
+          }
+          
+          // Récupérer les équipes associées à l'intervention
+          const { data: equipesData, error: equipesError } = await supabase
+            .from('intervention_equipes')
+            .select(`
+              equipe_id,
+              equipes:equipe_id (
+                id,
+                nom,
+                specialisation
+              )
+            `)
+            .eq('intervention_id', demandeData.intervention_id);
+          
+          if (!equipesError && equipesData) {
+            setIntervention(prev => ({
+              ...prev!,
+              intervention_equipes: equipesData
+            }));
           }
         }
-        
-        setIntervention(data);
       } catch (error) {
         console.error("Erreur lors du chargement de l'intervention:", error);
         toast({
@@ -157,7 +204,7 @@ const InterventionDetails = () => {
     try {
       setSubmitting(true);
       
-      if (!intervention?.interventions?.pv_intervention_id) {
+      if (!intervention?.pv_intervention_id) {
         toast({
           variant: "destructive",
           title: "Erreur",
@@ -174,51 +221,101 @@ const InterventionDetails = () => {
           date_validation: new Date().toISOString(),
           commentaire: feedback
         })
-        .eq('id', intervention.interventions.pv_intervention_id);
+        .eq('id', intervention.pv_intervention_id);
         
       if (error) throw error;
       
       // Recharger les données
-      const { data: updatedData, error: fetchError } = await supabase
-        .from('demande_interventions')
-        .select(`
-          id,
-          description,
-          date_demande,
-          urgence,
-          statut,
-          intervention_id,
-          client_id,
-          interventions:intervention_id (
-            id,
-            date_debut,
-            date_fin,
-            rapport,
-            statut,
-            localisation,
-            pv_intervention_id,
-            intervention_equipes:intervention_equipes (
-              equipe_id,
-              equipes:equipes (
-                id,
-                nom,
-                specialisation
-              )
-            ),
-            pv_interventions:pv_intervention_id (
+      const fetchInterventionDetails = async () => {
+        try {
+          if (!id) return;
+          
+          // Récupérer les détails de la demande d'intervention
+          const { data: demandeData } = await supabase
+            .from('demande_interventions')
+            .select(`
               id,
-              validation_client,
-              date_validation,
-              commentaire
-            )
-          )
-        `)
-        .eq('id', id)
-        .single();
-        
-      if (fetchError) throw fetchError;
+              description,
+              date_demande,
+              urgence,
+              statut,
+              intervention_id,
+              client_id
+            `)
+            .eq('id', id)
+            .single();
+          
+          setDemande(demandeData);
+          
+          // Si une intervention est associée, récupérer ses détails
+          if (demandeData?.intervention_id) {
+            const { data: interventionData } = await supabase
+              .from('interventions')
+              .select(`
+                id,
+                date_debut,
+                date_fin,
+                rapport,
+                statut,
+                localisation,
+                pv_intervention_id
+              `)
+              .eq('id', demandeData.intervention_id)
+              .single();
+            
+            setIntervention(interventionData);
+            
+            // Si un PV est associé, récupérer ses détails
+            if (interventionData?.pv_intervention_id) {
+              const { data: pvData } = await supabase
+                .from('pv_interventions')
+                .select(`
+                  id,
+                  validation_client,
+                  date_validation,
+                  commentaire
+                `)
+                .eq('id', interventionData.pv_intervention_id)
+                .single();
+              
+              if (pvData) {
+                setIntervention(prev => ({
+                  ...prev!,
+                  pv_interventions: pvData
+                }));
+                
+                if (pvData.commentaire) {
+                  setFeedback(pvData.commentaire);
+                }
+              }
+            }
+            
+            // Récupérer les équipes associées à l'intervention
+            const { data: equipesData } = await supabase
+              .from('intervention_equipes')
+              .select(`
+                equipe_id,
+                equipes:equipe_id (
+                  id,
+                  nom,
+                  specialisation
+                )
+              `)
+              .eq('intervention_id', demandeData.intervention_id);
+            
+            if (equipesData) {
+              setIntervention(prev => ({
+                ...prev!,
+                intervention_equipes: equipesData
+              }));
+            }
+          }
+        } catch (error) {
+          console.error("Erreur lors du rechargement des données:", error);
+        }
+      };
       
-      setIntervention(updatedData);
+      await fetchInterventionDetails();
       
       toast({
         title: validate ? "Intervention validée" : "Intervention rejetée",
@@ -267,7 +364,7 @@ const InterventionDetails = () => {
     );
   }
 
-  if (!intervention) {
+  if (!demande) {
     return (
       <ClientLayout>
         <div className="container mx-auto py-8 px-4">
@@ -305,10 +402,10 @@ const InterventionDetails = () => {
                 <div className="flex flex-col md:flex-row md:items-center md:justify-between">
                   <div>
                     <CardTitle>
-                      Récapitulatif d'intervention #{intervention.id.substring(0, 8).toUpperCase()}
+                      Récapitulatif d'intervention #{demande.id.substring(0, 8).toUpperCase()}
                     </CardTitle>
                     <CardDescription>
-                      Demande du {format(new Date(intervention.date_demande), "dd MMMM yyyy", { locale: fr })}
+                      Demande du {format(new Date(demande.date_demande), "dd MMMM yyyy", { locale: fr })}
                     </CardDescription>
                   </div>
                   <div className="mt-4 md:mt-0 print:hidden">
@@ -327,19 +424,19 @@ const InterventionDetails = () => {
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Statut de la demande</h3>
                   <div className="flex flex-wrap gap-2">
-                    <InterventionStatusBadge status={intervention.statut} className="text-base" />
-                    <PriorityBadge priority={intervention.urgence} className="text-base" />
+                    <InterventionStatusBadge status={demande.statut} className="text-base" />
+                    <PriorityBadge priority={demande.urgence} className="text-base" />
                   </div>
                 </div>
                 
                 <div className="mb-6">
                   <h3 className="text-lg font-semibold mb-2">Description de la demande</h3>
                   <div className="bg-muted p-4 rounded-md">
-                    <p>{intervention.description}</p>
+                    <p>{demande.description}</p>
                   </div>
                 </div>
                 
-                {intervention.intervention_id && (
+                {intervention && (
                   <>
                     <Separator className="my-6" />
                     
@@ -352,7 +449,7 @@ const InterventionDetails = () => {
                           <div>
                             <p className="font-medium">Date de début</p>
                             <p className="text-muted-foreground">
-                              {formatDate(intervention.interventions.date_debut)}
+                              {formatDate(intervention.date_debut)}
                             </p>
                           </div>
                         </div>
@@ -361,7 +458,7 @@ const InterventionDetails = () => {
                           <div>
                             <p className="font-medium">Date de fin</p>
                             <p className="text-muted-foreground">
-                              {formatDate(intervention.interventions.date_fin)}
+                              {formatDate(intervention.date_fin)}
                             </p>
                           </div>
                         </div>
@@ -370,7 +467,7 @@ const InterventionDetails = () => {
                           <div>
                             <p className="font-medium">Localisation</p>
                             <p className="text-muted-foreground">
-                              {intervention.interventions.localisation || "Non spécifiée"}
+                              {intervention.localisation || "Non spécifiée"}
                             </p>
                           </div>
                         </div>
@@ -379,28 +476,28 @@ const InterventionDetails = () => {
                           <div>
                             <p className="font-medium">Statut de l'intervention</p>
                             <div className="mt-1">
-                              <InterventionStatusBadge status={intervention.interventions.statut} />
+                              <InterventionStatusBadge status={intervention.statut} />
                             </div>
                           </div>
                         </div>
                       </div>
                       
-                      {intervention.interventions.rapport && (
+                      {intervention.rapport && (
                         <div className="mt-6">
                           <h4 className="font-medium mb-2">Rapport d'intervention</h4>
                           <div className="bg-muted p-4 rounded-md">
-                            <p className="whitespace-pre-line">{intervention.interventions.rapport}</p>
+                            <p className="whitespace-pre-line">{intervention.rapport}</p>
                           </div>
                         </div>
                       )}
                       
                       {/* Informations d'équipe */}
-                      {intervention.interventions.intervention_equipes && 
-                       intervention.interventions.intervention_equipes.length > 0 && (
+                      {intervention.intervention_equipes && 
+                       intervention.intervention_equipes.length > 0 && (
                         <div className="mt-6">
                           <h4 className="font-medium mb-2">Équipe(s) technique(s)</h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {intervention.interventions.intervention_equipes.map((item: any) => (
+                            {intervention.intervention_equipes.map((item) => (
                               <div key={item.equipe_id} className="flex items-center border rounded-md p-3">
                                 <User className="w-8 h-8 text-primary mr-3" />
                                 <div>
@@ -420,8 +517,8 @@ const InterventionDetails = () => {
               </CardContent>
             </Card>
             
-            {intervention.intervention_id && 
-             intervention.interventions.statut === "terminée" && (
+            {intervention && 
+             intervention.statut === "terminée" && (
               <Card className="print:hidden">
                 <CardHeader>
                   <CardTitle>Validation de l'intervention</CardTitle>
@@ -438,11 +535,11 @@ const InterventionDetails = () => {
                         className="min-h-[120px]"
                         value={feedback}
                         onChange={(e) => setFeedback(e.target.value)}
-                        disabled={intervention.interventions.pv_interventions?.validation_client !== null}
+                        disabled={intervention.pv_interventions?.validation_client !== null}
                       />
                     </div>
                     
-                    {intervention.interventions.pv_interventions?.validation_client === null ? (
+                    {intervention.pv_interventions?.validation_client === null ? (
                       <div className="flex flex-col sm:flex-row gap-3 pt-2">
                         <Button 
                           onClick={() => handleValidateIntervention(true)} 
@@ -465,21 +562,21 @@ const InterventionDetails = () => {
                     ) : (
                       <div className="flex items-center justify-between p-4 border rounded-md">
                         <div className="flex items-center">
-                          {intervention.interventions.pv_interventions?.validation_client ? (
+                          {intervention.pv_interventions?.validation_client ? (
                             <Check className="h-5 w-5 text-green-500 mr-2" />
                           ) : (
                             <X className="h-5 w-5 text-red-500 mr-2" />
                           )}
                           <div>
                             <p className="font-medium">
-                              {intervention.interventions.pv_interventions?.validation_client 
+                              {intervention.pv_interventions?.validation_client 
                                 ? "Intervention validée" 
                                 : "Problème signalé"
                               }
                             </p>
                             <p className="text-xs text-muted-foreground">
                               Le {format(
-                                new Date(intervention.interventions.pv_interventions?.date_validation),
+                                new Date(intervention.pv_interventions?.date_validation || ''),
                                 "dd/MM/yyyy à HH:mm",
                                 { locale: fr }
                               )}
@@ -502,44 +599,44 @@ const InterventionDetails = () => {
               <CardContent className="space-y-4">
                 <div>
                   <p className="text-sm font-medium">Numéro d'intervention</p>
-                  <p className="text-lg">#{intervention.id.substring(0, 8).toUpperCase()}</p>
+                  <p className="text-lg">#{demande.id.substring(0, 8).toUpperCase()}</p>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm font-medium">Date de la demande</p>
-                  <p>{format(new Date(intervention.date_demande), "dd/MM/yyyy", { locale: fr })}</p>
+                  <p>{format(new Date(demande.date_demande), "dd/MM/yyyy", { locale: fr })}</p>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm font-medium">Niveau d'urgence</p>
                   <div className="mt-1">
-                    <PriorityBadge priority={intervention.urgence} />
+                    <PriorityBadge priority={demande.urgence} />
                   </div>
                 </div>
                 <Separator />
                 <div>
                   <p className="text-sm font-medium">Statut actuel</p>
                   <div className="mt-1">
-                    {intervention.intervention_id ? (
-                      <InterventionStatusBadge status={intervention.interventions.statut} />
-                    ) : (
+                    {intervention ? (
                       <InterventionStatusBadge status={intervention.statut} />
+                    ) : (
+                      <InterventionStatusBadge status={demande.statut} />
                     )}
                   </div>
                 </div>
-                {intervention.intervention_id && intervention.interventions.date_debut && (
+                {intervention && intervention.date_debut && (
                   <>
                     <Separator />
                     <div>
                       <p className="text-sm font-medium">Date programmée</p>
-                      <p>{format(new Date(intervention.interventions.date_debut), "dd/MM/yyyy", { locale: fr })}</p>
+                      <p>{format(new Date(intervention.date_debut), "dd/MM/yyyy", { locale: fr })}</p>
                     </div>
                   </>
                 )}
               </CardContent>
               <CardFooter className="flex flex-col gap-3">
                 <Button variant="outline" className="w-full" asChild>
-                  <a href={`mailto:support@gestint.com?subject=Question sur l'intervention #${intervention.id.substring(0, 8).toUpperCase()}`}>
+                  <a href={`mailto:support@gestint.com?subject=Question sur l'intervention #${demande.id.substring(0, 8).toUpperCase()}`}>
                     <MessageSquare className="mr-2 h-4 w-4" />
                     Contacter le support
                   </a>
