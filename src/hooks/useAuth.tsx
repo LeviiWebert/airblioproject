@@ -25,7 +25,11 @@ export function useAuth() {
         .eq('role', 'admin')
         .maybeSingle();
 
-      if (!adminError && adminData) {
+      if (adminError) {
+        console.error("Erreur lors de la vérification du rôle admin:", adminError);
+      }
+
+      if (adminData) {
         console.log("Utilisateur identifié comme admin");
         return "admin";
       }
@@ -37,7 +41,11 @@ export function useAuth() {
         .eq('id', userId)
         .maybeSingle();
 
-      if (!clientError && clientData) {
+      if (clientError) {
+        console.error("Erreur lors de la vérification du rôle client:", clientError);
+      }
+
+      if (clientData) {
         console.log("Utilisateur identifié comme client");
         return "client";
       }
@@ -92,6 +100,7 @@ export function useAuth() {
         
         if (session?.user?.id) {
           const type = await checkUserType(session.user.id);
+          console.log("Type d'utilisateur détecté à l'initialisation:", type);
           setUserType(type);
         }
       } catch (error) {
@@ -149,6 +158,8 @@ export function useAuth() {
         if (type === "admin") {
           // Les administrateurs sont toujours redirigés vers le dashboard admin
           navigate("/admin", { replace: true });
+        } else if (type === "client") {
+          navigate("/client-dashboard", { replace: true });
         }
         
         return type;
@@ -220,8 +231,7 @@ export function useAuth() {
             toast.error("Profil client partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         } else if (userType === "admin") {
-          // Utiliser la fonction RPC pour créer l'utilisateur administrateur
-          // Cette méthode contourne les limitations RLS grâce à la politique que nous avons ajoutée
+          // Créer le profil administrateur
           const { error: adminError } = await supabase
             .from('utilisateurs')
             .insert([
@@ -232,15 +242,27 @@ export function useAuth() {
             console.error("Erreur lors de la création du profil admin:", adminError);
             console.error("Détails de l'erreur:", adminError.details, adminError.hint, adminError.message);
             // Ne pas annuler l'inscription, informer l'utilisateur uniquement
-            toast.error("Profil administrateur partiellement créé. Veuillez contacter le support pour compléter votre profil.");
+            toast.error("Profil administrateur partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         }
       }
 
       // Gérer le retour selon la configuration de Supabase
       if (data.session) {
+        // Force check le type d'utilisateur après création
+        const type = await checkUserType(data.user!.id);
+        setUserType(type);
+        
         toast.success("Inscription réussie! Vous êtes maintenant connecté.");
-        return userType;
+        
+        // Redirection automatique selon le type d'utilisateur
+        if (type === "admin") {
+          navigate("/admin", { replace: true });
+        } else if (type === "client") {
+          navigate("/client-dashboard", { replace: true });
+        }
+        
+        return type;
       } else {
         toast.success("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
         return null;
