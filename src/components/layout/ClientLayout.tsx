@@ -31,6 +31,7 @@ interface ClientLayoutProps {
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userName, setUserName] = useState<string>("");
+  const [isLoading, setIsLoading] = useState(true);
   const navigate = useNavigate();
   
   const toggleSidebar = () => {
@@ -40,30 +41,49 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté et est bien un client
     const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      if (!data.session) {
-        console.log("Aucune session trouvée. Redirection vers /auth");
+      setIsLoading(true);
+      try {
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session) {
+          console.log("Aucune session trouvée. Redirection vers /auth");
+          navigate('/auth');
+          return;
+        }
+        
+        const userId = data.session.user.id;
+        
+        // Vérifier si l'utilisateur existe dans la table clients
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', userId);
+        
+        if (clientError) {
+          console.error("Erreur lors de la vérification du client:", clientError);
+          throw new Error(clientError.message);
+        }
+        
+        // Si l'utilisateur n'est pas trouvé dans la table clients, le rediriger
+        if (!clientData || clientData.length === 0) {
+          console.log("L'utilisateur n'est pas un client. Redirection vers /auth");
+          toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
+          await supabase.auth.signOut();
+          navigate('/auth');
+          return;
+        }
+        
+        // Récupérer le nom de l'utilisateur si disponible
+        setUserName(clientData[0]?.nom_entreprise || data.session.user.email || "Client");
+        
+        console.log("Client authentifié avec succès:", clientData[0]);
+      } catch (error: any) {
+        console.error("Erreur d'authentification:", error);
+        toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
         navigate('/auth');
-        return;
+      } finally {
+        setIsLoading(false);
       }
-      
-      // Vérifier le type d'utilisateur
-      const userMetadata = data.session.user.user_metadata;
-      const userType = userMetadata?.user_type || null;
-      
-      console.log("Type d'utilisateur:", userType);
-      
-      if (userType !== "client") {
-        console.log("L'utilisateur n'est pas un client. Redirection vers /auth");
-        toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
-        await supabase.auth.signOut();
-        navigate('/auth');
-        return;
-      }
-      
-      // Récupérer le nom de l'utilisateur si disponible
-      setUserName(data.session.user.email || "Client");
     };
 
     checkAuth();
@@ -79,6 +99,14 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
       toast.error("Erreur lors de la déconnexion");
     }
   };
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">

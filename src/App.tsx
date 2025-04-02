@@ -35,27 +35,65 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const checkUserType = async (userId: string) => {
+      try {
+        // Vérifier d'abord si l'utilisateur est un client
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (clientData) {
+          console.log("Utilisateur identifié comme client");
+          return "client";
+        }
+
+        // Si ce n'est pas un client, vérifier s'il est un admin
+        const { data: adminData } = await supabase
+          .from('utilisateurs')
+          .select('role')
+          .eq('id', userId)
+          .eq('role', 'admin')
+          .single();
+
+        if (adminData) {
+          console.log("Utilisateur identifié comme admin");
+          return "admin";
+        }
+
+        // Si l'utilisateur n'est ni client ni admin
+        console.log("Utilisateur sans rôle spécifique");
+        return null;
+      } catch (error) {
+        console.error("Erreur lors de la vérification du type d'utilisateur:", error);
+        return null;
+      }
+    };
+
     // Récupérer la session existante
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
       console.log("Session initiale:", session);
       setSession(session);
       
-      if (session?.user?.user_metadata) {
-        const type = session.user.user_metadata.user_type || null;
-        console.log("Type d'utilisateur:", type);
+      if (session?.user?.id) {
+        const type = await checkUserType(session.user.id);
+        console.log("Type d'utilisateur déterminé:", type);
         setUserType(type);
+      } else {
+        setUserType(null);
       }
       
       setLoading(false);
     });
 
     // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
       console.log("Changement d'état d'authentification:", _event);
       setSession(session);
       
-      if (session?.user?.user_metadata) {
-        const type = session.user.user_metadata.user_type || null;
+      if (session?.user?.id) {
+        const type = await checkUserType(session.user.id);
         console.log("Nouveau type d'utilisateur:", type);
         setUserType(type);
       } else {
@@ -67,7 +105,11 @@ const App = () => {
   }, []);
 
   if (loading) {
-    return <div>Chargement...</div>;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+      </div>
+    );
   }
 
   return (
@@ -81,14 +123,18 @@ const App = () => {
             <Route path="/" element={<LandingPage />} />
             <Route path="/auth" element={
               session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/client-dashboard" />
+                userType === "admin" ? <Navigate to="/admin" /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                <Auth />
               ) : (
                 <Auth />
               )
             } />
             <Route path="/login" element={
               session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/client-dashboard" />
+                userType === "admin" ? <Navigate to="/admin" /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                <Login />
               ) : (
                 <Login />
               )
@@ -113,7 +159,7 @@ const App = () => {
                   <Dashboard />
                 </BackOfficeLayout>
               ) : (
-                session && userType !== "admin" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/admin/interventions" element={
@@ -122,7 +168,7 @@ const App = () => {
                   <InterventionsPage />
                 </BackOfficeLayout>
               ) : (
-                session && userType !== "admin" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/admin/interventions/requests" element={
@@ -131,7 +177,7 @@ const App = () => {
                   <InterventionRequests />
                 </BackOfficeLayout>
               ) : (
-                session && userType !== "admin" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             
@@ -142,7 +188,7 @@ const App = () => {
                   <ClientDashboard />
                 </ClientLayout>
               ) : (
-                session && userType !== "client" ? <Navigate to="/admin" /> : <Navigate to="/auth" />
+                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/client/profile" element={
@@ -187,7 +233,9 @@ const App = () => {
             {/* Pour compatibilité avec l'ancienne structure */}
             <Route path="/dashboard" element={
               session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/client-dashboard" />
+                userType === "admin" ? <Navigate to="/admin" /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                <Navigate to="/auth" />
               ) : (
                 <Navigate to="/auth" />
               )
