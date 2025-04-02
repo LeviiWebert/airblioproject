@@ -96,7 +96,7 @@ export function useClientAuth() {
     };
     
     // Configurer l'écouteur de changement d'authentification
-    authSubscription = supabase.auth.onAuthStateChange(async (event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
       console.log("Event d'authentification:", event);
       
       if (!session) {
@@ -108,6 +108,9 @@ export function useClientAuth() {
 
       await checkClientRole(session.user.id);
     });
+    
+    // Assigner correctement l'abonnement pour pouvoir se désabonner plus tard
+    authSubscription = { unsubscribe: () => subscription.unsubscribe() };
     
     // Vérification initiale de l'authentification
     checkAuth();
