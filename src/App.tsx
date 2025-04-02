@@ -1,3 +1,4 @@
+
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -13,7 +14,6 @@ import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
 import Login from "./pages/Login";
 import LandingPage from "./pages/LandingPage";
-import Auth from "./pages/Auth";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import Contact from "./pages/Contact";
 import RequestIntervention from "./pages/intervention/RequestIntervention";
@@ -70,7 +70,7 @@ const App = () => {
       }
     };
 
-    // Configurer l'écouteur des changements d'authentification avant de vérifier la session
+    // Configurer l'écouteur des changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       console.log("Changement d'état d'authentification:", _event);
       setSession(newSession);
@@ -135,15 +135,7 @@ const App = () => {
               )
             } />
             
-            <Route path="/auth" element={
-              session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <Auth />
-              ) : (
-                <Auth />
-              )
-            } />
+            {/* Page de login unifiée */}
             <Route path="/login" element={
               session ? (
                 userType === "admin" ? <Navigate to="/admin" /> : 
@@ -157,13 +149,13 @@ const App = () => {
             
             {/* Routes de demande d'intervention */}
             <Route path="/intervention/request" element={
-              session ? <RequestIntervention /> : <Navigate to="/auth" />
+              session ? <RequestIntervention /> : <Navigate to="/login" />
             } />
             <Route path="/intervention/details" element={
-              session ? <InterventionDetails /> : <Navigate to="/auth" />
+              session ? <InterventionDetails /> : <Navigate to="/login" />
             } />
             <Route path="/intervention/schedule" element={
-              session ? <InterventionSchedule /> : <Navigate to="/auth" />
+              session ? <InterventionSchedule /> : <Navigate to="/login" />
             } />
             
             {/* Routes du back-office (admin) */}
@@ -173,7 +165,7 @@ const App = () => {
                   <Dashboard />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
               )
             } />
             <Route path="/admin/interventions" element={
@@ -182,7 +174,7 @@ const App = () => {
                   <InterventionsPage />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
               )
             } />
             <Route path="/admin/interventions/requests" element={
@@ -191,7 +183,7 @@ const App = () => {
                   <InterventionRequests />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
               )
             } />
             
@@ -202,7 +194,7 @@ const App = () => {
                   <ClientDashboard />
                 </ClientLayout>
               ) : (
-                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/auth" />
+                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/login" />
               )
             } />
             <Route path="/client/profile" element={
@@ -211,7 +203,7 @@ const App = () => {
                   <ClientProfile />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               )
             } />
             <Route path="/client/interventions" element={
@@ -220,7 +212,7 @@ const App = () => {
                   <ClientInterventionsList />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               )
             } />
             <Route path="/client/intervention/:id" element={
@@ -229,7 +221,7 @@ const App = () => {
                   <ClientInterventionDetails />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               )
             } />
             
@@ -240,7 +232,7 @@ const App = () => {
                   <InterventionRecap />
                 </ClientLayout>
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               )
             } />
             
@@ -249,9 +241,9 @@ const App = () => {
               session ? (
                 userType === "admin" ? <Navigate to="/admin" /> : 
                 userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               ) : (
-                <Navigate to="/auth" />
+                <Navigate to="/login" />
               )
             } />
             
