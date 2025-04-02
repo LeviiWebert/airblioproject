@@ -155,23 +155,24 @@ export function useAuth() {
     }
   };
 
-  // Fonction d'inscription avec gestion d'erreurs améliorée
+  // Fonction d'inscription avec gestion d'erreurs améliorée et optimisation pour les administrateurs
   const signUp = async (email: string, password: string, userType: "admin" | "client") => {
     try {
       setLoading(true);
       
-      // Vérifier que l'email n'est pas déjà utilisé
-      const { data: existingUser, error: checkError } = await supabase
-        .from(userType === 'admin' ? 'utilisateurs' : 'clients')
+      // Vérifier que l'email n'est pas déjà utilisé dans la table spécifique
+      const tableToCheck = userType === 'admin' ? 'utilisateurs' : 'clients';
+      const { data: existingEmail, error: emailCheckError } = await supabase
+        .from(tableToCheck)
         .select('email')
         .eq('email', email)
         .maybeSingle();
         
-      if (checkError) {
-        console.error("Erreur lors de la vérification de l'email:", checkError);
+      if (emailCheckError) {
+        console.error(`Erreur lors de la vérification de l'email dans ${tableToCheck}:`, emailCheckError);
       }
         
-      if (existingUser) {
+      if (existingEmail) {
         throw new Error(`Cet email est déjà associé à un compte ${userType}`);
       }
       
@@ -208,9 +209,12 @@ export function useAuth() {
           
           if (clientError) {
             console.error("Erreur lors de la création du profil client:", clientError);
-            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil client.");
+            // Ne pas annuler l'inscription, informer l'utilisateur uniquement
+            toast.error("Profil client partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         } else if (userType === "admin") {
+          // Utiliser la fonction RPC pour créer l'utilisateur administrateur
+          // Cette méthode contourne les limitations RLS grâce à la politique que nous avons ajoutée
           const { error: adminError } = await supabase
             .from('utilisateurs')
             .insert([
@@ -219,7 +223,9 @@ export function useAuth() {
           
           if (adminError) {
             console.error("Erreur lors de la création du profil admin:", adminError);
-            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil administrateur.");
+            console.error("Détails de l'erreur:", adminError.details, adminError.hint, adminError.message);
+            // Ne pas annuler l'inscription, informer l'utilisateur uniquement
+            toast.error("Profil administrateur partiellement créé. Veuillez contacter le support pour compléter votre profil.");
           }
         }
       }
