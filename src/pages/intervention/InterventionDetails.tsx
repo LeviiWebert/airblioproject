@@ -4,12 +4,13 @@ import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { useNavigate, Link } from "react-router-dom";
-import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { SmallLoading } from "@/components/ui/loading";
+import { toast } from "sonner";
 
 const detailsSchema = z.object({
   email: z.string().email({ message: "Veuillez entrer une adresse e-mail valide." }),
@@ -23,9 +24,9 @@ type DetailsValues = z.infer<typeof detailsSchema>;
 
 const InterventionDetails = () => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [step1Data, setStep1Data] = useState<any>(null);
+  const [authChecked, setAuthChecked] = useState(false);
 
   const form = useForm<DetailsValues>({
     resolver: zodResolver(detailsSchema),
@@ -40,11 +41,19 @@ const InterventionDetails = () => {
 
   useEffect(() => {
     // Vérifier si l'utilisateur est authentifié
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth", { state: { returnTo: "/intervention/request" } });
-      } else {
-        setSession(session);
+    const checkAuth = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!session) {
+          navigate("/auth", { state: { returnTo: "/intervention/request" } });
+          return;
+        }
+        
+        // Préremplir l'e-mail s'il est disponible
+        if (session.user?.email) {
+          form.setValue("email", session.user.email);
+        }
         
         // Récupérer les données de l'étape 1
         const storedData = sessionStorage.getItem("interventionStep1");
@@ -52,18 +61,21 @@ const InterventionDetails = () => {
           setStep1Data(JSON.parse(storedData));
         } else {
           navigate("/intervention/request");
+          return;
         }
         
-        // Préremplir l'e-mail s'il est disponible
-        if (session.user?.email) {
-          form.setValue("email", session.user.email);
-        }
+        setAuthChecked(true);
+      } catch (error) {
+        console.error("Erreur de vérification de l'authentification:", error);
+        toast.error("Erreur lors de la vérification de votre session");
+        navigate("/auth");
       }
-    });
+    };
+
+    checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
+      (event, session) => {
         if (!session) {
           navigate("/auth", { state: { returnTo: "/intervention/request" } });
         }
@@ -89,6 +101,17 @@ const InterventionDetails = () => {
     navigate("/intervention/schedule");
     setIsLoading(false);
   };
+
+  // Show loading only during initial auth check
+  if (!authChecked) {
+    return (
+      <div className="min-h-screen flex flex-col">
+        <div className="flex-grow flex items-center justify-center">
+          <SmallLoading />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex flex-col">

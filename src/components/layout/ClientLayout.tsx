@@ -5,6 +5,7 @@ import { ClientHeader } from "./client/ClientHeader";
 import { ClientSidebar } from "./client/ClientSidebar";
 import { Loading } from "@/components/ui/loading";
 import { useClientAuth } from "@/hooks/useClientAuth";
+import { useNavigate } from "react-router-dom";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -12,13 +13,15 @@ interface ClientLayoutProps {
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { userName, isLoading, handleLogout } = useClientAuth();
-  
+  const { userName, isLoading, isAuthChecked, handleLogout } = useClientAuth();
+  const navigate = useNavigate();
+
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
-  if (isLoading) {
+  // Only show loading during initial auth check
+  if (isLoading && !isAuthChecked) {
     return <Loading />;
   }
 

@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 export function useClientAuth() {
   const [userName, setUserName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
+  const [isAuthChecked, setIsAuthChecked] = useState(false);
   const navigate = useNavigate();
   
   useEffect(() => {
@@ -18,6 +19,8 @@ export function useClientAuth() {
         if (!data.session) {
           console.log("Aucune session trouvée. Redirection vers /auth");
           navigate('/auth');
+          setIsLoading(false);
+          setIsAuthChecked(true);
           return;
         }
         
@@ -33,6 +36,8 @@ export function useClientAuth() {
           console.error("Erreur lors de la vérification du client:", clientError);
           await supabase.auth.signOut();
           navigate('/auth');
+          setIsLoading(false);
+          setIsAuthChecked(true);
           return;
         }
         
@@ -42,18 +47,22 @@ export function useClientAuth() {
           toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
           await supabase.auth.signOut();
           navigate('/auth');
+          setIsLoading(false);
+          setIsAuthChecked(true);
           return;
         }
         
         // Récupérer le nom de l'utilisateur si disponible
         setUserName(clientData[0]?.nom_entreprise || data.session.user.email || "Client");
         setIsLoading(false);
+        setIsAuthChecked(true);
         
         console.log("Client authentifié avec succès:", clientData[0]);
       } catch (error: any) {
         console.error("Erreur d'authentification:", error);
         toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
         setIsLoading(false);
+        setIsAuthChecked(true);
         navigate('/auth');
       }
     };
@@ -75,6 +84,7 @@ export function useClientAuth() {
   return {
     userName,
     isLoading,
+    isAuthChecked,
     handleLogout
   };
 }
