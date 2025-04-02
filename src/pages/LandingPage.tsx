@@ -1,4 +1,3 @@
-
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
@@ -12,31 +11,84 @@ const LandingPage = () => {
   const navigate = useNavigate();
 
   useEffect(() => {
+    let mounted = true;
+    
+    const checkUserType = async (userId: string) => {
+      try {
+        // Vérifier d'abord si l'utilisateur est un admin
+        const { data: adminData } = await supabase
+          .from('utilisateurs')
+          .select('role')
+          .eq('id', userId)
+          .eq('role', 'admin')
+          .single();
+
+        if (adminData) {
+          return "admin";
+        }
+
+        // Si ce n'est pas un admin, vérifier s'il est un client
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (clientData) {
+          return "client";
+        }
+
+        return null;
+      } catch (error) {
+        console.error("Erreur lors de la vérification du type d'utilisateur:", error);
+        return null;
+      }
+    };
+    
     // Get existing session
-    supabase.auth.getSession().then(({ data: { session } }) => {
+    supabase.auth.getSession().then(async ({ data: { session } }) => {
+      if (!mounted) return;
+      
       setSession(session);
-      setUserType(session?.user?.user_metadata?.user_type || null);
+      
+      if (session?.user?.id) {
+        const type = await checkUserType(session.user.id);
+        setUserType(type);
+      } else {
+        setUserType(null);
+      }
     });
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      if (!mounted) return;
+      
       setSession(session);
-      setUserType(session?.user?.user_metadata?.user_type || null);
+      
+      if (session?.user?.id) {
+        const type = await checkUserType(session.user.id);
+        setUserType(type);
+      } else {
+        setUserType(null);
+      }
     });
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
   const handleLoginClick = () => {
     if (session) {
-      // If already logged in, redirect to appropriate dashboard
+      // Si déjà connecté, rediriger vers le tableau de bord approprié
       if (userType === "admin") {
         navigate("/admin");
       } else if (userType === "client") {
         navigate("/client-dashboard");
       }
     } else {
-      navigate("/login");
+      navigate("/auth");
     }
   };
   
@@ -45,7 +97,7 @@ const LandingPage = () => {
     if (session && userType === "client") {
       navigate("/intervention/request");
     } else {
-      // Sinon rediriger vers l'authentification
+      // Sinon rediriger vers l'authentification avec retour à la page de demande
       navigate("/auth", { state: { returnTo: "/intervention/request" } });
     }
   };

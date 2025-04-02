@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -8,90 +8,54 @@ import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle }
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
-import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
-import { Link } from "react-router-dom";
-import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const Auth = () => {
   const navigate = useNavigate();
+  const location = useLocation();
+  const { signIn, signUp, loading, session, userType, initialized } = useAuth();
+  const returnTo = location.state?.returnTo || '/';
+  
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
-  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [userType, setUserType] = useState<"admin" | "client">("client");
-  const [checkingSession, setCheckingSession] = useState(true);
+  const [userTypeSelection, setUserTypeSelection] = useState<"admin" | "client">("client");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  // Vérifier si l'utilisateur est déjà connecté au chargement de la page
+  // Rediriger si déjà authentifié
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        
-        if (data.session) {
-          const userMetadata = data.session.user.user_metadata;
-          const currentUserType = userMetadata?.user_type || "client";
-          
-          console.log("Session trouvée:", data.session);
-          console.log("Type d'utilisateur:", currentUserType);
-          
-          // Rediriger en fonction du type d'utilisateur
-          if (currentUserType === "admin") {
-            navigate("/admin");
-          } else {
-            navigate("/client-dashboard");
-          }
-        }
-      } catch (error) {
-        console.error("Erreur lors de la vérification de la session:", error);
-      } finally {
-        setCheckingSession(false);
+    if (initialized && session) {
+      if (userType === "admin") {
+        navigate("/admin");
+      } else if (userType === "client") {
+        navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
       }
-    };
-    
-    checkSession();
-  }, [navigate]);
+    }
+  }, [initialized, session, userType, navigate, returnTo]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) throw error;
-
-      if (data.session) {
-        console.log("Connexion réussie:", data.session);
-        
-        // Rediriger en fonction du type d'utilisateur détecté côté serveur
-        // Cela sera géré par les hooks d'authentification selon le profil
-        toast.success(`Connexion réussie`);
-        
-        if (userType === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/client-dashboard");
-        }
+      const resultUserType = await signIn(email, password);
+      
+      // La redirection est gérée dans le useEffect qui observe session et userType
+      if (resultUserType === "admin") {
+        navigate("/admin");
+      } else if (resultUserType === "client") {
+        navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
       }
     } catch (error: any) {
-      console.error("Erreur de connexion:", error);
-      setError(error.message || "Une erreur s'est produite lors de la connexion");
-      toast.error("Échec de la connexion. Veuillez vérifier vos identifiants.");
-    } finally {
-      setLoading(false);
+      // Les erreurs sont gérées par le hook et affichées via toast
+      setError(error.message);
     }
   };
 
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
     setError(null);
     setSuccessMessage(null);
 
@@ -101,74 +65,22 @@ const Auth = () => {
         throw new Error("Le mot de passe doit contenir au moins 6 caractères");
       }
 
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            user_type: userType
-          }
-        }
-      });
-
-      if (error) throw error;
-
-      console.log("Inscription réussie:", data);
+      const resultUserType = await signUp(email, password, userTypeSelection);
       
-      // Après l'inscription, nous devons créer un enregistrement dans la table client ou utilisateurs
-      if (userType === "client") {
-        // Créer un enregistrement dans la table clients
-        if (data.user) {
-          const { error: clientError } = await supabase
-            .from('clients')
-            .insert([
-              { id: data.user.id, email: email, nom_entreprise: email.split('@')[0] }
-            ]);
-          
-          if (clientError) {
-            console.error("Erreur lors de la création du profil client:", clientError);
-            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil client. Veuillez contacter l'administrateur.");
-          }
-        }
-      } else if (userType === "admin") {
-        // Créer un enregistrement dans la table utilisateurs avec le rôle admin
-        if (data.user) {
-          const { error: adminError } = await supabase
-            .from('utilisateurs')
-            .insert([
-              { id: data.user.id, email: email, nom: email.split('@')[0], role: 'admin' }
-            ]);
-          
-          if (adminError) {
-            console.error("Erreur lors de la création du profil admin:", adminError);
-            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil administrateur. Veuillez contacter l'administrateur du système.");
-          }
-        }
-      }
-
-      // Si Supabase confirme l'email est désactivé
-      if (data.session) {
-        toast.success("Inscription réussie! Vous êtes maintenant connecté.");
-        if (userType === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/client-dashboard");
-        }
+      if (resultUserType) {
+        // Si l'inscription crée immédiatement une session (email confirmation désactivé)
+        navigate(resultUserType === "admin" ? "/admin" : "/client-dashboard");
       } else {
-        // Si Supabase confirme l'email est activé
+        // Si l'inscription nécessite une confirmation par email
         setSuccessMessage("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
-        toast.success("Vérifiez votre email pour confirmer votre inscription.");
       }
     } catch (error: any) {
-      console.error("Erreur d'inscription:", error);
-      setError(error.message || "Une erreur s'est produite lors de l'inscription");
-      toast.error(error.message || "Erreur lors de l'inscription");
-    } finally {
-      setLoading(false);
+      setError(error.message);
     }
   };
 
-  if (checkingSession) {
+  // Afficher le spinner pendant le chargement initial
+  if (!initialized && loading) {
     return (
       <div className="flex min-h-screen items-center justify-center">
         <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
@@ -212,8 +124,8 @@ const Auth = () => {
                   <div className="space-y-2">
                     <Label htmlFor="userType">Se connecter en tant que</Label>
                     <RadioGroup 
-                      value={userType} 
-                      onValueChange={(value) => setUserType(value as "admin" | "client")}
+                      value={userTypeSelection} 
+                      onValueChange={(value) => setUserTypeSelection(value as "admin" | "client")}
                       className="flex space-x-4"
                     >
                       <div className="flex items-center space-x-2">
@@ -236,6 +148,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={loading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -251,12 +164,18 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      disabled={loading}
                     />
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Connexion en cours..." : "Se connecter"}
+                    {loading ? (
+                      <><span className="mr-2">Connexion en cours</span>
+                      <span className="animate-pulse">...</span></>
+                    ) : (
+                      "Se connecter"
+                    )}
                   </Button>
                 </CardFooter>
               </form>
@@ -289,8 +208,8 @@ const Auth = () => {
                   <div className="space-y-2">
                     <Label htmlFor="userTypeRegister">S'inscrire en tant que</Label>
                     <RadioGroup 
-                      value={userType} 
-                      onValueChange={(value) => setUserType(value as "admin" | "client")}
+                      value={userTypeSelection} 
+                      onValueChange={(value) => setUserTypeSelection(value as "admin" | "client")}
                       className="flex space-x-4"
                     >
                       <div className="flex items-center space-x-2">
@@ -313,6 +232,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
+                      disabled={loading}
                     />
                   </div>
                   <div className="space-y-2">
@@ -324,13 +244,19 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
+                      disabled={loading}
                     />
                     <p className="text-xs text-gray-500">Le mot de passe doit contenir au moins 6 caractères</p>
                   </div>
                 </CardContent>
                 <CardFooter>
                   <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? "Inscription en cours..." : "S'inscrire"}
+                    {loading ? (
+                      <><span className="mr-2">Inscription en cours</span>
+                      <span className="animate-pulse">...</span></>
+                    ) : (
+                      "S'inscrire"
+                    )}
                   </Button>
                 </CardFooter>
               </form>

@@ -12,10 +12,10 @@ import InterventionsPage from "./pages/InterventionsPage";
 import InterventionRequests from "./pages/InterventionRequests";
 import NotFound from "./pages/NotFound";
 import { useEffect, useState } from "react";
-import Login from "./pages/Login";
 import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import Contact from "./pages/Contact";
+import Auth from "./pages/Auth";
 import RequestIntervention from "./pages/intervention/RequestIntervention";
 import InterventionDetails from "./pages/intervention/InterventionDetails";
 import InterventionSchedule from "./pages/intervention/InterventionSchedule";
@@ -26,7 +26,16 @@ import ClientInterventionDetails from "./pages/client/InterventionDetails";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
-const queryClient = new QueryClient();
+// Suppression de la référence à Login.tsx, car nous utilisons Auth.tsx pour toute l'authentification
+
+const queryClient = new QueryClient({
+  defaultOptions: {
+    queries: {
+      retry: 1,
+      staleTime: 30000,
+    },
+  },
+});
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -34,6 +43,8 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    let mounted = true;
+    
     const checkUserType = async (userId: string) => {
       try {
         // Vérifier d'abord si l'utilisateur est un admin
@@ -73,39 +84,57 @@ const App = () => {
     // Configurer l'écouteur des changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
       console.log("Changement d'état d'authentification:", _event);
+      
+      if (!mounted) return;
+      
       setSession(newSession);
       
       if (newSession?.user?.id) {
-        const type = await checkUserType(newSession.user.id);
-        console.log("Nouveau type d'utilisateur:", type);
-        setUserType(type);
+        // Utiliser setTimeout pour éviter les problèmes potentiels d'auth state change
+        setTimeout(async () => {
+          if (!mounted) return;
+          
+          const type = await checkUserType(newSession.user.id);
+          setUserType(type);
+          setLoading(false);
+        }, 0);
       } else {
         setUserType(null);
+        setLoading(false);
       }
-      
-      setLoading(false);
     });
 
     // Récupérer la session existante
-    supabase.auth.getSession().then(async ({ data: { session } }) => {
-      console.log("Session initiale:", session);
-      setSession(session);
-      
-      if (session?.user?.id) {
-        const type = await checkUserType(session.user.id);
-        console.log("Type d'utilisateur déterminé:", type);
-        setUserType(type);
-      } else {
-        setUserType(null);
+    const initSession = async () => {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        
+        if (!mounted) return;
+        
+        setSession(session);
+        
+        if (session?.user?.id) {
+          const type = await checkUserType(session.user.id);
+          setUserType(type);
+        }
+      } catch (error) {
+        console.error("Erreur lors de la récupération de la session:", error);
+      } finally {
+        if (mounted) {
+          setLoading(false);
+        }
       }
-      
-      setLoading(false);
-    });
+    };
+    
+    initSession();
 
-    return () => subscription.unsubscribe();
+    return () => {
+      mounted = false;
+      subscription.unsubscribe();
+    };
   }, []);
 
-  // Redirection pendant le chargement
+  // Afficher un écran de chargement pendant l'initialisation
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -123,39 +152,31 @@ const App = () => {
           <Routes>
             {/* Pages publiques */}
             <Route path="/" element={<LandingPage />} />
-            
-            {/* Route racine - redirection basée sur le type d'utilisateur */}
-            <Route path="/" element={
-              session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <LandingPage />
-              ) : (
-                <LandingPage />
-              )
-            } />
-            
-            {/* Page de login unifiée */}
-            <Route path="/login" element={
-              session ? (
-                userType === "admin" ? <Navigate to="/admin" /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <Login />
-              ) : (
-                <Login />
-              )
-            } />
             <Route path="/contact" element={<Contact />} />
+            
+            {/* Page d'authentification unifiée */}
+            <Route path="/auth" element={
+              session ? (
+                userType === "admin" ? <Navigate to="/admin" /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                <Auth />
+              ) : (
+                <Auth />
+              )
+            } />
+            
+            {/* Route deprecated de login (redirection vers auth) */}
+            <Route path="/login" element={<Navigate to="/auth" />} />
             
             {/* Routes de demande d'intervention */}
             <Route path="/intervention/request" element={
-              session ? <RequestIntervention /> : <Navigate to="/login" />
+              session ? <RequestIntervention /> : <Navigate to="/auth" state={{ returnTo: "/intervention/request" }} />
             } />
             <Route path="/intervention/details" element={
-              session ? <InterventionDetails /> : <Navigate to="/login" />
+              session ? <InterventionDetails /> : <Navigate to="/auth" />
             } />
             <Route path="/intervention/schedule" element={
-              session ? <InterventionSchedule /> : <Navigate to="/login" />
+              session ? <InterventionSchedule /> : <Navigate to="/auth" />
             } />
             
             {/* Routes du back-office (admin) */}
@@ -165,7 +186,7 @@ const App = () => {
                   <Dashboard />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/admin/interventions" element={
@@ -174,7 +195,7 @@ const App = () => {
                   <InterventionsPage />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/admin/interventions/requests" element={
@@ -183,7 +204,7 @@ const App = () => {
                   <InterventionRequests />
                 </BackOfficeLayout>
               ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/login" />
+                session && userType === "client" ? <Navigate to="/client-dashboard" /> : <Navigate to="/auth" />
               )
             } />
             
@@ -194,7 +215,7 @@ const App = () => {
                   <ClientDashboard />
                 </ClientLayout>
               ) : (
-                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/login" />
+                session && userType === "admin" ? <Navigate to="/admin" /> : <Navigate to="/auth" />
               )
             } />
             <Route path="/client/profile" element={
@@ -203,7 +224,7 @@ const App = () => {
                   <ClientProfile />
                 </ClientLayout>
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               )
             } />
             <Route path="/client/interventions" element={
@@ -212,7 +233,7 @@ const App = () => {
                   <ClientInterventionsList />
                 </ClientLayout>
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               )
             } />
             <Route path="/client/intervention/:id" element={
@@ -221,18 +242,18 @@ const App = () => {
                   <ClientInterventionDetails />
                 </ClientLayout>
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               )
             } />
             
-            {/* Nouvelle route pour le récapitulatif d'intervention */}
+            {/* Récapitulatif d'intervention */}
             <Route path="/client/intervention/recap/:id" element={
               session && userType === "client" ? (
                 <ClientLayout>
                   <InterventionRecap />
                 </ClientLayout>
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               )
             } />
             
@@ -241,9 +262,9 @@ const App = () => {
               session ? (
                 userType === "admin" ? <Navigate to="/admin" /> : 
                 userType === "client" ? <Navigate to="/client-dashboard" /> : 
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               ) : (
-                <Navigate to="/login" />
+                <Navigate to="/auth" />
               )
             } />
             
