@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -17,6 +16,7 @@ import { Check, Calendar as CalendarIcon, Clock } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { toast } from "sonner";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00", 
@@ -106,7 +106,7 @@ const InterventionSchedule = () => {
             client_id: session.user.id,
             description: finalData.description, 
             urgence: finalData.urgence,
-            statut: "en_cours_analyse",
+            statut: "en_attente",
             date_demande: new Date().toISOString()
           }
         ])

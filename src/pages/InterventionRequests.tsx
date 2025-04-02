@@ -17,6 +17,8 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { CheckCircle, XCircle } from "lucide-react";
+import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const InterventionRequests = () => {
   const [loading, setLoading] = useState(true);
@@ -28,27 +30,41 @@ const InterventionRequests = () => {
   const { toast } = useToast();
 
   useEffect(() => {
-    const fetchRequests = async () => {
-      setLoading(true);
-      try {
-        const data = await demandeInterventionService.getWithClientDetails();
-        // Filtrer pour ne montrer que les demandes en attente
-        const pendingRequests = data.filter(req => req.statut === "en_attente");
-        setRequests(pendingRequests);
-      } catch (error) {
-        console.error("Error fetching intervention requests:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de chargement",
-          description: "Impossible de charger les demandes d'intervention.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchRequests();
   }, [toast]);
+
+  const fetchRequests = async () => {
+    setLoading(true);
+    try {
+      // Utiliser directement Supabase pour récupérer les demandes en attente avec les détails du client
+      const { data, error } = await supabase
+        .from('demande_interventions')
+        .select(`
+          *,
+          client:client_id (
+            id,
+            nom_entreprise,
+            email,
+            tel
+          )
+        `)
+        .eq('statut', 'en_attente');
+        
+      if (error) throw error;
+      
+      console.log("Demandes d'intervention récupérées:", data);
+      setRequests(data || []);
+    } catch (error) {
+      console.error("Error fetching intervention requests:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les demandes d'intervention.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleAccept = (request: any) => {
     setSelectedRequest(request);
@@ -62,21 +78,45 @@ const InterventionRequests = () => {
     setDialogOpen(true);
   };
 
-  const confirmAction = () => {
+  const confirmAction = async () => {
     if (!selectedRequest || !actionType) return;
     
-    // Simuler la mise à jour de la demande
-    const newStatus = actionType === "accept" ? "validée" : "rejetée";
-    
-    // Mettre à jour l'interface utilisateur
-    setRequests(requests.filter(req => req.id !== selectedRequest.id));
-    
-    toast({
-      title: actionType === "accept" ? "Demande acceptée" : "Demande rejetée",
-      description: `La demande de ${selectedRequest.client.nomEntreprise} a été ${newStatus}.`,
-    });
-    
-    setDialogOpen(false);
+    try {
+      // Déterminer le nouveau statut
+      const newStatus = actionType === "accept" ? "validée" : "rejetée";
+      
+      // Mettre à jour le statut de la demande dans Supabase
+      const { error } = await supabase
+        .from('demande_interventions')
+        .update({ statut: newStatus })
+        .eq('id', selectedRequest.id);
+      
+      if (error) throw error;
+      
+      // Mettre à jour l'interface utilisateur
+      setRequests(requests.filter(req => req.id !== selectedRequest.id));
+      
+      toast({
+        title: actionType === "accept" ? "Demande acceptée" : "Demande rejetée",
+        description: `La demande de ${selectedRequest.client?.nom_entreprise || 'client'} a été ${newStatus}.`,
+      });
+      
+      // Si la demande est acceptée, créer une intervention
+      if (actionType === "accept") {
+        // Ici, vous pourriez ajouter le code pour créer une nouvelle intervention
+        // Exemple: appeler un service ou insérer directement dans Supabase
+      }
+      
+    } catch (error: any) {
+      console.error("Erreur lors de la mise à jour de la demande:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Une erreur est survenue lors de la mise à jour.",
+      });
+    } finally {
+      setDialogOpen(false);
+    }
   };
 
   return (
@@ -113,9 +153,9 @@ const InterventionRequests = () => {
                 requests.map((request) => (
                   <TableRow key={request.id}>
                     <TableCell className="font-medium">
-                      {format(new Date(request.dateDemande), "dd/MM/yyyy", { locale: fr })}
+                      {format(new Date(request.date_demande), "dd/MM/yyyy", { locale: fr })}
                     </TableCell>
-                    <TableCell>{request.client.nomEntreprise}</TableCell>
+                    <TableCell>{request.client?.nom_entreprise || 'Client inconnu'}</TableCell>
                     <TableCell className="hidden md:table-cell max-w-[300px] truncate">
                       {request.description}
                     </TableCell>
@@ -170,7 +210,7 @@ const InterventionRequests = () => {
           
           {selectedRequest && (
             <div className="py-4">
-              <p className="font-medium">{selectedRequest.client.nomEntreprise}</p>
+              <p className="font-medium">{selectedRequest.client?.nom_entreprise || 'Client'}</p>
               <p className="text-sm text-muted-foreground mt-1">{selectedRequest.description}</p>
               <div className="mt-2 flex items-center">
                 <span className="text-sm text-muted-foreground mr-2">Urgence:</span>
