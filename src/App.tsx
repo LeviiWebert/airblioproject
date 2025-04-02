@@ -21,6 +21,9 @@ import RequestIntervention from "./pages/intervention/RequestIntervention";
 import InterventionDetails from "./pages/intervention/InterventionDetails";
 import InterventionSchedule from "./pages/intervention/InterventionSchedule";
 import InterventionRecap from "./pages/client/InterventionRecap";
+import ClientProfile from "./pages/client/ClientProfile";
+import ClientInterventionsList from "./pages/client/InterventionsList";
+import ClientInterventionDetails from "./pages/client/InterventionDetails";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -103,33 +106,30 @@ const App = () => {
                 <Auth />
               )
             } />
-            <Route path="/client/requests" element={
+            <Route path="/client/profile" element={
               session && userType === "client" ? (
-                <ClientLayout>
-                  <div className="container mx-auto px-4 py-8">
-                    <h1 className="text-3xl font-bold mb-6">Mes demandes d'intervention</h1>
-                    {/* Contenu à implémenter plus tard */}
-                  </div>
-                </ClientLayout>
+                <ClientProfile />
               ) : (
                 <Auth />
               )
             } />
             <Route path="/client/interventions" element={
               session && userType === "client" ? (
-                <ClientLayout>
-                  <div className="container mx-auto px-4 py-8">
-                    <h1 className="text-3xl font-bold mb-6">Mes interventions en cours</h1>
-                    {/* Contenu à implémenter plus tard */}
-                  </div>
-                </ClientLayout>
+                <ClientInterventionsList />
+              ) : (
+                <Auth />
+              )
+            } />
+            <Route path="/client/intervention/:id" element={
+              session && userType === "client" ? (
+                <ClientInterventionDetails />
               ) : (
                 <Auth />
               )
             } />
             
             {/* Nouvelle route pour le récapitulatif d'intervention */}
-            <Route path="/client/intervention/:id" element={
+            <Route path="/client/intervention/recap/:id" element={
               session && userType === "client" ? (
                 <InterventionRecap />
               ) : (

@@ -6,7 +6,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { FileText, Clock, CheckCircle, ExternalLink, PlusCircle, Eye } from "lucide-react";
+import { FileText, Clock, CheckCircle, ExternalLink, PlusCircle, Eye, User } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -15,6 +15,8 @@ import { useToast } from "@/hooks/use-toast";
 const ClientDashboard = () => {
   const { toast } = useToast();
   const [interventions, setInterventions] = useState<any[]>([]);
+  const [techniciens, setTechniciens] = useState<any[]>([]);
+  const [clientData, setClientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [clientId, setClientId] = useState<string | null>(null);
 
@@ -29,7 +31,18 @@ const ClientDashboard = () => {
         
         setClientId(user.id);
         
-        const { data, error } = await supabase
+        // Récupérer les informations du client
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('*')
+          .eq('id', user.id)
+          .single();
+          
+        if (clientError) throw clientError;
+        setClientData(clientData);
+        
+        // Récupérer toutes les demandes d'intervention du client
+        const { data: demandesData, error: demandesError } = await supabase
           .from('demande_interventions')
           .select(`
             id,
@@ -37,14 +50,66 @@ const ClientDashboard = () => {
             description,
             urgence,
             statut,
-            intervention_id
+            intervention_id,
+            interventions:intervention_id (
+              id,
+              date_debut,
+              date_fin,
+              rapport,
+              localisation,
+              statut,
+              intervention_equipes:intervention_equipes (
+                equipe_id,
+                equipes:equipes (
+                  id,
+                  nom,
+                  specialisation
+                )
+              ),
+              pv_intervention_id
+            )
           `)
           .eq('client_id', user.id)
           .order('date_demande', { ascending: false });
           
-        if (error) throw error;
+        if (demandesError) throw demandesError;
+        setInterventions(demandesData || []);
         
-        setInterventions(data || []);
+        // Récupérer les techniciens associés aux équipes travaillant pour ce client
+        const equipeIds = demandesData
+          ?.filter(demande => demande.interventions?.intervention_equipes?.length > 0)
+          .flatMap(demande => 
+            demande.interventions.intervention_equipes.map((ie: any) => ie.equipe_id)
+          );
+        
+        if (equipeIds && equipeIds.length > 0) {
+          // Récupérer les membres des équipes
+          const { data: equipeMembres, error: equipeMembresError } = await supabase
+            .from('equipe_membres')
+            .select(`
+              equipe_id,
+              utilisateur:utilisateur_id (
+                id,
+                nom,
+                role,
+                email,
+                disponibilite
+              )
+            `)
+            .in('equipe_id', equipeIds);
+            
+          if (equipeMembresError) throw equipeMembresError;
+          
+          // Extraire les techniciens uniques par ID
+          const technicienMap = new Map();
+          equipeMembres?.forEach((membre: any) => {
+            if (membre.utilisateur && membre.utilisateur.role === 'technicien') {
+              technicienMap.set(membre.utilisateur.id, membre.utilisateur);
+            }
+          });
+          
+          setTechniciens(Array.from(technicienMap.values()));
+        }
       } catch (error: any) {
         console.error("Erreur lors du chargement des données:", error);
         toast({
@@ -72,13 +137,23 @@ const ClientDashboard = () => {
 
   const getActiveInterventions = () => {
     return interventions.filter(intervention => 
-      ["planifiée", "en_cours"].includes(intervention.statut)
+      intervention.intervention_id && 
+      intervention.interventions?.statut && 
+      ["planifiée", "en_cours"].includes(intervention.interventions.statut)
     );
   };
 
   const getCompletedInterventions = () => {
     return interventions.filter(intervention => 
-      ["terminée"].includes(intervention.statut)
+      intervention.intervention_id && 
+      intervention.interventions?.statut && 
+      ["terminée"].includes(intervention.interventions.statut)
+    );
+  };
+
+  const getRejectedInterventions = () => {
+    return interventions.filter(intervention => 
+      intervention.statut === "rejetée"
     );
   };
 
@@ -87,7 +162,9 @@ const ClientDashboard = () => {
       <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Tableau de bord</h1>
-          <p className="text-muted-foreground">Bienvenue sur votre espace client</p>
+          <p className="text-muted-foreground">
+            Bienvenue dans votre espace client, {clientData?.nom_entreprise}
+          </p>
         </div>
         <div className="mt-4 md:mt-0">
           <Link to="/intervention/request">
@@ -99,7 +176,7 @@ const ClientDashboard = () => {
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm font-medium text-muted-foreground">
@@ -112,7 +189,7 @@ const ClientDashboard = () => {
           <CardContent>
             <div className="flex items-center text-xs text-muted-foreground">
               <Clock className="h-4 w-4 mr-1" />
-              Non planifiées
+              En cours d'analyse ou validées
             </div>
           </CardContent>
         </Card>
@@ -144,7 +221,169 @@ const ClientDashboard = () => {
           <CardContent>
             <div className="flex items-center text-xs text-muted-foreground">
               <CheckCircle className="h-4 w-4 mr-1" />
-              Archivées
+              Complétées
+            </div>
+          </CardContent>
+        </Card>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Demandes refusées
+            </CardTitle>
+            <CardDescription className="text-3xl font-bold">
+              {loading ? "..." : getRejectedInterventions().length}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <ExternalLink className="h-4 w-4 mr-1" />
+              Non validées
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+        <Card className="md:col-span-2">
+          <CardHeader>
+            <CardTitle>Interventions récentes</CardTitle>
+            <CardDescription>
+              Vos dernières demandes et interventions
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            {loading ? (
+              <div className="flex items-center justify-center h-64">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+              </div>
+            ) : interventions.length === 0 ? (
+              <div className="py-8 text-center">
+                <p className="mb-4">Vous n'avez pas encore de demandes d'intervention.</p>
+                <Link to="/intervention/request">
+                  <Button>
+                    <PlusCircle className="mr-2 h-4 w-4" />
+                    Créer une demande
+                  </Button>
+                </Link>
+              </div>
+            ) : (
+              <div>
+                {interventions.slice(0, 5).map((intervention) => (
+                  <div 
+                    key={intervention.id} 
+                    className="border-b last:border-0 p-4 hover:bg-muted/50 transition-colors"
+                  >
+                    <div className="flex justify-between items-start mb-2">
+                      <div>
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">
+                            #{intervention.id.substring(0, 8).toUpperCase()}
+                          </h3>
+                          {intervention.intervention_id ? (
+                            <InterventionStatusBadge status={intervention.interventions?.statut || "en_attente"} />
+                          ) : (
+                            <InterventionStatusBadge status={intervention.statut} />
+                          )}
+                          <PriorityBadge priority={intervention.urgence} />
+                        </div>
+                        <p className="text-sm text-muted-foreground mt-1">
+                          {format(new Date(intervention.date_demande), "dd MMMM yyyy", { locale: fr })}
+                        </p>
+                      </div>
+                      <Link to={`/client/intervention/${intervention.id}`}>
+                        <Button variant="ghost" size="sm">
+                          <Eye className="h-4 w-4 mr-1" />
+                          Détails
+                        </Button>
+                      </Link>
+                    </div>
+                    <p className="text-sm line-clamp-1">
+                      {intervention.description}
+                    </p>
+                  </div>
+                ))}
+                {interventions.length > 5 && (
+                  <div className="p-4 text-center">
+                    <Link to="/client/interventions">
+                      <Button variant="outline" size="sm">
+                        Voir toutes les interventions
+                      </Button>
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Votre équipe technique</CardTitle>
+            <CardDescription>
+              Techniciens qui ont travaillé sur vos interventions
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            {loading ? (
+              <div className="flex items-center justify-center h-24">
+                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+              </div>
+            ) : techniciens.length === 0 ? (
+              <div className="text-center py-4">
+                <User className="h-12 w-12 mx-auto text-muted-foreground/50 mb-2" />
+                <p className="text-sm text-muted-foreground">
+                  Aucun technicien n'est encore assigné à vos interventions
+                </p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {techniciens.map((tech) => (
+                  <div key={tech.id} className="flex flex-col items-center text-center p-2 border rounded-lg">
+                    <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                      <User className="h-6 w-6 text-primary" />
+                    </div>
+                    <h4 className="font-medium text-sm">{tech.nom}</h4>
+                    <p className="text-xs text-muted-foreground">Technicien</p>
+                    <div className={`h-2 w-2 rounded-full mt-1 ${tech.disponibilite ? "bg-green-500" : "bg-red-500"}`}></div>
+                  </div>
+                ))}
+              </div>
+            )}
+            {techniciens.length > 0 && (
+              <div className="text-center mt-4">
+                <Button variant="ghost" size="sm">
+                  <User className="h-4 w-4 mr-1" />
+                  Contacter l'équipe
+                </Button>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mb-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Actions rapides</CardTitle>
+            <CardDescription>Accès direct aux fonctionnalités principales</CardDescription>
+          </CardHeader>
+          <CardContent className="p-0">
+            <div className="grid grid-cols-1 md:grid-cols-3 divide-y md:divide-y-0 md:divide-x">
+              <Link to="/intervention/request" className="p-6 hover:bg-muted/50 transition-colors flex flex-col items-center text-center">
+                <PlusCircle className="h-10 w-10 text-primary mb-2" />
+                <h3 className="font-semibold">Nouvelle demande</h3>
+                <p className="text-sm text-muted-foreground mt-1">Créer une nouvelle demande d'intervention</p>
+              </Link>
+              <Link to="/client/interventions" className="p-6 hover:bg-muted/50 transition-colors flex flex-col items-center text-center">
+                <FileText className="h-10 w-10 text-primary mb-2" />
+                <h3 className="font-semibold">Mes interventions</h3>
+                <p className="text-sm text-muted-foreground mt-1">Consulter l'historique de vos interventions</p>
+              </Link>
+              <Link to="/client/profile" className="p-6 hover:bg-muted/50 transition-colors flex flex-col items-center text-center">
+                <User className="h-10 w-10 text-primary mb-2" />
+                <h3 className="font-semibold">Mon profil</h3>
+                <p className="text-sm text-muted-foreground mt-1">Gérer vos informations personnelles</p>
+              </Link>
             </div>
           </CardContent>
         </Card>
