@@ -79,10 +79,13 @@ export const useInterventionRequests = () => {
       // Mettre à jour l'interface utilisateur
       setRequests(requests.filter(req => req.id !== selectedRequest.id));
       
-      toast({
-        title: actionType === "accept" ? "Demande acceptée" : "Demande rejetée",
-        description: `La demande de ${selectedRequest.client?.nom_entreprise || 'client'} a été ${newStatus}.`,
-      });
+      // Utiliser le toast de sonner correctement (sans propriété title)
+      toast(
+        actionType === "accept" ? "Demande acceptée" : "Demande rejetée", 
+        {
+          description: `La demande de ${selectedRequest.client?.nom_entreprise || 'client'} a été ${newStatus}.`
+        }
+      );
       
       // Si la demande est acceptée, créer une intervention
       if (actionType === "accept") {
