@@ -1,4 +1,3 @@
-
 import React from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
@@ -37,19 +36,7 @@ const App = () => {
   useEffect(() => {
     const checkUserType = async (userId: string) => {
       try {
-        // Vérifier d'abord si l'utilisateur est un client
-        const { data: clientData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('id', userId)
-          .single();
-
-        if (clientData) {
-          console.log("Utilisateur identifié comme client");
-          return "client";
-        }
-
-        // Si ce n'est pas un client, vérifier s'il est un admin
+        // Vérifier d'abord si l'utilisateur est un admin
         const { data: adminData } = await supabase
           .from('utilisateurs')
           .select('role')
@@ -62,6 +49,18 @@ const App = () => {
           return "admin";
         }
 
+        // Si ce n'est pas un admin, vérifier s'il est un client
+        const { data: clientData } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('id', userId)
+          .single();
+
+        if (clientData) {
+          console.log("Utilisateur identifié comme client");
+          return "client";
+        }
+
         // Si l'utilisateur n'est ni client ni admin
         console.log("Utilisateur sans rôle spécifique");
         return null;
@@ -70,6 +69,22 @@ const App = () => {
         return null;
       }
     };
+
+    // Configurer l'écouteur des changements d'authentification avant de vérifier la session
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
+      console.log("Changement d'état d'authentification:", _event);
+      setSession(newSession);
+      
+      if (newSession?.user?.id) {
+        const type = await checkUserType(newSession.user.id);
+        console.log("Nouveau type d'utilisateur:", type);
+        setUserType(type);
+      } else {
+        setUserType(null);
+      }
+      
+      setLoading(false);
+    });
 
     // Récupérer la session existante
     supabase.auth.getSession().then(async ({ data: { session } }) => {
@@ -87,23 +102,10 @@ const App = () => {
       setLoading(false);
     });
 
-    // Écouter les changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
-      console.log("Changement d'état d'authentification:", _event);
-      setSession(session);
-      
-      if (session?.user?.id) {
-        const type = await checkUserType(session.user.id);
-        console.log("Nouveau type d'utilisateur:", type);
-        setUserType(type);
-      } else {
-        setUserType(null);
-      }
-    });
-
     return () => subscription.unsubscribe();
   }, []);
 
+  // Redirection pendant le chargement
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -121,6 +123,18 @@ const App = () => {
           <Routes>
             {/* Pages publiques */}
             <Route path="/" element={<LandingPage />} />
+            
+            {/* Route racine - redirection basée sur le type d'utilisateur */}
+            <Route path="/" element={
+              session ? (
+                userType === "admin" ? <Navigate to="/admin" /> : 
+                userType === "client" ? <Navigate to="/client-dashboard" /> : 
+                <LandingPage />
+              ) : (
+                <LandingPage />
+              )
+            } />
+            
             <Route path="/auth" element={
               session ? (
                 userType === "admin" ? <Navigate to="/admin" /> : 

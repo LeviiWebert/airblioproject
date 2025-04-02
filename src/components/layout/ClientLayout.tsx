@@ -41,7 +41,6 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   useEffect(() => {
     // Vérifier si l'utilisateur est connecté et est bien un client
     const checkAuth = async () => {
-      setIsLoading(true);
       try {
         const { data } = await supabase.auth.getSession();
         
@@ -61,7 +60,9 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         
         if (clientError) {
           console.error("Erreur lors de la vérification du client:", clientError);
-          throw new Error(clientError.message);
+          await supabase.auth.signOut();
+          navigate('/auth');
+          return;
         }
         
         // Si l'utilisateur n'est pas trouvé dans la table clients, le rediriger
@@ -75,14 +76,14 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         
         // Récupérer le nom de l'utilisateur si disponible
         setUserName(clientData[0]?.nom_entreprise || data.session.user.email || "Client");
+        setIsLoading(false);
         
         console.log("Client authentifié avec succès:", clientData[0]);
       } catch (error: any) {
         console.error("Erreur d'authentification:", error);
         toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
-        navigate('/auth');
-      } finally {
         setIsLoading(false);
+        navigate('/auth');
       }
     };
 
