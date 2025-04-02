@@ -23,7 +23,7 @@ export function useAuth() {
         .select('role')
         .eq('id', userId)
         .eq('role', 'admin')
-        .single();
+        .maybeSingle();
 
       if (!adminError && adminData) {
         console.log("Utilisateur identifié comme admin");
@@ -35,7 +35,7 @@ export function useAuth() {
         .from('clients')
         .select('id')
         .eq('id', userId)
-        .single();
+        .maybeSingle();
 
       if (!clientError && clientData) {
         console.log("Utilisateur identifié comme client");
@@ -161,11 +161,15 @@ export function useAuth() {
       setLoading(true);
       
       // Vérifier que l'email n'est pas déjà utilisé
-      const { data: existingUser } = await supabase
+      const { data: existingUser, error: checkError } = await supabase
         .from(userType === 'admin' ? 'utilisateurs' : 'clients')
         .select('email')
         .eq('email', email)
-        .single();
+        .maybeSingle();
+        
+      if (checkError) {
+        console.error("Erreur lors de la vérification de l'email:", checkError);
+      }
         
       if (existingUser) {
         throw new Error(`Cet email est déjà associé à un compte ${userType}`);
@@ -178,7 +182,8 @@ export function useAuth() {
         options: {
           data: {
             user_type: userType
-          }
+          },
+          emailRedirectTo: window.location.origin + '/auth'
         }
       });
 
@@ -202,6 +207,7 @@ export function useAuth() {
             ]);
           
           if (clientError) {
+            console.error("Erreur lors de la création du profil client:", clientError);
             throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil client.");
           }
         } else if (userType === "admin") {
@@ -212,6 +218,7 @@ export function useAuth() {
             ]);
           
           if (adminError) {
+            console.error("Erreur lors de la création du profil admin:", adminError);
             throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil administrateur.");
           }
         }

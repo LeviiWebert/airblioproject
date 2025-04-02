@@ -22,10 +22,12 @@ const Auth = () => {
   const [error, setError] = useState<string | null>(null);
   const [userTypeSelection, setUserTypeSelection] = useState<"admin" | "client">("client");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const [localLoading, setLocalLoading] = useState(false);
 
   // Rediriger si déjà authentifié
   useEffect(() => {
     if (initialized && session) {
+      console.log("Session active détectée, redirection en cours...");
       if (userType === "admin") {
         navigate("/admin");
       } else if (userType === "client") {
@@ -38,19 +40,23 @@ const Auth = () => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
+    setLocalLoading(true);
 
     try {
+      if (!email.trim() || !password.trim()) {
+        throw new Error("Veuillez remplir tous les champs");
+      }
+
+      console.log("Tentative de connexion:", email);
       const resultUserType = await signIn(email, password);
       
       // La redirection est gérée dans le useEffect qui observe session et userType
-      if (resultUserType === "admin") {
-        navigate("/admin");
-      } else if (resultUserType === "client") {
-        navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
-      }
+      console.log("Type d'utilisateur après connexion:", resultUserType);
     } catch (error: any) {
-      // Les erreurs sont gérées par le hook et affichées via toast
-      setError(error.message);
+      console.error("Erreur lors de la connexion:", error);
+      setError(error.message || "Erreur de connexion");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -58,24 +64,34 @@ const Auth = () => {
     e.preventDefault();
     setError(null);
     setSuccessMessage(null);
+    setLocalLoading(true);
 
     try {
+      if (!email.trim() || !password.trim()) {
+        throw new Error("Veuillez remplir tous les champs");
+      }
+
       // Vérification de la force du mot de passe
       if (password.length < 6) {
         throw new Error("Le mot de passe doit contenir au moins 6 caractères");
       }
 
+      console.log("Tentative d'inscription:", email);
       const resultUserType = await signUp(email, password, userTypeSelection);
       
       if (resultUserType) {
         // Si l'inscription crée immédiatement une session (email confirmation désactivé)
-        navigate(resultUserType === "admin" ? "/admin" : "/client-dashboard");
+        console.log("Inscription réussie avec session active:", resultUserType);
       } else {
         // Si l'inscription nécessite une confirmation par email
+        console.log("Inscription réussie, confirmation par email requise");
         setSuccessMessage("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
       }
     } catch (error: any) {
-      setError(error.message);
+      console.error("Erreur lors de l'inscription:", error);
+      setError(error.message || "Erreur d'inscription");
+    } finally {
+      setLocalLoading(false);
     }
   };
 
@@ -148,7 +164,8 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={loading}
+                      disabled={localLoading || loading}
+                      className="bg-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -164,13 +181,14 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      disabled={loading}
+                      disabled={localLoading || loading}
+                      className="bg-white"
                     />
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
+                  <Button type="submit" className="w-full" disabled={localLoading || loading}>
+                    {(localLoading || loading) ? (
                       <><span className="mr-2">Connexion en cours</span>
                       <span className="animate-pulse">...</span></>
                     ) : (
@@ -232,7 +250,8 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={loading}
+                      disabled={localLoading || loading}
+                      className="bg-white"
                     />
                   </div>
                   <div className="space-y-2">
@@ -244,14 +263,15 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      disabled={loading}
+                      disabled={localLoading || loading}
+                      className="bg-white"
                     />
                     <p className="text-xs text-gray-500">Le mot de passe doit contenir au moins 6 caractères</p>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={loading}>
-                    {loading ? (
+                  <Button type="submit" className="w-full" disabled={localLoading || loading}>
+                    {(localLoading || loading) ? (
                       <><span className="mr-2">Inscription en cours</span>
                       <span className="animate-pulse">...</span></>
                     ) : (
