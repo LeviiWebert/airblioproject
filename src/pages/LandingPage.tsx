@@ -36,7 +36,7 @@ const LandingPage = () => {
         navigate("/client-dashboard");
       }
     } else {
-      navigate("/auth");
+      navigate("/login");
     }
   };
   
