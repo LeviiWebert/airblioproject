@@ -21,28 +21,33 @@ const Auth = () => {
   const [error, setError] = useState<string | null>(null);
   const [userType, setUserType] = useState<"admin" | "client">("client");
   const [checkingSession, setCheckingSession] = useState(true);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   // Vérifier si l'utilisateur est déjà connecté au chargement de la page
   useEffect(() => {
     const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      if (data.session) {
-        const userMetadata = data.session.user.user_metadata;
-        const currentUserType = userMetadata?.user_type || "client";
+      try {
+        const { data } = await supabase.auth.getSession();
         
-        console.log("Session trouvée:", data.session);
-        console.log("Type d'utilisateur:", currentUserType);
-        
-        // Rediriger en fonction du type d'utilisateur
-        if (currentUserType === "admin") {
-          navigate("/admin");
-        } else {
-          navigate("/client-dashboard");
+        if (data.session) {
+          const userMetadata = data.session.user.user_metadata;
+          const currentUserType = userMetadata?.user_type || "client";
+          
+          console.log("Session trouvée:", data.session);
+          console.log("Type d'utilisateur:", currentUserType);
+          
+          // Rediriger en fonction du type d'utilisateur
+          if (currentUserType === "admin") {
+            navigate("/admin");
+          } else {
+            navigate("/client-dashboard");
+          }
         }
+      } catch (error) {
+        console.error("Erreur lors de la vérification de la session:", error);
+      } finally {
+        setCheckingSession(false);
       }
-      
-      setCheckingSession(false);
     };
     
     checkSession();
@@ -52,6 +57,7 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
       const { data, error } = await supabase.auth.signInWithPassword({
@@ -62,16 +68,13 @@ const Auth = () => {
       if (error) throw error;
 
       if (data.session) {
-        const userMetadata = data.session.user.user_metadata;
-        const loginType = userMetadata?.user_type || "client";
-        
         console.log("Connexion réussie:", data.session);
-        console.log("Type d'utilisateur connecté:", loginType);
-
-        toast.success(`Connexion réussie en tant que ${loginType}`);
         
-        // Rediriger en fonction du type d'utilisateur
-        if (loginType === "admin") {
+        // Rediriger en fonction du type d'utilisateur détecté côté serveur
+        // Cela sera géré par les hooks d'authentification selon le profil
+        toast.success(`Connexion réussie`);
+        
+        if (userType === "admin") {
           navigate("/admin");
         } else {
           navigate("/client-dashboard");
@@ -90,13 +93,18 @@ const Auth = () => {
     e.preventDefault();
     setLoading(true);
     setError(null);
+    setSuccessMessage(null);
 
     try {
+      // Vérification de la force du mot de passe
+      if (password.length < 6) {
+        throw new Error("Le mot de passe doit contenir au moins 6 caractères");
+      }
+
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          emailRedirectTo: window.location.origin,
           data: {
             user_type: userType
           }
@@ -106,11 +114,55 @@ const Auth = () => {
       if (error) throw error;
 
       console.log("Inscription réussie:", data);
-      toast.success("Vérifiez votre email pour confirmer votre inscription.");
-      setError("Vérifiez votre email pour confirmer votre inscription.");
+      
+      // Après l'inscription, nous devons créer un enregistrement dans la table client ou utilisateurs
+      if (userType === "client") {
+        // Créer un enregistrement dans la table clients
+        if (data.user) {
+          const { error: clientError } = await supabase
+            .from('clients')
+            .insert([
+              { id: data.user.id, email: email, nom_entreprise: email.split('@')[0] }
+            ]);
+          
+          if (clientError) {
+            console.error("Erreur lors de la création du profil client:", clientError);
+            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil client. Veuillez contacter l'administrateur.");
+          }
+        }
+      } else if (userType === "admin") {
+        // Créer un enregistrement dans la table utilisateurs avec le rôle admin
+        if (data.user) {
+          const { error: adminError } = await supabase
+            .from('utilisateurs')
+            .insert([
+              { id: data.user.id, email: email, nom: email.split('@')[0], role: 'admin' }
+            ]);
+          
+          if (adminError) {
+            console.error("Erreur lors de la création du profil admin:", adminError);
+            throw new Error("Votre compte a été créé mais nous n'avons pas pu configurer votre profil administrateur. Veuillez contacter l'administrateur du système.");
+          }
+        }
+      }
+
+      // Si Supabase confirme l'email est désactivé
+      if (data.session) {
+        toast.success("Inscription réussie! Vous êtes maintenant connecté.");
+        if (userType === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/client-dashboard");
+        }
+      } else {
+        // Si Supabase confirme l'email est activé
+        setSuccessMessage("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
+        toast.success("Vérifiez votre email pour confirmer votre inscription.");
+      }
     } catch (error: any) {
       console.error("Erreur d'inscription:", error);
       setError(error.message || "Une erreur s'est produite lors de l'inscription");
+      toast.error(error.message || "Erreur lors de l'inscription");
     } finally {
       setLoading(false);
     }
@@ -119,7 +171,7 @@ const Auth = () => {
   if (checkingSession) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <p>Vérification de la session...</p>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
       </div>
     );
   }
@@ -222,9 +274,15 @@ const Auth = () => {
               <form onSubmit={handleSignUp}>
                 <CardContent className="space-y-4">
                   {error && (
-                    <Alert variant={error.includes("Vérifiez") ? "default" : "destructive"}>
+                    <Alert variant="destructive">
                       <AlertCircle className="h-4 w-4" />
                       <AlertDescription>{error}</AlertDescription>
+                    </Alert>
+                  )}
+                  
+                  {successMessage && (
+                    <Alert variant="default" className="bg-green-50 border-green-200 text-green-800">
+                      <AlertDescription>{successMessage}</AlertDescription>
                     </Alert>
                   )}
                   
@@ -265,7 +323,9 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
+                      minLength={6}
                     />
+                    <p className="text-xs text-gray-500">Le mot de passe doit contenir au moins 6 caractères</p>
                   </div>
                 </CardContent>
                 <CardFooter>
