@@ -22,6 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Toaster } from "@/components/ui/toaster";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -29,6 +30,7 @@ interface ClientLayoutProps {
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [userName, setUserName] = useState<string>("");
   const navigate = useNavigate();
   
   const toggleSidebar = () => {
@@ -36,21 +38,46 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   };
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
+    // Vérifier si l'utilisateur est connecté et est bien un client
     const checkAuth = async () => {
       const { data } = await supabase.auth.getSession();
       
       if (!data.session) {
+        console.log("Aucune session trouvée. Redirection vers /auth");
         navigate('/auth');
+        return;
       }
+      
+      // Vérifier le type d'utilisateur
+      const userMetadata = data.session.user.user_metadata;
+      const userType = userMetadata?.user_type || null;
+      
+      console.log("Type d'utilisateur:", userType);
+      
+      if (userType !== "client") {
+        console.log("L'utilisateur n'est pas un client. Redirection vers /auth");
+        toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
+        await supabase.auth.signOut();
+        navigate('/auth');
+        return;
+      }
+      
+      // Récupérer le nom de l'utilisateur si disponible
+      setUserName(data.session.user.email || "Client");
     };
 
     checkAuth();
   }, [navigate]);
   
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/auth');
+    try {
+      await supabase.auth.signOut();
+      toast.success("Vous avez été déconnecté avec succès");
+      navigate('/auth');
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      toast.error("Erreur lors de la déconnexion");
+    }
   };
 
   return (
@@ -96,7 +123,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
                       <User className="h-4 w-4" />
                     </div>
                     <div className="flex items-center">
-                      <span className="mr-1">Client</span>
+                      <span className="mr-1">{userName}</span>
                     </div>
                   </Button>
                 </DropdownMenuTrigger>
@@ -123,7 +150,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
       <div className="flex flex-1 overflow-hidden">
         {/* Sidebar */}
         <aside
-          className={`bg-sidebar fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 transform transition-transform duration-300 ease-in-out z-20 ${
+          className={`bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 fixed left-0 top-16 h-[calc(100vh-4rem)] w-64 transform transition-transform duration-300 ease-in-out z-20 ${
             sidebarOpen ? "translate-x-0" : "-translate-x-full"
           }`}
         >
@@ -132,28 +159,37 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
               <li>
                 <Link
                   to="/client-dashboard"
-                  className="flex items-center px-4 py-3 text-sidebar-foreground hover:bg-sidebar-accent rounded-md group transition-colors"
+                  className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
                 >
-                  <Home className="h-5 w-5 mr-3 text-sidebar-foreground" />
+                  <Home className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
                   <span>Tableau de bord</span>
                 </Link>
               </li>
               <li>
                 <Link
-                  to="/client/requests"
-                  className="flex items-center px-4 py-3 text-sidebar-foreground hover:bg-sidebar-accent rounded-md group transition-colors"
+                  to="/intervention/request"
+                  className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
                 >
-                  <FileText className="h-5 w-5 mr-3 text-sidebar-foreground" />
-                  <span>Demandes d'intervention</span>
+                  <FileText className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                  <span>Demander une intervention</span>
                 </Link>
               </li>
               <li>
                 <Link
                   to="/client/interventions"
-                  className="flex items-center px-4 py-3 text-sidebar-foreground hover:bg-sidebar-accent rounded-md group transition-colors"
+                  className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
                 >
-                  <Clock className="h-5 w-5 mr-3 text-sidebar-foreground" />
-                  <span>Interventions en cours</span>
+                  <Clock className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                  <span>Mes interventions</span>
+                </Link>
+              </li>
+              <li>
+                <Link
+                  to="/client/profile"
+                  className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
+                >
+                  <User className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                  <span>Mon profil</span>
                 </Link>
               </li>
             </ul>

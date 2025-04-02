@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { supabase } from "@/integrations/supabase/client";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Link } from "react-router-dom";
+import { toast } from "sonner";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -19,6 +20,33 @@ const Auth = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [userType, setUserType] = useState<"admin" | "client">("client");
+  const [checkingSession, setCheckingSession] = useState(true);
+
+  // Vérifier si l'utilisateur est déjà connecté au chargement de la page
+  useEffect(() => {
+    const checkSession = async () => {
+      const { data } = await supabase.auth.getSession();
+      
+      if (data.session) {
+        const userMetadata = data.session.user.user_metadata;
+        const currentUserType = userMetadata?.user_type || "client";
+        
+        console.log("Session trouvée:", data.session);
+        console.log("Type d'utilisateur:", currentUserType);
+        
+        // Rediriger en fonction du type d'utilisateur
+        if (currentUserType === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/client-dashboard");
+        }
+      }
+      
+      setCheckingSession(false);
+    };
+    
+    checkSession();
+  }, [navigate]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,21 +54,33 @@ const Auth = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signInWithPassword({
+      const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password
       });
 
       if (error) throw error;
 
-      // Rediriger en fonction du type d'utilisateur
-      if (userType === "admin") {
-        navigate("/");  // Back-office route
-      } else {
-        navigate("/client-dashboard");  // Front-office client route
+      if (data.session) {
+        const userMetadata = data.session.user.user_metadata;
+        const loginType = userMetadata?.user_type || "client";
+        
+        console.log("Connexion réussie:", data.session);
+        console.log("Type d'utilisateur connecté:", loginType);
+
+        toast.success(`Connexion réussie en tant que ${loginType}`);
+        
+        // Rediriger en fonction du type d'utilisateur
+        if (loginType === "admin") {
+          navigate("/admin");
+        } else {
+          navigate("/client-dashboard");
+        }
       }
     } catch (error: any) {
+      console.error("Erreur de connexion:", error);
       setError(error.message || "Une erreur s'est produite lors de la connexion");
+      toast.error("Échec de la connexion. Veuillez vérifier vos identifiants.");
     } finally {
       setLoading(false);
     }
@@ -52,7 +92,7 @@ const Auth = () => {
     setError(null);
 
     try {
-      const { error } = await supabase.auth.signUp({
+      const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -65,13 +105,24 @@ const Auth = () => {
 
       if (error) throw error;
 
+      console.log("Inscription réussie:", data);
+      toast.success("Vérifiez votre email pour confirmer votre inscription.");
       setError("Vérifiez votre email pour confirmer votre inscription.");
     } catch (error: any) {
+      console.error("Erreur d'inscription:", error);
       setError(error.message || "Une erreur s'est produite lors de l'inscription");
     } finally {
       setLoading(false);
     }
   };
+
+  if (checkingSession) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <p>Vérification de la session...</p>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900 p-4">
