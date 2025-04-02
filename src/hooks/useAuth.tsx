@@ -12,16 +12,27 @@ export function useAuth() {
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
   
-  // Fonction pour vérifier le rôle de l'utilisateur
+  // Fonction améliorée pour vérifier le rôle de l'utilisateur
   const checkUserType = useCallback(async (userId: string) => {
     try {
       console.log("Vérification du type d'utilisateur:", userId);
       
-      // Vérifier d'abord si l'utilisateur est un admin
+      // 1. Vérifier d'abord si l'utilisateur est un admin en utilisant l'email
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (!user) {
+        console.error("Pas d'utilisateur trouvé");
+        return null;
+      }
+      
+      const userEmail = user.email;
+      console.log(`Vérification de l'email ${userEmail} dans les tables`);
+      
+      // 2. Vérifier d'abord dans la table utilisateurs (admins)
       const { data: adminData, error: adminError } = await supabase
         .from('utilisateurs')
-        .select('role')
-        .eq('id', userId)
+        .select('role, email')
+        .eq('email', userEmail)
         .eq('role', 'admin')
         .maybeSingle();
 
@@ -30,15 +41,15 @@ export function useAuth() {
       }
 
       if (adminData) {
-        console.log("Utilisateur identifié comme admin");
+        console.log("Utilisateur identifié comme admin via email:", adminData);
         return "admin";
       }
 
-      // Si ce n'est pas un admin, vérifier s'il est un client
+      // 3. Si ce n'est pas un admin, vérifier dans la table clients
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
-        .select('id')
-        .eq('id', userId)
+        .select('id, email')
+        .eq('email', userEmail)
         .maybeSingle();
 
       if (clientError) {
@@ -46,12 +57,59 @@ export function useAuth() {
       }
 
       if (clientData) {
-        console.log("Utilisateur identifié comme client");
+        console.log("Utilisateur identifié comme client via email:", clientData);
         return "client";
       }
 
-      // Si l'utilisateur n'a pas de profil défini
-      console.log("Utilisateur sans type défini");
+      // Si l'utilisateur n'a pas de type défini, vérifier si on peut lui en attribuer un
+      console.log("Aucun profil trouvé avec cet email. Tentative d'auto-création...");
+      
+      // Vérifier si l'utilisateur a un user_metadata.user_type défini
+      const userMetadata = user.user_metadata;
+      console.log("Metadata utilisateur:", userMetadata);
+      
+      if (userMetadata?.user_type === 'admin') {
+        // Auto-création d'un profil admin
+        const { error: createError } = await supabase
+          .from('utilisateurs')
+          .insert([
+            { 
+              id: userId, 
+              email: userEmail, 
+              nom: userEmail.split('@')[0], 
+              role: 'admin' 
+            }
+          ]);
+          
+        if (createError) {
+          console.error("Échec de l'auto-création du profil admin:", createError);
+          return null;
+        }
+        
+        console.log("Profil admin auto-créé avec succès");
+        return "admin";
+      } else if (userMetadata?.user_type === 'client') {
+        // Auto-création d'un profil client
+        const { error: createError } = await supabase
+          .from('clients')
+          .insert([
+            { 
+              id: userId, 
+              email: userEmail, 
+              nom_entreprise: userEmail.split('@')[0]
+            }
+          ]);
+          
+        if (createError) {
+          console.error("Échec de l'auto-création du profil client:", createError);
+          return null;
+        }
+        
+        console.log("Profil client auto-créé avec succès");
+        return "client";
+      }
+
+      console.log("Utilisateur sans type défini et sans possibilité d'auto-création");
       return null;
     } catch (error) {
       console.error("Erreur lors de la vérification du type d'utilisateur:", error);
@@ -125,6 +183,7 @@ export function useAuth() {
   const signIn = async (email: string, password: string) => {
     try {
       setLoading(true);
+      console.log(`Tentative de connexion pour: ${email}`);
       
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
@@ -144,7 +203,10 @@ export function useAuth() {
 
       if (data.session) {
         const userId = data.session.user.id;
+        console.log(`Connexion réussie. Vérification du type pour l'utilisateur ${userId}`);
+        
         const type = await checkUserType(userId);
+        console.log(`Type d'utilisateur détecté: ${type}`);
         
         if (!type) {
           // Si l'utilisateur n'a pas de profil défini
@@ -177,6 +239,7 @@ export function useAuth() {
   const signUp = async (email: string, password: string, userType: "admin" | "client") => {
     try {
       setLoading(true);
+      console.log(`Tentative d'inscription en tant que ${userType} pour: ${email}`);
       
       // Vérifier que l'email n'est pas déjà utilisé dans la table spécifique
       const tableToCheck = userType === 'admin' ? 'utilisateurs' : 'clients';
@@ -194,13 +257,13 @@ export function useAuth() {
         throw new Error(`Cet email est déjà associé à un compte ${userType}`);
       }
       
-      // Créer le compte utilisateur
+      // Créer le compte utilisateur avec le type d'utilisateur dans les métadonnées
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            user_type: userType
+            user_type: userType // Stocker le type d'utilisateur dans les métadonnées
           },
           emailRedirectTo: window.location.origin + '/auth'
         }
@@ -227,7 +290,6 @@ export function useAuth() {
           
           if (clientError) {
             console.error("Erreur lors de la création du profil client:", clientError);
-            // Ne pas annuler l'inscription, informer l'utilisateur uniquement
             toast.error("Profil client partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         } else if (userType === "admin") {
@@ -241,7 +303,6 @@ export function useAuth() {
           if (adminError) {
             console.error("Erreur lors de la création du profil admin:", adminError);
             console.error("Détails de l'erreur:", adminError.details, adminError.hint, adminError.message);
-            // Ne pas annuler l'inscription, informer l'utilisateur uniquement
             toast.error("Profil administrateur partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         }

@@ -15,11 +15,14 @@ const Index = () => {
       if (session?.user) {
         // Vérifier le type d'utilisateur
         try {
-          // Vérifier d'abord si l'utilisateur est un admin
+          const userEmail = session.user.email;
+          console.log(`Vérification de l'email ${userEmail} pour la redirection`);
+          
+          // Vérifier d'abord si l'utilisateur est un admin via l'email
           const { data: adminData, error: adminError } = await supabase
             .from('utilisateurs')
             .select('role')
-            .eq('id', session.user.id)
+            .eq('email', userEmail)
             .eq('role', 'admin')
             .maybeSingle();
 
@@ -34,11 +37,11 @@ const Index = () => {
             return;
           }
 
-          // Si ce n'est pas un admin, vérifier s'il est un client
+          // Si ce n'est pas un admin, vérifier s'il est un client via l'email
           const { data: clientData, error: clientError } = await supabase
             .from('clients')
             .select('id')
-            .eq('id', session.user.id)
+            .eq('email', userEmail)
             .maybeSingle();
 
           if (clientError) {
@@ -50,6 +53,51 @@ const Index = () => {
             console.log("Redirection vers /client-dashboard car l'utilisateur est un client");
             navigate('/client-dashboard', { replace: true });
             return;
+          }
+
+          // Tentative de création automatique de profil basée sur les métadonnées
+          const userMetadata = session.user.user_metadata;
+          console.log("Metadata utilisateur:", userMetadata);
+          
+          if (userMetadata?.user_type === 'admin') {
+            // Auto-création d'un profil admin
+            const { error: createError } = await supabase
+              .from('utilisateurs')
+              .insert([
+                { 
+                  id: session.user.id, 
+                  email: userEmail, 
+                  nom: userEmail?.split('@')[0] || 'Admin', 
+                  role: 'admin' 
+                }
+              ]);
+              
+            if (createError) {
+              console.error("Échec de l'auto-création du profil admin:", createError);
+            } else {
+              console.log("Profil admin auto-créé avec succès");
+              navigate('/admin', { replace: true });
+              return;
+            }
+          } else if (userMetadata?.user_type === 'client') {
+            // Auto-création d'un profil client
+            const { error: createError } = await supabase
+              .from('clients')
+              .insert([
+                { 
+                  id: session.user.id, 
+                  email: userEmail, 
+                  nom_entreprise: userEmail?.split('@')[0] || 'Client'
+                }
+              ]);
+              
+            if (createError) {
+              console.error("Échec de l'auto-création du profil client:", createError);
+            } else {
+              console.log("Profil client auto-créé avec succès");
+              navigate('/client-dashboard', { replace: true });
+              return;
+            }
           }
 
           // Si l'utilisateur n'a pas de type défini
