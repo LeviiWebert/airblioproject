@@ -20,6 +20,7 @@ import Contact from "./pages/Contact";
 import RequestIntervention from "./pages/intervention/RequestIntervention";
 import InterventionDetails from "./pages/intervention/InterventionDetails";
 import InterventionSchedule from "./pages/intervention/InterventionSchedule";
+import InterventionRecap from "./pages/client/InterventionRecap";
 import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 
@@ -122,6 +123,15 @@ const App = () => {
                     {/* Contenu à implémenter plus tard */}
                   </div>
                 </ClientLayout>
+              ) : (
+                <Auth />
+              )
+            } />
+            
+            {/* Nouvelle route pour le récapitulatif d'intervention */}
+            <Route path="/client/intervention/:id" element={
+              session && userType === "client" ? (
+                <InterventionRecap />
               ) : (
                 <Auth />
               )

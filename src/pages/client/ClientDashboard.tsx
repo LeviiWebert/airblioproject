@@ -1,172 +1,271 @@
 
-import { useState, useEffect } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
-import { Plus, Clock, Check, AlertCircle } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
+import { PriorityBadge } from "@/components/interventions/PriorityBadge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { FileText, Clock, CheckCircle, ExternalLink, PlusCircle, Eye } from "lucide-react";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
+import { useToast } from "@/hooks/use-toast";
 
 const ClientDashboard = () => {
-  const [session, setSession] = useState<Session | null>(null);
+  const { toast } = useToast();
+  const [interventions, setInterventions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalInterventions: 0,
-    enCours: 0,
-    planifiees: 0,
-    terminees: 0,
-  });
+  const [clientId, setClientId] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      setSession(data.session);
-      setLoading(false);
+    const fetchUserAndInterventions = async () => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        
+        if (!user) {
+          throw new Error("Utilisateur non authentifié");
+        }
+        
+        setClientId(user.id);
+        
+        const { data, error } = await supabase
+          .from('demande_interventions')
+          .select(`
+            id,
+            date_demande,
+            description,
+            urgence,
+            statut,
+            intervention_id
+          `)
+          .eq('client_id', user.id)
+          .order('date_demande', { ascending: false });
+          
+        if (error) throw error;
+        
+        setInterventions(data || []);
+      } catch (error: any) {
+        console.error("Erreur lors du chargement des données:", error);
+        toast({
+          variant: "destructive", 
+          title: "Erreur",
+          description: "Impossible de charger vos interventions. Veuillez réessayer ultérieurement."
+        });
+      } finally {
+        setLoading(false);
+      }
     };
-
-    fetchSession();
     
-    // Simuler le chargement des statistiques (à remplacer par des appels API réels)
-    setTimeout(() => {
-      setStats({
-        totalInterventions: 12,
-        enCours: 3,
-        planifiees: 5,
-        terminees: 4,
-      });
-    }, 1000);
-  }, []);
+    fetchUserAndInterventions();
+  }, [toast]);
 
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="text-center">Chargement...</div>
-      </div>
+  const getInterventionsByStatus = (status: string) => {
+    return interventions.filter(intervention => intervention.statut === status);
+  };
+
+  const getPendingInterventions = () => {
+    return interventions.filter(intervention => 
+      ["en_attente", "en_cours_analyse", "validée"].includes(intervention.statut)
     );
-  }
+  };
+
+  const getActiveInterventions = () => {
+    return interventions.filter(intervention => 
+      ["planifiée", "en_cours"].includes(intervention.statut)
+    );
+  };
+
+  const getCompletedInterventions = () => {
+    return interventions.filter(intervention => 
+      ["terminée"].includes(intervention.statut)
+    );
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
-      <div className="flex justify-between items-center mb-8">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
         <div>
           <h1 className="text-3xl font-bold">Tableau de bord</h1>
-          <p className="text-muted-foreground">
-            Bienvenue, {session?.user.email}
-          </p>
+          <p className="text-muted-foreground">Bienvenue sur votre espace client</p>
         </div>
-        <Link to="/client/new-request">
-          <Button className="gap-2">
-            <Plus className="h-4 w-4" />
-            Nouvelle demande
-          </Button>
-        </Link>
+        <div className="mt-4 md:mt-0">
+          <Link to="/intervention/request">
+            <Button>
+              <PlusCircle className="mr-2 h-4 w-4" />
+              Nouvelle demande d'intervention
+            </Button>
+          </Link>
+        </div>
       </div>
 
-      {/* Statistiques */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
         <Card>
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold">{stats.totalInterventions}</div>
-            <p className="text-muted-foreground text-sm">Interventions totales</p>
-          </CardContent>
-        </Card>
-        <Card className="bg-blue-50 dark:bg-blue-950">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-blue-600 dark:text-blue-400">{stats.enCours}</div>
-            <div className="flex items-center text-blue-600 dark:text-blue-400 text-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Demandes en attente
+            </CardTitle>
+            <CardDescription className="text-3xl font-bold">
+              {loading ? "..." : getPendingInterventions().length}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center text-xs text-muted-foreground">
               <Clock className="h-4 w-4 mr-1" />
-              <p>En cours</p>
+              Non planifiées
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-yellow-50 dark:bg-yellow-950">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-yellow-600 dark:text-yellow-400">{stats.planifiees}</div>
-            <div className="flex items-center text-yellow-600 dark:text-yellow-400 text-sm">
-              <AlertCircle className="h-4 w-4 mr-1" />
-              <p>Planifiées</p>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Interventions actives
+            </CardTitle>
+            <CardDescription className="text-3xl font-bold">
+              {loading ? "..." : getActiveInterventions().length}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <FileText className="h-4 w-4 mr-1" />
+              En cours ou planifiées
             </div>
           </CardContent>
         </Card>
-        <Card className="bg-green-50 dark:bg-green-950">
-          <CardContent className="pt-6">
-            <div className="text-2xl font-bold text-green-600 dark:text-green-400">{stats.terminees}</div>
-            <div className="flex items-center text-green-600 dark:text-green-400 text-sm">
-              <Check className="h-4 w-4 mr-1" />
-              <p>Terminées</p>
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm font-medium text-muted-foreground">
+              Interventions terminées
+            </CardTitle>
+            <CardDescription className="text-3xl font-bold">
+              {loading ? "..." : getCompletedInterventions().length}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex items-center text-xs text-muted-foreground">
+              <CheckCircle className="h-4 w-4 mr-1" />
+              Archivées
             </div>
           </CardContent>
         </Card>
       </div>
 
-      {/* Onglets contenu principal */}
-      <Tabs defaultValue="interventions" className="mt-6">
-        <TabsList className="mb-6 w-full max-w-md">
-          <TabsTrigger value="interventions" className="flex-1">Mes interventions</TabsTrigger>
-          <TabsTrigger value="demandes" className="flex-1">Mes demandes</TabsTrigger>
-          <TabsTrigger value="factures" className="flex-1">Mes factures</TabsTrigger>
+      <Tabs defaultValue="all" className="space-y-4">
+        <TabsList>
+          <TabsTrigger value="all">Toutes les demandes</TabsTrigger>
+          <TabsTrigger value="pending">En attente</TabsTrigger>
+          <TabsTrigger value="active">Actives</TabsTrigger>
+          <TabsTrigger value="completed">Terminées</TabsTrigger>
         </TabsList>
-        
-        <TabsContent value="interventions" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Interventions en cours et à venir</CardTitle>
-              <CardDescription>La liste de vos interventions planifiées et en cours d'exécution</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <div className="p-4">
-                  {/* Contenu à implémenter plus tard: liste des interventions */}
-                  <div className="text-center py-8 text-gray-500">
-                    Vous n'avez pas d'interventions en cours ou à venir.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="demandes" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mes demandes d'intervention</CardTitle>
-              <CardDescription>Liste de toutes vos demandes d'intervention</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <div className="p-4">
-                  {/* Contenu à implémenter plus tard: liste des demandes */}
-                  <div className="text-center py-8 text-gray-500">
-                    Vous n'avez pas encore effectué de demandes d'intervention.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
-        
-        <TabsContent value="factures" className="space-y-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>Mes factures</CardTitle>
-              <CardDescription>Historique et statut de vos factures</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="rounded-md border">
-                <div className="p-4">
-                  {/* Contenu à implémenter plus tard: liste des factures */}
-                  <div className="text-center py-8 text-gray-500">
-                    Vous n'avez pas encore de factures.
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        </TabsContent>
+
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
+          </div>
+        ) : (
+          <>
+            <TabsContent value="all" className="space-y-4">
+              {interventions.length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p className="mb-4">Vous n'avez pas encore de demandes d'intervention.</p>
+                    <Link to="/intervention/request">
+                      <Button>
+                        <PlusCircle className="mr-2 h-4 w-4" />
+                        Créer une demande
+                      </Button>
+                    </Link>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(interventions)
+              )}
+            </TabsContent>
+
+            <TabsContent value="pending" className="space-y-4">
+              {getPendingInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p>Aucune demande en attente.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getPendingInterventions())
+              )}
+            </TabsContent>
+
+            <TabsContent value="active" className="space-y-4">
+              {getActiveInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p>Aucune intervention active en ce moment.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getActiveInterventions())
+              )}
+            </TabsContent>
+
+            <TabsContent value="completed" className="space-y-4">
+              {getCompletedInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="py-10 text-center">
+                    <p>Aucune intervention terminée.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getCompletedInterventions())
+              )}
+            </TabsContent>
+          </>
+        )}
       </Tabs>
     </div>
   );
+  
+  function renderInterventionsList(interventions: any[]) {
+    return (
+      <div className="space-y-4">
+        {interventions.map((intervention) => (
+          <Card key={intervention.id} className="overflow-hidden">
+            <CardContent className="p-0">
+              <div className="flex flex-col md:flex-row">
+                <div className="p-6 flex-1">
+                  <div className="flex justify-between">
+                    <div className="space-y-1">
+                      <h3 className="font-semibold">
+                        Intervention #{intervention.id.substring(0, 8).toUpperCase()}
+                      </h3>
+                      <p className="text-sm text-muted-foreground">
+                        {intervention.description.length > 100 
+                          ? `${intervention.description.substring(0, 100)}...` 
+                          : intervention.description}
+                      </p>
+                    </div>
+                    <div className="flex flex-col items-end space-y-2">
+                      <InterventionStatusBadge status={intervention.statut} />
+                      <PriorityBadge priority={intervention.urgence} />
+                    </div>
+                  </div>
+                  <div className="mt-4 flex justify-between items-center">
+                    <div className="text-sm text-muted-foreground">
+                      Créée le {format(new Date(intervention.date_demande), "dd/MM/yyyy", { locale: fr })}
+                    </div>
+                    <Link to={`/client/intervention/${intervention.id}`}>
+                      <Button variant="outline" size="sm">
+                        <Eye className="mr-2 h-4 w-4" />
+                        Voir le récapitulatif
+                      </Button>
+                    </Link>
+                  </div>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+    );
+  }
 };
 
 export default ClientDashboard;
