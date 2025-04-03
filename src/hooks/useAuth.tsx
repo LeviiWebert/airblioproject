@@ -28,7 +28,16 @@ export function useAuth() {
       const userEmail = user.email;
       console.log(`Vérification de l'email ${userEmail} dans les tables`);
       
-      // 2. Vérifier d'abord dans la table utilisateurs (admins)
+      // Vérification critique - récupérer le metadata user_type si disponible
+      const userMetadata = user.user_metadata;
+      console.log("Metadata utilisateur:", userMetadata);
+      
+      if (userMetadata?.user_type === 'admin') {
+        console.log("Utilisateur identifié comme admin via metadata");
+        return "admin";
+      }
+      
+      // 2. Vérifier dans la table utilisateurs (admins)
       const { data: adminData, error: adminError } = await supabase
         .from('utilisateurs')
         .select('role, email')
@@ -43,6 +52,43 @@ export function useAuth() {
       if (adminData) {
         console.log("Utilisateur identifié comme admin via email:", adminData);
         return "admin";
+      }
+      
+      // Vérification spéciale pour les adresses email spécifiques d'admin
+      if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
+        console.log("Email identifié comme administrateur par convention");
+        
+        // Auto-création d'un profil admin si nécessaire
+        const { data: existingAdmin, error: checkError } = await supabase
+          .from('utilisateurs')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        if (!existingAdmin && !checkError) {
+          // Créer le profil admin
+          const { error: createError } = await supabase
+            .from('utilisateurs')
+            .insert([
+              { 
+                id: userId, 
+                email: userEmail, 
+                nom: userEmail.split('@')[0], 
+                role: 'admin' 
+              }
+            ]).select();
+            
+          if (createError) {
+            console.error("Échec de l'auto-création du profil admin:", createError);
+          } else {
+            console.log("Profil admin auto-créé avec succès");
+            return "admin";
+          }
+        }
+        
+        if (existingAdmin) {
+          return "admin";
+        }
       }
 
       // 3. Si ce n'est pas un admin, vérifier dans la table clients
@@ -61,34 +107,10 @@ export function useAuth() {
         return "client";
       }
 
-      // Si l'utilisateur n'a pas de type défini, vérifier si on peut lui en attribuer un
+      // Tentative d'auto-création basée sur les métadonnées si l'utilisateur n'a pas de profil
       console.log("Aucun profil trouvé avec cet email. Tentative d'auto-création...");
       
-      // Vérifier si l'utilisateur a un user_metadata.user_type défini
-      const userMetadata = user.user_metadata;
-      console.log("Metadata utilisateur:", userMetadata);
-      
-      if (userMetadata?.user_type === 'admin') {
-        // Auto-création d'un profil admin
-        const { error: createError } = await supabase
-          .from('utilisateurs')
-          .insert([
-            { 
-              id: userId, 
-              email: userEmail, 
-              nom: userEmail.split('@')[0], 
-              role: 'admin' 
-            }
-          ]);
-          
-        if (createError) {
-          console.error("Échec de l'auto-création du profil admin:", createError);
-          return null;
-        }
-        
-        console.log("Profil admin auto-créé avec succès");
-        return "admin";
-      } else if (userMetadata?.user_type === 'client') {
+      if (userMetadata?.user_type === 'client') {
         // Auto-création d'un profil client
         const { error: createError } = await supabase
           .from('clients')
@@ -98,7 +120,7 @@ export function useAuth() {
               email: userEmail, 
               nom_entreprise: userEmail.split('@')[0]
             }
-          ]);
+          ]).select();
           
         if (createError) {
           console.error("Échec de l'auto-création du profil client:", createError);

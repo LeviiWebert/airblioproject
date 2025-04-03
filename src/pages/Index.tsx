@@ -18,7 +18,17 @@ const Index = () => {
           const userEmail = session.user.email;
           console.log(`Vérification de l'email ${userEmail} pour la redirection`);
           
-          // Vérifier d'abord si l'utilisateur est un admin via l'email
+          // Vérification critique - récupérer le metadata user_type si disponible
+          const userMetadata = session.user.user_metadata;
+          console.log("Metadata utilisateur:", userMetadata);
+          
+          if (userMetadata?.user_type === 'admin') {
+            console.log("Redirection vers /admin car user_type metadata est 'admin'");
+            navigate('/admin', { replace: true });
+            return;
+          }
+          
+          // Vérifier d'abord si l'utilisateur est un admin via l'email dans la table utilisateurs
           const { data: adminData, error: adminError } = await supabase
             .from('utilisateurs')
             .select('role')
@@ -55,11 +65,13 @@ const Index = () => {
             return;
           }
 
-          // Tentative de création automatique de profil basée sur les métadonnées
-          const userMetadata = session.user.user_metadata;
-          console.log("Metadata utilisateur:", userMetadata);
+          // Si nous ne trouvons pas de profil dans les tables, essayons de créer un profil
+          // basé sur les métadonnées ou l'email de l'utilisateur
           
-          if (userMetadata?.user_type === 'admin') {
+          // Si l'email contient "admin", on considère que c'est un admin par défaut
+          if (userEmail?.includes("admin") || userEmail === "leviwebert147@gmail.com") {
+            console.log("Email identifié comme administrateur par convention");
+            
             // Auto-création d'un profil admin
             const { error: createError } = await supabase
               .from('utilisateurs')
@@ -70,7 +82,7 @@ const Index = () => {
                   nom: userEmail?.split('@')[0] || 'Admin', 
                   role: 'admin' 
                 }
-              ]);
+              ]).select();
               
             if (createError) {
               console.error("Échec de l'auto-création du profil admin:", createError);
@@ -79,8 +91,8 @@ const Index = () => {
               navigate('/admin', { replace: true });
               return;
             }
-          } else if (userMetadata?.user_type === 'client') {
-            // Auto-création d'un profil client
+          } else {
+            // Auto-création d'un profil client par défaut
             const { error: createError } = await supabase
               .from('clients')
               .insert([
@@ -89,7 +101,7 @@ const Index = () => {
                   email: userEmail, 
                   nom_entreprise: userEmail?.split('@')[0] || 'Client'
                 }
-              ]);
+              ]).select();
               
             if (createError) {
               console.error("Échec de l'auto-création du profil client:", createError);
