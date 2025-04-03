@@ -1,4 +1,3 @@
-
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -12,12 +11,12 @@ export function useAuth() {
   const [initialized, setInitialized] = useState(false);
   const navigate = useNavigate();
   
-  // Fonction améliorée pour vérifier le rôle de l'utilisateur
+  // Function to check user type with improved reliability
   const checkUserType = useCallback(async (userId: string) => {
     try {
       console.log("Vérification du type d'utilisateur:", userId);
       
-      // 1. Vérifier d'abord si l'utilisateur est un admin en utilisant l'email
+      // Get the authenticated user data
       const { data: { user } } = await supabase.auth.getUser();
       
       if (!user) {
@@ -26,18 +25,115 @@ export function useAuth() {
       }
       
       const userEmail = user.email;
-      console.log(`Vérification de l'email ${userEmail} dans les tables`);
+      console.log(`Vérification de l'email ${userEmail} pour la redirection`);
       
-      // Vérification critique - récupérer le metadata user_type si disponible
+      // Critical check - get user_type from metadata if available
       const userMetadata = user.user_metadata;
       console.log("Metadata utilisateur:", userMetadata);
       
-      if (userMetadata?.user_type === 'admin') {
-        console.log("Utilisateur identifié comme admin via metadata");
-        return "admin";
+      // Special case for known admin emails
+      if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
+        console.log("Email identifié comme administrateur par convention");
+        
+        // Check if admin profile already exists
+        const { data: existingAdmin, error: checkError } = await supabase
+          .from('utilisateurs')
+          .select('id, role')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        // If admin profile doesn't exist, create it
+        if (!existingAdmin && !checkError) {
+          const { error: createError } = await supabase
+            .from('utilisateurs')
+            .insert([
+              { 
+                id: userId, 
+                email: userEmail, 
+                nom: userEmail.split('@')[0], 
+                role: 'admin' 
+              }
+            ]);
+            
+          if (createError) {
+            console.error("Échec de l'auto-création du profil admin:", createError);
+          } else {
+            console.log("Profil admin auto-créé avec succès");
+            return "admin";
+          }
+        }
+        
+        if (existingAdmin) {
+          console.log("Profil admin existant trouvé:", existingAdmin);
+          return "admin";
+        }
       }
       
-      // 2. Vérifier dans la table utilisateurs (admins)
+      // First priority: Check user_type in metadata
+      if (userMetadata?.user_type === 'admin') {
+        console.log("Utilisateur identifié comme admin via metadata");
+        
+        // Ensure admin profile exists
+        const { data: existingAdminProfile, error: checkProfileError } = await supabase
+          .from('utilisateurs')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        if (!existingAdminProfile && !checkProfileError) {
+          // Create admin profile if it doesn't exist
+          const { error: createProfileError } = await supabase
+            .from('utilisateurs')
+            .insert([
+              { 
+                id: userId, 
+                email: userEmail, 
+                nom: userEmail.split('@')[0], 
+                role: 'admin' 
+              }
+            ]);
+            
+          if (createProfileError) {
+            console.error("Échec de l'auto-création du profil admin depuis metadata:", createProfileError);
+          } else {
+            console.log("Profil admin auto-créé depuis metadata avec succès");
+          }
+        }
+        
+        return "admin";
+      } else if (userMetadata?.user_type === 'client') {
+        console.log("Utilisateur identifié comme client via metadata");
+        
+        // Ensure client profile exists
+        const { data: existingClientProfile, error: checkClientProfileError } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        if (!existingClientProfile && !checkClientProfileError) {
+          // Create client profile if it doesn't exist
+          const { error: createClientProfileError } = await supabase
+            .from('clients')
+            .insert([
+              { 
+                id: userId, 
+                email: userEmail, 
+                nom_entreprise: userEmail?.split('@')[0] || 'Client'
+              }
+            ]);
+            
+          if (createClientProfileError) {
+            console.error("Échec de l'auto-création du profil client depuis metadata:", createClientProfileError);
+          } else {
+            console.log("Profil client auto-créé depuis metadata avec succès");
+          }
+        }
+        
+        return "client";
+      }
+      
+      // Second priority: Check in utilisateurs table (admin)
       const { data: adminData, error: adminError } = await supabase
         .from('utilisateurs')
         .select('role, email')
@@ -54,44 +150,7 @@ export function useAuth() {
         return "admin";
       }
       
-      // Vérification spéciale pour les adresses email spécifiques d'admin
-      if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
-        console.log("Email identifié comme administrateur par convention");
-        
-        // Auto-création d'un profil admin si nécessaire
-        const { data: existingAdmin, error: checkError } = await supabase
-          .from('utilisateurs')
-          .select('id')
-          .eq('email', userEmail)
-          .maybeSingle();
-          
-        if (!existingAdmin && !checkError) {
-          // Créer le profil admin
-          const { error: createError } = await supabase
-            .from('utilisateurs')
-            .insert([
-              { 
-                id: userId, 
-                email: userEmail, 
-                nom: userEmail.split('@')[0], 
-                role: 'admin' 
-              }
-            ]).select();
-            
-          if (createError) {
-            console.error("Échec de l'auto-création du profil admin:", createError);
-          } else {
-            console.log("Profil admin auto-créé avec succès");
-            return "admin";
-          }
-        }
-        
-        if (existingAdmin) {
-          return "admin";
-        }
-      }
-
-      // 3. Si ce n'est pas un admin, vérifier dans la table clients
+      // Third priority: Check in clients table
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id, email')
@@ -107,31 +166,7 @@ export function useAuth() {
         return "client";
       }
 
-      // Tentative d'auto-création basée sur les métadonnées si l'utilisateur n'a pas de profil
-      console.log("Aucun profil trouvé avec cet email. Tentative d'auto-création...");
-      
-      if (userMetadata?.user_type === 'client') {
-        // Auto-création d'un profil client
-        const { error: createError } = await supabase
-          .from('clients')
-          .insert([
-            { 
-              id: userId, 
-              email: userEmail, 
-              nom_entreprise: userEmail.split('@')[0]
-            }
-          ]).select();
-          
-        if (createError) {
-          console.error("Échec de l'auto-création du profil client:", createError);
-          return null;
-        }
-        
-        console.log("Profil client auto-créé avec succès");
-        return "client";
-      }
-
-      console.log("Utilisateur sans type défini et sans possibilité d'auto-création");
+      console.log("Utilisateur sans type défini");
       return null;
     } catch (error) {
       console.error("Erreur lors de la vérification du type d'utilisateur:", error);
@@ -139,7 +174,7 @@ export function useAuth() {
     }
   }, []);
 
-  // Initialisation et écoute des changements d'authentification
+  // Initialize auth and set up listeners
   useEffect(() => {
     let mounted = true;
     
@@ -201,69 +236,13 @@ export function useAuth() {
     };
   }, [checkUserType]);
 
-  // Fonction de connexion avec gestion d'erreurs améliorée
-  const signIn = async (email: string, password: string) => {
-    try {
-      setLoading(true);
-      console.log(`Tentative de connexion pour: ${email}`);
-      
-      const { data, error } = await supabase.auth.signInWithPassword({
-        email,
-        password
-      });
-
-      if (error) {
-        // Gestion améliorée des erreurs courantes
-        if (error.message.includes('Invalid login')) {
-          throw new Error("Email ou mot de passe incorrect");
-        } else if (error.message.includes('Email not confirmed')) {
-          throw new Error("Email non confirmé. Veuillez vérifier votre boîte mail");
-        } else {
-          throw error;
-        }
-      }
-
-      if (data.session) {
-        const userId = data.session.user.id;
-        console.log(`Connexion réussie. Vérification du type pour l'utilisateur ${userId}`);
-        
-        const type = await checkUserType(userId);
-        console.log(`Type d'utilisateur détecté: ${type}`);
-        
-        if (!type) {
-          // Si l'utilisateur n'a pas de profil défini
-          await supabase.auth.signOut();
-          throw new Error("Votre compte n'est associé à aucun profil. Veuillez contacter l'administrateur.");
-        }
-        
-        toast.success("Connexion réussie");
-        
-        // Redirection automatique vers le dashboard approprié
-        if (type === "admin") {
-          // Les administrateurs sont toujours redirigés vers le dashboard admin
-          navigate("/admin", { replace: true });
-        } else if (type === "client") {
-          navigate("/client-dashboard", { replace: true });
-        }
-        
-        return type;
-      }
-    } catch (error: any) {
-      console.error("Erreur de connexion:", error);
-      toast.error(error.message || "Échec de la connexion");
-      throw error;
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Fonction d'inscription avec gestion d'erreurs améliorée et optimisation pour les administrateurs
+  // Fixed signup function to ensure proper role assignment
   const signUp = async (email: string, password: string, userType: "admin" | "client") => {
     try {
       setLoading(true);
       console.log(`Tentative d'inscription en tant que ${userType} pour: ${email}`);
       
-      // Vérifier que l'email n'est pas déjà utilisé dans la table spécifique
+      // Check if email is already in use in the specific table
       const tableToCheck = userType === 'admin' ? 'utilisateurs' : 'clients';
       const { data: existingEmail, error: emailCheckError } = await supabase
         .from(tableToCheck)
@@ -279,13 +258,13 @@ export function useAuth() {
         throw new Error(`Cet email est déjà associé à un compte ${userType}`);
       }
       
-      // Créer le compte utilisateur avec le type d'utilisateur dans les métadonnées
+      // Create user account with user type in metadata
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
           data: {
-            user_type: userType // Stocker le type d'utilisateur dans les métadonnées
+            user_type: userType // Store user type in metadata
           },
           emailRedirectTo: window.location.origin + '/auth'
         }
@@ -301,7 +280,7 @@ export function useAuth() {
         }
       }
 
-      // Créer le profil utilisateur
+      // Create user profile based on type
       if (data.user) {
         if (userType === "client") {
           const { error: clientError } = await supabase
@@ -315,7 +294,7 @@ export function useAuth() {
             toast.error("Profil client partiellement créé. Veuillez contacter l'administrateur pour compléter votre profil.");
           }
         } else if (userType === "admin") {
-          // Créer le profil administrateur
+          // Create admin profile with explicit role specified
           const { error: adminError } = await supabase
             .from('utilisateurs')
             .insert([
@@ -330,15 +309,15 @@ export function useAuth() {
         }
       }
 
-      // Gérer le retour selon la configuration de Supabase
+      // Handle session based on Supabase configuration
       if (data.session) {
-        // Force check le type d'utilisateur après création
+        // Force check user type after creation
         const type = await checkUserType(data.user!.id);
         setUserType(type);
         
         toast.success("Inscription réussie! Vous êtes maintenant connecté.");
         
-        // Redirection automatique selon le type d'utilisateur
+        // Automatic redirection based on user type
         if (type === "admin") {
           navigate("/admin", { replace: true });
         } else if (type === "client") {
@@ -359,7 +338,62 @@ export function useAuth() {
     }
   };
 
-  // Fonction de déconnexion
+  // Function to sign in with error handling
+  const signIn = async (email: string, password: string) => {
+    try {
+      setLoading(true);
+      console.log(`Tentative de connexion pour: ${email}`);
+      
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password
+      });
+
+      if (error) {
+        // Enhanced error handling for common errors
+        if (error.message.includes('Invalid login')) {
+          throw new Error("Email ou mot de passe incorrect");
+        } else if (error.message.includes('Email not confirmed')) {
+          throw new Error("Email non confirmé. Veuillez vérifier votre boîte mail");
+        } else {
+          throw error;
+        }
+      }
+
+      if (data.session) {
+        const userId = data.session.user.id;
+        console.log(`Connexion réussie. Vérification du type pour l'utilisateur ${userId}`);
+        
+        const type = await checkUserType(userId);
+        console.log(`Type d'utilisateur détecté: ${type}`);
+        
+        if (!type) {
+          // If user has no defined profile
+          await supabase.auth.signOut();
+          throw new Error("Votre compte n'est associé à aucun profil. Veuillez contacter l'administrateur.");
+        }
+        
+        toast.success("Connexion réussie");
+        
+        // Automatic redirection to appropriate dashboard
+        if (type === "admin") {
+          navigate("/admin", { replace: true });
+        } else if (type === "client") {
+          navigate("/client-dashboard", { replace: true });
+        }
+        
+        return type;
+      }
+    } catch (error: any) {
+      console.error("Erreur de connexion:", error);
+      toast.error(error.message || "Échec de la connexion");
+      throw error;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Function to sign out
   const signOut = async () => {
     try {
       setLoading(true);
