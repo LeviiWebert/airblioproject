@@ -25,7 +25,7 @@ export const ProtectedClientRoute = ({ children }: ProtectedClientRouteProps) =>
   if (loading || !initialized) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Loading size="lg" />
+        <Loading />
       </div>
     );
   }

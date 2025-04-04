@@ -25,7 +25,7 @@ export const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   if (loading || !initialized) {
     return (
       <div className="flex items-center justify-center h-screen">
-        <Loading size="lg" />
+        <Loading />
       </div>
     );
   }
