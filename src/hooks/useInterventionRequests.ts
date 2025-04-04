@@ -8,7 +8,6 @@ export const useInterventionRequests = () => {
   const [loading, setLoading] = useState(true);
   const [requests, setRequests] = useState<any[]>([]);
   const [selectedRequest, setSelectedRequest] = useState<any | null>(null);
-  const [dialogOpen, setDialogOpen] = useState(false);
   const [actionType, setActionType] = useState<"accept" | "reject" | null>(null);
   
   const { toast: useToastHook } = useToast();
@@ -52,13 +51,11 @@ export const useInterventionRequests = () => {
   const handleAccept = (request: any) => {
     setSelectedRequest(request);
     setActionType("accept");
-    setDialogOpen(true);
   };
 
   const handleReject = (request: any) => {
     setSelectedRequest(request);
     setActionType("reject");
-    setDialogOpen(true);
   };
 
   const confirmAction = async () => {
@@ -79,20 +76,17 @@ export const useInterventionRequests = () => {
       // Mettre à jour l'interface utilisateur
       setRequests(requests.filter(req => req.id !== selectedRequest.id));
       
-      // Utiliser le toast de sonner correctement (sans propriété title)
-      toast(
-        actionType === "accept" ? "Demande acceptée" : "Demande rejetée", 
-        {
-          description: `La demande de ${selectedRequest.client?.nom_entreprise || 'client'} a été ${newStatus}.`
-        }
-      );
-      
       // Si la demande est acceptée, créer une intervention
       if (actionType === "accept") {
         // Ici, vous pourriez ajouter le code pour créer une nouvelle intervention
         // Exemple: appeler un service ou insérer directement dans Supabase
       }
       
+      // Réinitialiser l'état
+      setSelectedRequest(null);
+      setActionType(null);
+      
+      return true;
     } catch (error: any) {
       console.error("Erreur lors de la mise à jour de la demande:", error);
       useToastHook({
@@ -100,8 +94,7 @@ export const useInterventionRequests = () => {
         title: "Erreur",
         description: error.message || "Une erreur est survenue lors de la mise à jour.",
       });
-    } finally {
-      setDialogOpen(false);
+      throw error;
     }
   };
 
@@ -109,9 +102,7 @@ export const useInterventionRequests = () => {
     loading,
     requests,
     selectedRequest,
-    dialogOpen,
     actionType,
-    setDialogOpen,
     handleAccept,
     handleReject,
     confirmAction

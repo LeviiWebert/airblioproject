@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
@@ -39,7 +39,7 @@ const NewInterventionPage = () => {
   const [equipes, setEquipes] = useState<any[]>([]);
 
   // Charger les clients et équipes
-  useState(() => {
+  useEffect(() => {
     const fetchData = async () => {
       try {
         const [clientsData, equipesData] = await Promise.all([
