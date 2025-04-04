@@ -3,40 +3,65 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Users } from "lucide-react";
+import { Loader2, Plus, Users, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Link } from "react-router-dom";
+import { Equipe } from "@/types/models";
+import AddTeamDialog from "@/components/dialogs/AddTeamDialog";
+import EditTeamDialog from "@/components/dialogs/EditTeamDialog";
+import DeleteTeamDialog from "@/components/dialogs/DeleteTeamDialog";
 
 const TeamsPage = () => {
   const [loading, setLoading] = useState(true);
-  const [teams, setTeams] = useState<any[]>([]);
+  const [teams, setTeams] = useState<Equipe[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<Equipe | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchTeams = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('equipes')
-          .select('*');
-          
-        if (error) throw error;
+  const fetchTeams = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('equipes')
+        .select('*');
         
-        setTeams(data || []);
-      } catch (error: any) {
-        console.error("Erreur lors du chargement des équipes:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de chargement",
-          description: "Impossible de charger les équipes.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (error) throw error;
+      
+      // Transform the data to match our Equipe type
+      const formattedData: Equipe[] = (data || []).map((team) => ({
+        id: team.id,
+        nom: team.nom,
+        specialisation: team.specialisation || '',
+        membres: []  // We'll need another query to get team members if needed
+      }));
+      
+      setTeams(formattedData);
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des équipes:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les équipes.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchTeams();
   }, [toast]);
+
+  const handleEdit = (team: Equipe) => {
+    setSelectedTeam(team);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (team: Equipe) => {
+    setSelectedTeam(team);
+    setIsDeleteDialogOpen(true);
+  };
 
   return (
     <div className="space-y-6">
@@ -47,7 +72,10 @@ const TeamsPage = () => {
             Consultez et gérez les équipes d'intervention.
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           <span>Nouvelle équipe</span>
         </Button>
@@ -77,9 +105,24 @@ const TeamsPage = () => {
                     <TableCell className="font-medium">{team.nom}</TableCell>
                     <TableCell>{team.specialisation}</TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm">
-                        Voir détails
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(team)}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Modifier
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleDelete(team)}
+                        >
+                          <Trash className="h-4 w-4 mr-1" />
+                          Supprimer
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -93,6 +136,31 @@ const TeamsPage = () => {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      <AddTeamDialog 
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onTeamAdded={fetchTeams}
+      />
+
+      {selectedTeam && (
+        <>
+          <EditTeamDialog
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            onTeamUpdated={fetchTeams}
+            team={selectedTeam}
+          />
+
+          <DeleteTeamDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onTeamDeleted={fetchTeams}
+            teamId={selectedTeam.id}
+            teamName={selectedTeam.nom}
+          />
+        </>
       )}
     </div>
   );

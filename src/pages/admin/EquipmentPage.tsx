@@ -3,38 +3,54 @@ import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Wrench } from "lucide-react";
+import { Loader2, Plus, Wrench, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { Materiel } from "@/types/models";
+import AddEquipmentDialog from "@/components/dialogs/AddEquipmentDialog";
+import EditEquipmentDialog from "@/components/dialogs/EditEquipmentDialog";
+import DeleteEquipmentDialog from "@/components/dialogs/DeleteEquipmentDialog";
 
 const EquipmentPage = () => {
   const [loading, setLoading] = useState(true);
-  const [equipment, setEquipment] = useState<any[]>([]);
+  const [equipment, setEquipment] = useState<Materiel[]>([]);
+  const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [selectedEquipment, setSelectedEquipment] = useState<Materiel | null>(null);
   const { toast } = useToast();
 
-  useEffect(() => {
-    const fetchEquipment = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('materiels')
-          .select('*');
+  const fetchEquipment = async () => {
+    setLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('materiels')
+        .select('*');
           
-        if (error) throw error;
-        
-        setEquipment(data || []);
-      } catch (error: any) {
-        console.error("Erreur lors du chargement du matériel:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de chargement",
-          description: "Impossible de charger le matériel.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
+      if (error) throw error;
+      
+      // Transform the data to match our Materiel type
+      const formattedData: Materiel[] = (data || []).map((item) => ({
+        id: item.id,
+        reference: item.reference,
+        typeMateriel: item.type_materiel,
+        etat: item.etat as "disponible" | "en utilisation" | "en maintenance" | "hors service"
+      }));
+      
+      setEquipment(formattedData);
+    } catch (error: any) {
+      console.error("Erreur lors du chargement du matériel:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger le matériel.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
+  useEffect(() => {
     fetchEquipment();
   }, [toast]);
 
@@ -53,6 +69,16 @@ const EquipmentPage = () => {
     }
   };
 
+  const handleEdit = (item: Materiel) => {
+    setSelectedEquipment(item);
+    setIsEditDialogOpen(true);
+  };
+
+  const handleDelete = (item: Materiel) => {
+    setSelectedEquipment(item);
+    setIsDeleteDialogOpen(true);
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
@@ -62,7 +88,10 @@ const EquipmentPage = () => {
             Consultez et gérez l'inventaire du matériel disponible.
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button 
+          className="flex items-center gap-2"
+          onClick={() => setIsAddDialogOpen(true)}
+        >
           <Plus className="h-4 w-4" />
           <span>Nouveau matériel</span>
         </Button>
@@ -91,16 +120,31 @@ const EquipmentPage = () => {
                 equipment.map((item) => (
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.reference}</TableCell>
-                    <TableCell>{item.type_materiel}</TableCell>
+                    <TableCell>{item.typeMateriel}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getEquipmentStatusColor(item.etat)}>
                         {item.etat}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button variant="outline" size="sm">
-                        Voir détails
-                      </Button>
+                      <div className="flex justify-end gap-2">
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => handleEdit(item)}
+                        >
+                          <Pencil className="h-4 w-4 mr-1" />
+                          Modifier
+                        </Button>
+                        <Button 
+                          variant="destructive" 
+                          size="sm"
+                          onClick={() => handleDelete(item)}
+                        >
+                          <Trash className="h-4 w-4 mr-1" />
+                          Supprimer
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 ))
@@ -114,6 +158,31 @@ const EquipmentPage = () => {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      <AddEquipmentDialog 
+        open={isAddDialogOpen}
+        onOpenChange={setIsAddDialogOpen}
+        onEquipmentAdded={fetchEquipment}
+      />
+
+      {selectedEquipment && (
+        <>
+          <EditEquipmentDialog
+            open={isEditDialogOpen}
+            onOpenChange={setIsEditDialogOpen}
+            onEquipmentUpdated={fetchEquipment}
+            equipment={selectedEquipment}
+          />
+
+          <DeleteEquipmentDialog
+            open={isDeleteDialogOpen}
+            onOpenChange={setIsDeleteDialogOpen}
+            onEquipmentDeleted={fetchEquipment}
+            equipmentId={selectedEquipment.id}
+            equipmentReference={selectedEquipment.reference}
+          />
+        </>
       )}
     </div>
   );
