@@ -48,7 +48,7 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
   const navItems: NavItem[] = [
     {
       title: "Tableau de bord",
-      href: "/",
+      href: "/admin",
       icon: LayoutDashboard,
     },
     {
@@ -56,55 +56,55 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       href: "#",
       icon: ClipboardList,
       subItems: [
-        { title: "Liste des interventions", href: "/interventions" },
-        { title: "Nouvelle intervention", href: "/interventions/new" },
-        { title: "Demandes en attente", href: "/interventions/requests" },
+        { title: "Liste des interventions", href: "/admin/interventions" },
+        { title: "Nouvelle intervention", href: "/admin/interventions/new" },
+        { title: "Demandes en attente", href: "/admin/interventions/requests" },
       ],
     },
     {
       title: "Équipes",
-      href: "/teams",
+      href: "/admin/teams",
       icon: Users,
     },
     {
       title: "Matériel",
-      href: "/equipment",
+      href: "/admin/equipment",
       icon: Wrench,
     },
     {
       title: "Clients",
-      href: "/clients",
+      href: "/admin/clients",
       icon: Users,
     },
     {
       title: "PV d'interventions",
-      href: "/reports",
+      href: "/admin/reports",
       icon: FileText,
     },
     {
       title: "Logistique",
-      href: "/logistics",
+      href: "/admin/logistics",
       icon: Truck,
     },
     {
       title: "Facturation",
-      href: "/billing",
+      href: "/admin/billing",
       icon: Receipt,
     },
     {
       title: "Statistiques",
-      href: "/statistics",
+      href: "/admin/statistics",
       icon: BarChart3,
     },
     {
       title: "Paramètres",
-      href: "/settings",
+      href: "/admin/settings",
       icon: Settings,
     },
   ];
 
   const isActive = (href: string) => {
-    if (href === "/") {
+    if (href === "/admin") {
       return location.pathname === href;
     }
     return location.pathname.startsWith(href);

@@ -70,8 +70,6 @@ const InterventionsPage = () => {
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
-    // Dans une véritable application, cela mettrait à jour le statut via une API
-    // Ici, nous simulons juste la mise à jour
     try {
       toast({
         title: "Statut mis à jour",

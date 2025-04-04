@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -10,6 +10,7 @@ import { ClientLayout } from "./components/layout/ClientLayout";
 import Dashboard from "./pages/Dashboard";
 import InterventionsPage from "./pages/InterventionsPage";
 import InterventionRequests from "./pages/InterventionRequests";
+import NewInterventionPage from "./pages/admin/NewInterventionPage";
 import NotFound from "./pages/NotFound";
 import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/client/ClientDashboard";
@@ -25,7 +26,6 @@ import ClientInterventionDetails from "./pages/client/InterventionDetails";
 import Index from "./pages/Index";
 import { ProtectedAdminRoute } from "./components/auth/ProtectedAdminRoute";
 import { ProtectedClientRoute } from "./components/auth/ProtectedClientRoute";
-import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 
@@ -121,10 +121,99 @@ const App = () => {
                 </BackOfficeLayout>
               </ProtectedAdminRoute>
             } />
+            <Route path="/admin/interventions/new" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <NewInterventionPage />
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
             <Route path="/admin/interventions/requests" element={
               <ProtectedAdminRoute>
                 <BackOfficeLayout>
                   <InterventionRequests />
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            
+            {/* Routes pour les autres sections admin */}
+            <Route path="/admin/teams" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Gestion des équipes</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/equipment" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Gestion du matériel</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/clients" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Gestion des clients</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/reports" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">PV d'interventions</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/logistics" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Logistique</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/billing" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Facturation</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/statistics" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Statistiques</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
+                </BackOfficeLayout>
+              </ProtectedAdminRoute>
+            } />
+            <Route path="/admin/settings" element={
+              <ProtectedAdminRoute>
+                <BackOfficeLayout>
+                  <div className="p-4">
+                    <h1 className="text-2xl font-bold">Paramètres</h1>
+                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                  </div>
                 </BackOfficeLayout>
               </ProtectedAdminRoute>
             } />
