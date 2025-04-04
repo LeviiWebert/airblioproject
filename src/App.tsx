@@ -11,7 +11,6 @@ import Dashboard from "./pages/Dashboard";
 import InterventionsPage from "./pages/InterventionsPage";
 import InterventionRequests from "./pages/InterventionRequests";
 import NotFound from "./pages/NotFound";
-import { useEffect, useState } from "react";
 import LandingPage from "./pages/LandingPage";
 import ClientDashboard from "./pages/client/ClientDashboard";
 import Contact from "./pages/Contact";
@@ -23,10 +22,12 @@ import InterventionRecap from "./pages/client/InterventionRecap";
 import ClientProfile from "./pages/client/ClientProfile";
 import ClientInterventionsList from "./pages/client/InterventionsList";
 import ClientInterventionDetails from "./pages/client/InterventionDetails";
-import { Session } from "@supabase/supabase-js";
+import Index from "./pages/Index";
+import { ProtectedAdminRoute } from "./components/auth/ProtectedAdminRoute";
+import { ProtectedClientRoute } from "./components/auth/ProtectedClientRoute";
+import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-
-// Suppression de la référence à Login.tsx, car nous utilisons Auth.tsx pour toute l'authentification
+import { Session } from "@supabase/supabase-js";
 
 const queryClient = new QueryClient({
   defaultOptions: {
@@ -39,97 +40,30 @@ const queryClient = new QueryClient({
 
 const App = () => {
   const [session, setSession] = useState<Session | null>(null);
-  const [userType, setUserType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    let mounted = true;
-    
-    const checkUserType = async (userId: string) => {
+    // Vérifier la session au chargement initial
+    const getInitialSession = async () => {
       try {
-        // Vérifier d'abord si l'utilisateur est un admin
-        const { data: adminData } = await supabase
-          .from('utilisateurs')
-          .select('role')
-          .eq('id', userId)
-          .eq('role', 'admin')
-          .single();
-
-        if (adminData) {
-          console.log("Utilisateur identifié comme admin");
-          return "admin";
-        }
-
-        // Si ce n'est pas un admin, vérifier s'il est un client
-        const { data: clientData } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('id', userId)
-          .single();
-
-        if (clientData) {
-          console.log("Utilisateur identifié comme client");
-          return "client";
-        }
-
-        // Si l'utilisateur n'est ni client ni admin
-        console.log("Utilisateur sans rôle spécifique");
-        return null;
+        const { data: { session } } = await supabase.auth.getSession();
+        setSession(session);
       } catch (error) {
-        console.error("Erreur lors de la vérification du type d'utilisateur:", error);
-        return null;
+        console.error("Erreur lors de la récupération de la session:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
     // Configurer l'écouteur des changements d'authentification
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, newSession) => {
-      console.log("Changement d'état d'authentification:", _event);
-      
-      if (!mounted) return;
-      
-      setSession(newSession);
-      
-      if (newSession?.user?.id) {
-        // Utiliser setTimeout pour éviter les problèmes potentiels d'auth state change
-        setTimeout(async () => {
-          if (!mounted) return;
-          
-          const type = await checkUserType(newSession.user.id);
-          setUserType(type);
-          setLoading(false);
-        }, 0);
-      } else {
-        setUserType(null);
-        setLoading(false);
-      }
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setLoading(false);
     });
 
-    // Récupérer la session existante
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        
-        if (session?.user?.id) {
-          const type = await checkUserType(session.user.id);
-          setUserType(type);
-        }
-      } catch (error) {
-        console.error("Erreur lors de la récupération de la session:", error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-        }
-      }
-    };
-    
-    initSession();
+    getInitialSession();
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
@@ -150,30 +84,18 @@ const App = () => {
         <Sonner />
         <BrowserRouter>
           <Routes>
-            {/* Page d'accueil - Redirection si admin */}
-            <Route path="/" element={
-              session && userType === "admin" ? 
-                <Navigate to="/admin" replace /> : 
-                <LandingPage />
-            } />
+            {/* Page d'accueil non authentifiée */}
+            <Route path="/" element={session ? <Navigate to="/index" replace /> : <LandingPage />} />
             
+            {/* Pages accessibles pour tous */}
             <Route path="/contact" element={<Contact />} />
-            
-            {/* Page d'authentification unifiée - Redirection si déjà authentifié */}
-            <Route path="/auth" element={
-              session ? (
-                userType === "admin" ? <Navigate to="/admin" replace /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" replace /> : 
-                <Auth />
-              ) : (
-                <Auth />
-              )
-            } />
-            
-            {/* Route deprecated de login (redirection vers auth) */}
+            <Route path="/auth" element={session ? <Navigate to="/index" replace /> : <Auth />} />
             <Route path="/login" element={<Navigate to="/auth" replace />} />
             
-            {/* Routes de demande d'intervention */}
+            {/* Page d'aiguillage protégée par authentification */}
+            <Route path="/index" element={session ? <Index /> : <Navigate to="/auth" replace />} />
+            
+            {/* Routes de demande d'intervention - protégées par auth */}
             <Route path="/intervention/request" element={
               session ? <RequestIntervention /> : <Navigate to="/auth" state={{ returnTo: "/intervention/request" }} />
             } />
@@ -184,100 +106,69 @@ const App = () => {
               session ? <InterventionSchedule /> : <Navigate to="/auth" />
             } />
             
-            {/* Routes du back-office (admin) */}
+            {/* Routes du back-office (admin) - strictement protégées */}
             <Route path="/admin" element={
-              session && userType === "admin" ? (
+              <ProtectedAdminRoute>
                 <BackOfficeLayout>
                   <Dashboard />
                 </BackOfficeLayout>
-              ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
-              )
+              </ProtectedAdminRoute>
             } />
             <Route path="/admin/interventions" element={
-              session && userType === "admin" ? (
+              <ProtectedAdminRoute>
                 <BackOfficeLayout>
                   <InterventionsPage />
                 </BackOfficeLayout>
-              ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
-              )
+              </ProtectedAdminRoute>
             } />
             <Route path="/admin/interventions/requests" element={
-              session && userType === "admin" ? (
+              <ProtectedAdminRoute>
                 <BackOfficeLayout>
                   <InterventionRequests />
                 </BackOfficeLayout>
-              ) : (
-                session && userType === "client" ? <Navigate to="/client-dashboard" replace /> : <Navigate to="/auth" replace />
-              )
+              </ProtectedAdminRoute>
             } />
             
-            {/* Routes du front-office (client) */}
+            {/* Routes du front-office (client) - strictement protégées */}
             <Route path="/client-dashboard" element={
-              session && userType === "client" ? (
+              <ProtectedClientRoute>
                 <ClientLayout>
                   <ClientDashboard />
                 </ClientLayout>
-              ) : (
-                session && userType === "admin" ? <Navigate to="/admin" replace /> : <Navigate to="/auth" replace />
-              )
+              </ProtectedClientRoute>
             } />
             <Route path="/client/profile" element={
-              session && userType === "client" ? (
+              <ProtectedClientRoute>
                 <ClientLayout>
                   <ClientProfile />
                 </ClientLayout>
-              ) : (
-                <Navigate to="/auth" replace />
-              )
+              </ProtectedClientRoute>
             } />
             <Route path="/client/interventions" element={
-              session && userType === "client" ? (
+              <ProtectedClientRoute>
                 <ClientLayout>
                   <ClientInterventionsList />
                 </ClientLayout>
-              ) : (
-                <Navigate to="/auth" replace />
-              )
+              </ProtectedClientRoute>
             } />
             <Route path="/client/intervention/:id" element={
-              session && userType === "client" ? (
+              <ProtectedClientRoute>
                 <ClientLayout>
                   <ClientInterventionDetails />
                 </ClientLayout>
-              ) : (
-                <Navigate to="/auth" replace />
-              )
+              </ProtectedClientRoute>
             } />
-            
-            {/* Récapitulatif d'intervention */}
             <Route path="/client/intervention/recap/:id" element={
-              session && userType === "client" ? (
+              <ProtectedClientRoute>
                 <ClientLayout>
                   <InterventionRecap />
                 </ClientLayout>
-              ) : (
-                <Navigate to="/auth" replace />
-              )
+              </ProtectedClientRoute>
             } />
             
             {/* Pour compatibilité avec l'ancienne structure */}
             <Route path="/dashboard" element={
-              session ? (
-                userType === "admin" ? <Navigate to="/admin" replace /> : 
-                userType === "client" ? <Navigate to="/client-dashboard" replace /> : 
-                <Navigate to="/auth" replace />
-              ) : (
-                <Navigate to="/auth" replace />
-              )
-            } />
-            
-            {/* Pour la page Index, assurer aussi une redirection si admin */}
-            <Route path="/index" element={
-              session && userType === "admin" ? 
-                <Navigate to="/admin" replace /> : 
-                <Navigate to="/" replace />
+              session ? <Navigate to="/index" replace /> : <Navigate to="/auth" replace />
             } />
             
             {/* Route 404 */}

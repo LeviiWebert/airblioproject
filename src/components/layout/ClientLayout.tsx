@@ -25,18 +25,70 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const navigate = useNavigate();
   
   useEffect(() => {
-    // Vérification supplémentaire de la session
-    const checkSession = async () => {
-      const { data } = await supabase.auth.getSession();
-      if (!data.session && isAuthChecked) {
-        console.log("Pas de session active dans ClientLayout, redirection vers /auth");
-        toast.error("Session expirée. Veuillez vous reconnecter.");
+    // Vérification supplémentaire de la session et du type d'utilisateur
+    const checkClientSession = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session) {
+          console.log("Pas de session active dans ClientLayout");
+          toast.error("Session expirée. Veuillez vous reconnecter.");
+          navigate('/auth');
+          return;
+        }
+        
+        // Vérifier le type d'utilisateur pour s'assurer que c'est bien un client
+        const userEmail = data.session.user.email;
+        const userMetadata = data.session.user.user_metadata;
+        
+        // Vérifier d'abord le metadata (plus fiable)
+        if (userMetadata?.user_type === 'admin') {
+          toast.error("Cette section est réservée aux clients.");
+          navigate('/admin');
+          return;
+        }
+        
+        // Vérifier si c'est un email administrateur conventionnel
+        if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
+          toast.error("Cette section est réservée aux clients.");
+          navigate('/admin');
+          return;
+        }
+        
+        // Vérifier dans la base de données si l'utilisateur est un admin
+        const { data: adminData } = await supabase
+          .from('utilisateurs')
+          .select('role')
+          .eq('email', userEmail)
+          .eq('role', 'admin')
+          .maybeSingle();
+          
+        if (adminData) {
+          toast.error("Cette section est réservée aux clients.");
+          navigate('/admin');
+          return;
+        }
+        
+        // Vérifier si l'utilisateur est bien dans la table des clients
+        const { data: clientData, error: clientError } = await supabase
+          .from('clients')
+          .select('id')
+          .eq('email', userEmail)
+          .maybeSingle();
+          
+        if (!clientData || clientError) {
+          toast.error("Votre compte n'est pas associé à un profil client.");
+          navigate('/auth');
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification des droits client:", error);
+        toast.error("Erreur de vérification des droits d'accès");
         navigate('/auth');
       }
     };
     
     if (isAuthChecked) {
-      checkSession();
+      checkClientSession();
     }
   }, [isAuthChecked, navigate]);
 

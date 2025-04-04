@@ -5,6 +5,7 @@ import { TopNav } from "./TopNav";
 import { Toaster } from "@/components/ui/toaster";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 interface BackOfficeLayoutProps {
   children: ReactNode;
@@ -19,21 +20,62 @@ export const BackOfficeLayout = ({ children }: BackOfficeLayoutProps) => {
   };
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est connecté
-    const checkAuth = async () => {
-      const { data } = await supabase.auth.getSession();
-      
-      if (!data.session) {
-        navigate('/login');
+    // Vérifier si l'utilisateur est connecté et est un admin
+    const checkAdminAuth = async () => {
+      try {
+        const { data } = await supabase.auth.getSession();
+        
+        if (!data.session) {
+          toast.error("Session expirée. Veuillez vous reconnecter.");
+          navigate('/auth');
+          return;
+        }
+        
+        // Vérifier le type d'utilisateur
+        const userEmail = data.session.user.email;
+        const userMetadata = data.session.user.user_metadata;
+        
+        // Vérifier d'abord le metadata
+        if (userMetadata?.user_type === 'admin') {
+          return; // L'utilisateur est un admin, continuer
+        }
+        
+        // Vérifier par email conventionnel
+        if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
+          return; // L'utilisateur est un admin, continuer
+        }
+        
+        // Vérifier dans la base de données
+        const { data: adminData, error } = await supabase
+          .from('utilisateurs')
+          .select('role')
+          .eq('email', userEmail)
+          .eq('role', 'admin')
+          .maybeSingle();
+          
+        if (error || !adminData) {
+          toast.error("Accès non autorisé. Vous n'avez pas les droits administrateur.");
+          navigate('/auth');
+        }
+      } catch (error) {
+        console.error("Erreur lors de la vérification des droits admin:", error);
+        toast.error("Erreur de vérification des droits d'accès");
+        navigate('/auth');
       }
     };
 
-    checkAuth();
+    checkAdminAuth();
   }, [navigate]);
   
   const handleLogout = async () => {
-    await supabase.auth.signOut();
-    navigate('/login');
+    try {
+      await supabase.auth.signOut();
+      toast.success("Vous avez été déconnecté avec succès");
+      navigate('/auth');
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      toast.error("Erreur lors de la déconnexion");
+    }
   };
 
   return (
