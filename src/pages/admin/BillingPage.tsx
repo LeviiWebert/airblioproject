@@ -1,89 +1,57 @@
 
 import { useEffect, useState } from "react";
-import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { toast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Receipt, Plus } from "lucide-react";
+import { Loader2, Receipt, Plus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { getFacturations, FacturationWithDetails } from "@/services/supabaseService/facturationService";
+import AddInvoiceDialog from "@/components/dialogs/AddInvoiceDialog";
+import EditInvoiceDialog from "@/components/dialogs/EditInvoiceDialog";
+import DeleteInvoiceDialog from "@/components/dialogs/DeleteInvoiceDialog";
 
 const BillingPage = () => {
   const [loading, setLoading] = useState(true);
-  const [invoices, setInvoices] = useState<any[]>([]);
-  const { toast } = useToast();
+  const [invoices, setInvoices] = useState<FacturationWithDetails[]>([]);
+  const [selectedInvoice, setSelectedInvoice] = useState<FacturationWithDetails | null>(null);
+  
+  // États pour les dialogues
+  const [addDialogOpen, setAddDialogOpen] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  const fetchInvoices = async () => {
+    setLoading(true);
+    try {
+      const data = await getFacturations();
+      setInvoices(data);
+    } catch (error: any) {
+      console.error("Erreur lors du chargement des factures:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les factures.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInvoices = async () => {
-      setLoading(true);
-      try {
-        const { data, error } = await supabase
-          .from('facturations')
-          .select(`
-            *,
-            intervention:intervention_id (
-              id,
-              demande_intervention_id,
-              localisation
-            )
-          `);
-          
-        if (error) throw error;
-        
-        // Récupérer les clients associés via les demandes d'intervention
-        if (data && data.length > 0) {
-          const interventionIds = data
-            .filter(item => item.intervention?.demande_intervention_id)
-            .map(item => item.intervention.demande_intervention_id);
-          
-          if (interventionIds.length > 0) {
-            const { data: demandesData, error: demandesError } = await supabase
-              .from('demande_interventions')
-              .select(`
-                id,
-                client_id,
-                client:client_id (nom_entreprise)
-              `)
-              .in('id', interventionIds);
-            
-            if (demandesError) throw demandesError;
-            
-            // Ajouter les informations du client à chaque facture
-            const enrichedData = data.map(invoice => {
-              if (invoice.intervention?.demande_intervention_id) {
-                const matchingDemande = demandesData?.find(
-                  demande => demande.id === invoice.intervention.demande_intervention_id
-                );
-                return {
-                  ...invoice,
-                  client: matchingDemande?.client
-                };
-              }
-              return invoice;
-            });
-            
-            setInvoices(enrichedData);
-          } else {
-            setInvoices(data);
-          }
-        } else {
-          setInvoices([]);
-        }
-      } catch (error: any) {
-        console.error("Erreur lors du chargement des factures:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de chargement",
-          description: "Impossible de charger les factures.",
-        });
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchInvoices();
-  }, [toast]);
+  }, []);
+
+  const handleEditInvoice = (invoice: FacturationWithDetails) => {
+    setSelectedInvoice(invoice);
+    setEditDialogOpen(true);
+  };
+
+  const handleDeleteInvoice = (invoice: FacturationWithDetails) => {
+    setSelectedInvoice(invoice);
+    setDeleteDialogOpen(true);
+  };
 
   const getPaymentStatusBadge = (status: string) => {
     switch (status) {
@@ -107,7 +75,7 @@ const BillingPage = () => {
             Consultez et gérez les factures des interventions.
           </p>
         </div>
-        <Button className="flex items-center gap-2">
+        <Button className="flex items-center gap-2" onClick={() => setAddDialogOpen(true)}>
           <Plus className="h-4 w-4" />
           <span>Nouvelle facture</span>
         </Button>
@@ -144,14 +112,19 @@ const BillingPage = () => {
                       {format(new Date(invoice.date_facturation), "dd/MM/yyyy", { locale: fr })}
                     </TableCell>
                     <TableCell>{invoice.client?.nom_entreprise || "Client inconnu"}</TableCell>
-                    <TableCell>{invoice.montant_total.toFixed(2)} €</TableCell>
+                    <TableCell>{Number(invoice.montant_total).toFixed(2)} €</TableCell>
                     <TableCell>
                       {getPaymentStatusBadge(invoice.statut_paiement)}
                     </TableCell>
-                    <TableCell className="text-right">
-                      <Button variant="outline" size="sm">
-                        <Receipt className="h-4 w-4 mr-2" />
-                        Voir
+                    <TableCell className="text-right space-x-2">
+                      <Button variant="outline" size="sm" onClick={() => handleEditInvoice(invoice)}>
+                        <Pencil className="h-4 w-4 mr-2" />
+                        Modifier
+                      </Button>
+                      <Button variant="outline" size="sm" className="text-destructive" 
+                        onClick={() => handleDeleteInvoice(invoice)}>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Supprimer
                       </Button>
                     </TableCell>
                   </TableRow>
@@ -166,6 +139,34 @@ const BillingPage = () => {
             </TableBody>
           </Table>
         </div>
+      )}
+
+      {/* Dialogue pour ajouter une facture */}
+      <AddInvoiceDialog
+        open={addDialogOpen}
+        onOpenChange={setAddDialogOpen}
+        onInvoiceAdded={fetchInvoices}
+      />
+
+      {/* Dialogue pour modifier une facture */}
+      {selectedInvoice && (
+        <EditInvoiceDialog
+          open={editDialogOpen}
+          onOpenChange={setEditDialogOpen}
+          invoice={selectedInvoice}
+          onInvoiceUpdated={fetchInvoices}
+        />
+      )}
+
+      {/* Dialogue pour supprimer une facture */}
+      {selectedInvoice && (
+        <DeleteInvoiceDialog
+          open={deleteDialogOpen}
+          onOpenChange={setDeleteDialogOpen}
+          invoiceId={selectedInvoice.id}
+          invoiceRef={`FACT-${selectedInvoice.id.substring(0, 8).toUpperCase()}`}
+          onInvoiceDeleted={fetchInvoices}
+        />
       )}
     </div>
   );
