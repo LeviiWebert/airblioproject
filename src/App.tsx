@@ -1,10 +1,7 @@
-
 import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { BackOfficeLayout } from "./components/layout/BackOfficeLayout";
 import { ClientLayout } from "./components/layout/ClientLayout";
 import Dashboard from "./pages/Dashboard";
@@ -43,7 +40,6 @@ const App = () => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Vérifier la session au chargement initial
     const getInitialSession = async () => {
       try {
         const { data: { session } } = await supabase.auth.getSession();
@@ -55,7 +51,6 @@ const App = () => {
       }
     };
 
-    // Configurer l'écouteur des changements d'authentification
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setSession(session);
       setLoading(false);
@@ -68,7 +63,6 @@ const App = () => {
     };
   }, []);
 
-  // Afficher un écran de chargement pendant l'initialisation
   if (loading) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -79,192 +73,154 @@ const App = () => {
 
   return (
     <QueryClientProvider client={queryClient}>
-      <TooltipProvider>
-        <Toaster />
-        <Sonner />
-        <BrowserRouter>
-          <Routes>
-            {/* Page d'accueil non authentifiée */}
-            <Route path="/" element={session ? <Navigate to="/index" replace /> : <LandingPage />} />
-            
-            {/* Pages accessibles pour tous */}
-            <Route path="/contact" element={<Contact />} />
-            <Route path="/auth" element={session ? <Navigate to="/index" replace /> : <Auth />} />
-            <Route path="/login" element={<Navigate to="/auth" replace />} />
-            
-            {/* Page d'aiguillage protégée par authentification */}
-            <Route path="/index" element={session ? <Index /> : <Navigate to="/auth" replace />} />
-            
-            {/* Routes de demande d'intervention - protégées par auth */}
-            <Route path="/intervention/request" element={
-              session ? <RequestIntervention /> : <Navigate to="/auth" state={{ returnTo: "/intervention/request" }} />
-            } />
-            <Route path="/intervention/details" element={
-              session ? <InterventionDetails /> : <Navigate to="/auth" />
-            } />
-            <Route path="/intervention/schedule" element={
-              session ? <InterventionSchedule /> : <Navigate to="/auth" />
-            } />
-            
-            {/* Routes du back-office (admin) - strictement protégées */}
-            <Route path="/admin" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <Dashboard />
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/interventions" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <InterventionsPage />
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/interventions/new" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <NewInterventionPage />
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/interventions/requests" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <InterventionRequests />
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            
-            {/* Routes pour les autres sections admin */}
-            <Route path="/admin/teams" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Gestion des équipes</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/equipment" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Gestion du matériel</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/clients" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Gestion des clients</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/reports" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">PV d'interventions</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/logistics" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Logistique</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/billing" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Facturation</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/statistics" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Statistiques</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            <Route path="/admin/settings" element={
-              <ProtectedAdminRoute>
-                <BackOfficeLayout>
-                  <div className="p-4">
-                    <h1 className="text-2xl font-bold">Paramètres</h1>
-                    <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-                  </div>
-                </BackOfficeLayout>
-              </ProtectedAdminRoute>
-            } />
-            
-            {/* Routes du front-office (client) - strictement protégées */}
-            <Route path="/client-dashboard" element={
-              <ProtectedClientRoute>
-                <ClientLayout>
-                  <ClientDashboard />
-                </ClientLayout>
-              </ProtectedClientRoute>
-            } />
-            <Route path="/client/profile" element={
-              <ProtectedClientRoute>
-                <ClientLayout>
-                  <ClientProfile />
-                </ClientLayout>
-              </ProtectedClientRoute>
-            } />
-            <Route path="/client/interventions" element={
-              <ProtectedClientRoute>
-                <ClientLayout>
-                  <ClientInterventionsList />
-                </ClientLayout>
-              </ProtectedClientRoute>
-            } />
-            <Route path="/client/intervention/:id" element={
-              <ProtectedClientRoute>
-                <ClientLayout>
-                  <ClientInterventionDetails />
-                </ClientLayout>
-              </ProtectedClientRoute>
-            } />
-            <Route path="/client/intervention/recap/:id" element={
-              <ProtectedClientRoute>
-                <ClientLayout>
-                  <InterventionRecap />
-                </ClientLayout>
-              </ProtectedClientRoute>
-            } />
-            
-            {/* Pour compatibilité avec l'ancienne structure */}
-            <Route path="/dashboard" element={
-              session ? <Navigate to="/index" replace /> : <Navigate to="/auth" replace />
-            } />
-            
-            {/* Route 404 */}
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
-      </TooltipProvider>
+      <Toaster />
+      <BrowserRouter>
+        <Routes>
+          <Route path="/" element={session ? <Navigate to="/index" replace /> : <LandingPage />} />
+          <Route path="/contact" element={<Contact />} />
+          <Route path="/auth" element={session ? <Navigate to="/index" replace /> : <Auth />} />
+          <Route path="/login" element={<Navigate to="/auth" replace />} />
+          <Route path="/index" element={session ? <Index /> : <Navigate to="/auth" replace />} />
+          <Route path="/intervention/request" element={
+            session ? <RequestIntervention /> : <Navigate to="/auth" state={{ returnTo: "/intervention/request" }} />
+          } />
+          <Route path="/intervention/details" element={
+            session ? <InterventionDetails /> : <Navigate to="/auth" />
+          } />
+          <Route path="/intervention/schedule" element={
+            session ? <InterventionSchedule /> : <Navigate to="/auth" />
+          } />
+          <Route path="/admin" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <Dashboard />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/interventions" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <InterventionsPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/interventions/new" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <NewInterventionPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/interventions/requests" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <InterventionRequests />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/teams" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <TeamsPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/equipment" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <EquipmentPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/clients" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <ClientsPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/reports" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <ReportsPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/logistics" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <LogisticsPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/billing" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <BillingPage />
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/statistics" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <div className="p-4">
+                  <h1 className="text-2xl font-bold">Statistiques</h1>
+                  <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                </div>
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/admin/settings" element={
+            <ProtectedAdminRoute>
+              <BackOfficeLayout>
+                <div className="p-4">
+                  <h1 className="text-2xl font-bold">Paramètres</h1>
+                  <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
+                </div>
+              </BackOfficeLayout>
+            </ProtectedAdminRoute>
+          } />
+          <Route path="/client-dashboard" element={
+            <ProtectedClientRoute>
+              <ClientLayout>
+                <ClientDashboard />
+              </ClientLayout>
+            </ProtectedClientRoute>
+          } />
+          <Route path="/client/profile" element={
+            <ProtectedClientRoute>
+              <ClientLayout>
+                <ClientProfile />
+              </ClientLayout>
+            </ProtectedClientRoute>
+          } />
+          <Route path="/client/interventions" element={
+            <ProtectedClientRoute>
+              <ClientLayout>
+                <ClientInterventionsList />
+              </ClientLayout>
+            </ProtectedClientRoute>
+          } />
+          <Route path="/client/intervention/:id" element={
+            <ProtectedClientRoute>
+              <ClientLayout>
+                <ClientInterventionDetails />
+              </ClientLayout>
+            </ProtectedClientRoute>
+          } />
+          <Route path="/client/intervention/recap/:id" element={
+            <ProtectedClientRoute>
+              <ClientLayout>
+                <InterventionRecap />
+              </ClientLayout>
+            </ProtectedClientRoute>
+          } />
+          <Route path="/dashboard" element={
+            session ? <Navigate to="/index" replace /> : <Navigate to="/auth" replace />
+          } />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </BrowserRouter>
     </QueryClientProvider>
   );
 };

@@ -36,7 +36,7 @@ const InterventionRequests = () => {
     if (!selectedRequest) return;
 
     try {
-      await handleAccept(selectedRequest);
+      handleAccept(selectedRequest);
       await confirmAction();
       toast.success("Demande d'intervention acceptée avec succès");
     } catch (error) {
@@ -52,7 +52,7 @@ const InterventionRequests = () => {
     if (!selectedRequest) return;
 
     try {
-      await handleReject(selectedRequest);
+      handleReject(selectedRequest);
       await confirmAction();
       toast.success("Demande d'intervention refusée");
     } catch (error) {

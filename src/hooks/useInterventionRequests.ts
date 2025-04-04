@@ -59,7 +59,7 @@ export const useInterventionRequests = () => {
   };
 
   const confirmAction = async () => {
-    if (!selectedRequest || !actionType) return;
+    if (!selectedRequest || !actionType) return false;
     
     try {
       // Déterminer le nouveau statut
@@ -78,8 +78,28 @@ export const useInterventionRequests = () => {
       
       // Si la demande est acceptée, créer une intervention
       if (actionType === "accept") {
-        // Ici, vous pourriez ajouter le code pour créer une nouvelle intervention
-        // Exemple: appeler un service ou insérer directement dans Supabase
+        const { data: intervention, error: interventionError } = await supabase
+          .from('interventions')
+          .insert([
+            { 
+              demande_intervention_id: selectedRequest.id,
+              statut: 'planifiée',
+              localisation: 'À déterminer',
+              rapport: ''
+            }
+          ])
+          .select()
+          .single();
+        
+        if (interventionError) throw interventionError;
+        
+        // Mettre à jour la demande d'intervention avec l'ID de l'intervention
+        const { error: updateError } = await supabase
+          .from('demande_interventions')
+          .update({ intervention_id: intervention.id })
+          .eq('id', selectedRequest.id);
+        
+        if (updateError) throw updateError;
       }
       
       // Réinitialiser l'état
