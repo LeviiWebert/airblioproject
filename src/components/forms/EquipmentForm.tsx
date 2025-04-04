@@ -22,13 +22,15 @@ import {
 } from "@/components/ui/select";
 import { Materiel } from "@/types/models";
 
+// Define the schema for equipment form validation
 const equipmentSchema = z.object({
   reference: z.string().min(2, { message: "La référence doit contenir au moins 2 caractères" }),
   typeMateriel: z.string().min(2, { message: "Le type de matériel est requis" }),
   etat: z.enum(["disponible", "en utilisation", "en maintenance", "hors service"]),
 });
 
-type EquipmentFormValues = z.infer<typeof equipmentSchema>;
+// Export the type derived from the schema for use in other components
+export type EquipmentFormValues = z.infer<typeof equipmentSchema>;
 
 interface EquipmentFormProps {
   onSubmit: (values: EquipmentFormValues) => void;

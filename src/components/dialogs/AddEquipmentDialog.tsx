@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
-import EquipmentForm from "@/components/forms/EquipmentForm";
+import EquipmentForm, { EquipmentFormValues } from "@/components/forms/EquipmentForm";
 import { supabase } from "@/integrations/supabase/client";
 
 interface AddEquipmentDialogProps {
@@ -14,7 +14,7 @@ interface AddEquipmentDialogProps {
 const AddEquipmentDialog = ({ open, onOpenChange, onEquipmentAdded }: AddEquipmentDialogProps) => {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const handleSubmit = async (values: { reference: string; typeMateriel: string; etat: string }) => {
+  const handleSubmit = async (values: EquipmentFormValues) => {
     setIsSubmitting(true);
     try {
       const { data, error } = await supabase
