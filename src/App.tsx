@@ -1,7 +1,8 @@
+
 import React, { useEffect, useState } from "react";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { BackOfficeLayout } from "./components/layout/BackOfficeLayout";
 import { ClientLayout } from "./components/layout/ClientLayout";
 import Dashboard from "./pages/Dashboard";
@@ -25,6 +26,12 @@ import { ProtectedAdminRoute } from "./components/auth/ProtectedAdminRoute";
 import { ProtectedClientRoute } from "./components/auth/ProtectedClientRoute";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import TeamsPage from "./pages/admin/TeamsPage";
+import EquipmentPage from "./pages/admin/EquipmentPage";
+import ClientsPage from "./pages/admin/ClientsPage";
+import ReportsPage from "./pages/admin/ReportsPage";
+import LogisticsPage from "./pages/admin/LogisticsPage";
+import BillingPage from "./pages/admin/BillingPage";
 
 const queryClient = new QueryClient({
   defaultOptions: {

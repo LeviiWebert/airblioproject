@@ -1,47 +1,41 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, FileText, Download, Filter } from "lucide-react";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { format } from "date-fns";
-import { fr } from "date-fns/locale";
 
 const ReportsPage = () => {
   const [loading, setLoading] = useState(true);
   const [reports, setReports] = useState<any[]>([]);
+  const [filter, setFilter] = useState("all");
   const { toast } = useToast();
 
   useEffect(() => {
     const fetchReports = async () => {
       setLoading(true);
       try {
-        const { data, error } = await supabase
-          .from('pv_interventions')
-          .select(`
-            *,
-            intervention:intervention_id (
-              id, 
-              statut,
-              rapport
-            ),
-            client:client_id (
-              id,
-              nom_entreprise
-            )
-          `);
-          
-        if (error) throw error;
+        // Simuler le chargement des données
+        await new Promise(resolve => setTimeout(resolve, 1000));
         
-        setReports(data || []);
-      } catch (error: any) {
-        console.error("Erreur lors du chargement des PV d'interventions:", error);
+        // Données fictives pour l'exemple
+        const mockReports = [
+          { id: 1, title: "PV d'intervention - Port de Marseille", date: "2025-03-15", type: "intervention", status: "validated" },
+          { id: 2, title: "Rapport d'équipement - Plateforme A", date: "2025-03-10", type: "equipment", status: "pending" },
+          { id: 3, title: "Bilan trimestriel - Q1 2025", date: "2025-04-01", type: "summary", status: "validated" },
+          { id: 4, title: "PV d'intervention - Terminal pétrolier", date: "2025-02-28", type: "intervention", status: "validated" },
+          { id: 5, title: "Rapport d'incident - Site offshore", date: "2025-03-22", type: "incident", status: "pending" },
+        ];
+        
+        setReports(mockReports);
+      } catch (error) {
+        console.error("Erreur lors du chargement des rapports:", error);
         toast({
           variant: "destructive",
           title: "Erreur de chargement",
-          description: "Impossible de charger les PV d'interventions.",
+          description: "Impossible de charger les rapports.",
         });
       } finally {
         setLoading(false);
@@ -51,20 +45,47 @@ const ReportsPage = () => {
     fetchReports();
   }, [toast]);
 
+  // Filtrer les rapports selon le type sélectionné
+  const filteredReports = filter === "all" 
+    ? reports 
+    : reports.filter(report => report.type === filter);
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">PV d'interventions</h1>
+        <h1 className="text-2xl font-bold tracking-tight">PV d'interventions et Rapports</h1>
         <p className="text-muted-foreground">
-          Consultez les procès-verbaux des interventions terminées.
+          Consultez et gérez tous les rapports et PV d'interventions.
         </p>
+      </div>
+
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Filter className="h-4 w-4 text-muted-foreground" />
+          <Select value={filter} onValueChange={setFilter}>
+            <SelectTrigger className="w-[180px]">
+              <SelectValue placeholder="Filtrer par type" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tous les types</SelectItem>
+              <SelectItem value="intervention">PV d'intervention</SelectItem>
+              <SelectItem value="equipment">Rapport d'équipement</SelectItem>
+              <SelectItem value="summary">Bilan</SelectItem>
+              <SelectItem value="incident">Rapport d'incident</SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+        <Button>
+          <FileText className="h-4 w-4 mr-2" />
+          Nouveau rapport
+        </Button>
       </div>
 
       {loading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
-            <p className="mt-4 text-muted-foreground">Chargement des PV d'interventions...</p>
+            <p className="mt-4 text-muted-foreground">Chargement des rapports...</p>
           </div>
         </div>
       ) : (
@@ -72,39 +93,44 @@ const ReportsPage = () => {
           <Table>
             <TableHeader>
               <TableRow>
+                <TableHead>Titre</TableHead>
                 <TableHead>Date</TableHead>
-                <TableHead>Client</TableHead>
-                <TableHead>Validation</TableHead>
+                <TableHead>Type</TableHead>
+                <TableHead>Statut</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {reports.length > 0 ? (
-                reports.map((report) => (
+              {filteredReports.length > 0 ? (
+                filteredReports.map((report) => (
                   <TableRow key={report.id}>
-                    <TableCell className="font-medium">
-                      {report.date_validation 
-                        ? format(new Date(report.date_validation), "dd/MM/yyyy", { locale: fr })
-                        : "Non validé"}
-                    </TableCell>
-                    <TableCell>{report.client?.nom_entreprise || "Client inconnu"}</TableCell>
+                    <TableCell className="font-medium">{report.title}</TableCell>
+                    <TableCell>{new Date(report.date).toLocaleDateString('fr-FR')}</TableCell>
                     <TableCell>
-                      <Badge variant={report.validation_client ? "success" : "outline"}>
-                        {report.validation_client ? "Validé" : "En attente"}
-                      </Badge>
+                      {report.type === "intervention" && "PV d'intervention"}
+                      {report.type === "equipment" && "Rapport d'équipement"}
+                      {report.type === "summary" && "Bilan"}
+                      {report.type === "incident" && "Rapport d'incident"}
+                    </TableCell>
+                    <TableCell>
+                      {report.status === "validated" ? (
+                        <Badge variant="default" className="bg-green-500">Validé</Badge>
+                      ) : (
+                        <Badge variant="outline">En attente</Badge>
+                      )}
                     </TableCell>
                     <TableCell className="text-right">
                       <Button variant="outline" size="sm">
-                        <FileText className="h-4 w-4 mr-2" />
-                        Voir le PV
+                        <Download className="h-4 w-4 mr-2" />
+                        Télécharger
                       </Button>
                     </TableCell>
                   </TableRow>
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
-                    Aucun PV d'intervention trouvé.
+                  <TableCell colSpan={5} className="h-24 text-center">
+                    Aucun rapport trouvé.
                   </TableCell>
                 </TableRow>
               )}
