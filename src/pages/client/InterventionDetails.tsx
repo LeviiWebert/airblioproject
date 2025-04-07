@@ -41,6 +41,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface Intervention {
   id: string;
@@ -104,6 +105,7 @@ const InterventionDetails = () => {
   const [cancellingDemande, setCancellingDemande] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
   const [materiels, setMateriels] = useState<InterventionMateriel[]>([]);
+  const { user, clientId } = useAuth();
 
   useEffect(() => {
     const fetchInterventionDetails = async () => {
@@ -116,9 +118,13 @@ const InterventionDetails = () => {
           return;
         }
 
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
+        if (!clientId) {
+          console.error("Client ID not found in auth context");
+          uiToast({
+            variant: "destructive",
+            title: "Accès refusé",
+            description: "Profil client non trouvé. Veuillez vous reconnecter."
+          });
           navigate('/auth');
           return;
         }
@@ -139,15 +145,19 @@ const InterventionDetails = () => {
           .eq('id', id)
           .single();
           
-        if (demandeError) throw demandeError;
+        if (demandeError) {
+          console.error("Erreur lors du chargement de la demande:", demandeError);
+          throw demandeError;
+        }
         
-        if (demandeData.client_id !== user.id) {
-          navigate('/client-dashboard');
+        if (demandeData.client_id !== clientId) {
+          console.error(`Demande appartient au client ${demandeData.client_id}, mais l'utilisateur connecté est ${clientId}`);
           uiToast({
             variant: "destructive",
             title: "Accès refusé",
             description: "Vous n'êtes pas autorisé à consulter cette intervention."
           });
+          navigate('/client/interventions');
           return;
         }
         
@@ -243,14 +253,14 @@ const InterventionDetails = () => {
           title: "Erreur",
           description: "Impossible de charger les détails de l'intervention."
         });
-        navigate('/client-dashboard');
+        navigate('/client/interventions');
       } finally {
         setLoading(false);
       }
     };
 
     fetchInterventionDetails();
-  }, [id, navigate, uiToast]);
+  }, [id, navigate, uiToast, clientId]);
 
   const handleValidateIntervention = async (validate: boolean) => {
     try {
@@ -463,8 +473,8 @@ const InterventionDetails = () => {
             <p className="text-muted-foreground mb-4">
               Désolé, l'intervention que vous recherchez n'existe pas ou a été supprimée.
             </p>
-            <Button onClick={() => navigate('/client-dashboard')}>
-              Retour au tableau de bord
+            <Button onClick={() => navigate('/client/interventions')}>
+              Retour à la liste des interventions
             </Button>
           </CardContent>
         </Card>

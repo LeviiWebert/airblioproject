@@ -14,6 +14,7 @@ import InterventionRequests from "@/pages/InterventionRequests";
 import NewInterventionPage from "@/pages/admin/NewInterventionPage";
 import AdminInterventionDetails from "@/pages/admin/AdminInterventionDetails";
 import ProcessVerbalPage from "@/pages/admin/ProcessVerbalPage";
+import NotFound from "@/pages/NotFound";
 
 // Helper function to wrap components with protection and layout
 const withAdminProtection = (Component: React.ComponentType<any>) => (
@@ -73,5 +74,10 @@ export const adminRoutes: RouteObject[] = [
   {
     path: "/admin/pv/:id",
     element: withAdminProtection(ProcessVerbalPage)
+  },
+  // Add a catch-all for admin routes to show a proper message
+  {
+    path: "/admin/*",
+    element: withAdminProtection(NotFound)
   }
 ];

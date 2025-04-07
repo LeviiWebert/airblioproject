@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -11,6 +10,7 @@ import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { SmallLoading } from "@/components/ui/loading";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const detailsSchema = z.object({
   email: z.string().email({ message: "Veuillez entrer une adresse e-mail valide." }),
@@ -27,6 +27,7 @@ const InterventionDetails = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [step1Data, setStep1Data] = useState<any>(null);
   const [authChecked, setAuthChecked] = useState(false);
+  const { session, userType, clientId } = useAuth();
 
   const form = useForm<DetailsValues>({
     resolver: zodResolver(detailsSchema),
@@ -40,9 +41,14 @@ const InterventionDetails = () => {
   });
 
   useEffect(() => {
-    // Vérifier si l'utilisateur est authentifié
     const checkAuth = async () => {
       try {
+        if (session && userType === 'client' && clientId) {
+          toast("Vous êtes déjà connecté en tant que client. Redirection vers votre tableau de bord.");
+          navigate("/client-dashboard");
+          return;
+        }
+        
         const { data: { session } } = await supabase.auth.getSession();
         
         if (!session) {
@@ -50,12 +56,10 @@ const InterventionDetails = () => {
           return;
         }
         
-        // Préremplir l'e-mail s'il est disponible
         if (session.user?.email) {
           form.setValue("email", session.user.email);
         }
         
-        // Récupérer les données de l'étape 1
         const storedData = sessionStorage.getItem("interventionStep1");
         if (storedData) {
           setStep1Data(JSON.parse(storedData));
@@ -88,21 +92,17 @@ const InterventionDetails = () => {
   const onSubmit = (data: DetailsValues) => {
     setIsLoading(true);
     
-    // Combiner les données des étapes 1 et 2
     const combinedData = {
       ...step1Data,
       contactDetails: data
     };
     
-    // Enregistrer pour l'étape suivante
     sessionStorage.setItem("interventionData", JSON.stringify(combinedData));
     
-    // Passer à l'étape suivante
     navigate("/intervention/schedule");
     setIsLoading(false);
   };
 
-  // Show loading only during initial auth check
   if (!authChecked) {
     return (
       <div className="min-h-screen flex flex-col">
@@ -115,7 +115,6 @@ const InterventionDetails = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation Bar - Version simple */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -261,7 +260,6 @@ const InterventionDetails = () => {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-gray-800 text-gray-200">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center text-gray-400 text-sm">
