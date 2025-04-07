@@ -107,8 +107,9 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         console.error("Error fetching client data:", error);
         if (isMounted) {
           setUserName(user?.email?.split('@')[0] || "Client");
-          setError("Erreur lors de la récupération de vos données");
-          toast.error("Impossible de charger vos informations. Veuillez réessayer.");
+          // Nous ne définissons plus d'erreur ici pour éviter d'afficher un message d'erreur
+          // setError("Erreur lors de la récupération de vos données");
+          toast.error("Impossible de charger vos informations complètes. Fonctionnalités limitées disponibles.");
         }
       } finally {
         if (isMounted) {
