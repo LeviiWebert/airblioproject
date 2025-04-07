@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -11,6 +12,7 @@ import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { 
+  AlertTriangle,
   ArrowLeft, 
   Calendar, 
   Check, 
@@ -22,9 +24,24 @@ import {
   MessageSquare, 
   Printer, 
   User, 
-  X 
+  Users, 
+  X,
+  Tool,
+  Package
 } from "lucide-react";
 import { SmallLoading } from "@/components/ui/loading";
+import { 
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { toast } from "sonner";
 
 interface Intervention {
   id: string;
@@ -36,6 +53,17 @@ interface Intervention {
   pv_intervention_id: string | null;
   pv_interventions?: PVIntervention;
   intervention_equipes?: InterventionEquipe[];
+  intervention_materiels?: InterventionMateriel[];
+}
+
+interface InterventionMateriel {
+  materiel_id: string;
+  materiels: {
+    id: string;
+    reference: string;
+    type_materiel: string;
+    etat: string | null;
+  };
 }
 
 interface PVIntervention {
@@ -74,7 +102,9 @@ const InterventionDetails = () => {
   const [loading, setLoading] = useState(true);
   const [feedback, setFeedback] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [cancellingDemande, setCancellingDemande] = useState(false);
   const [authChecked, setAuthChecked] = useState(false);
+  const [materiels, setMateriels] = useState<InterventionMateriel[]>([]);
 
   useEffect(() => {
     const fetchInterventionDetails = async () => {
@@ -167,6 +197,7 @@ const InterventionDetails = () => {
             }
           }
           
+          // Récupérer les équipes affectées à l'intervention
           const { data: equipesData, error: equipesError } = await supabase
             .from('intervention_equipes')
             .select(`
@@ -183,6 +214,28 @@ const InterventionDetails = () => {
             setIntervention(prev => ({
               ...prev!,
               intervention_equipes: equipesData
+            }));
+          }
+          
+          // Récupérer le matériel utilisé pour l'intervention
+          const { data: materielsData, error: materielsError } = await supabase
+            .from('intervention_materiels')
+            .select(`
+              materiel_id,
+              materiels:materiel_id (
+                id,
+                reference,
+                type_materiel,
+                etat
+              )
+            `)
+            .eq('intervention_id', demandeData.intervention_id);
+          
+          if (!materielsError && materielsData) {
+            setMateriels(materielsData);
+            setIntervention(prev => ({
+              ...prev!,
+              intervention_materiels: materielsData
             }));
           }
         }
@@ -330,6 +383,38 @@ const InterventionDetails = () => {
       setSubmitting(false);
     }
   };
+  
+  const handleCancelDemande = async () => {
+    if (!demande) return;
+    
+    try {
+      setCancellingDemande(true);
+      
+      const { error } = await supabase
+        .from('demande_interventions')
+        .update({ statut: 'annulée' })
+        .eq('id', demande.id);
+        
+      if (error) throw error;
+      
+      // Mettre à jour l'état local
+      setDemande(prev => {
+        if (!prev) return null;
+        return {
+          ...prev,
+          statut: 'annulée'
+        };
+      });
+      
+      toast.success("Votre demande d'intervention a été annulée");
+      
+    } catch (error) {
+      console.error("Erreur lors de l'annulation de la demande:", error);
+      toast.error("Impossible d'annuler la demande d'intervention");
+    } finally {
+      setCancellingDemande(false);
+    }
+  };
 
   const handlePrint = () => {
     window.print();
@@ -345,6 +430,15 @@ const InterventionDetails = () => {
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Non définie";
     return format(new Date(dateString), "dd MMMM yyyy à HH:mm", { locale: fr });
+  };
+  
+  const canCancelDemande = () => {
+    if (!demande) return false;
+    
+    // On peut annuler une demande si elle est en attente, en cours d'analyse ou validée
+    // mais pas encore planifiée ou en cours
+    const cancelableStatuses = ["en_attente", "en_cours_analyse", "validée"];
+    return cancelableStatuses.includes(demande.statut);
   };
 
   if (!authChecked) {
@@ -387,9 +481,9 @@ const InterventionDetails = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="print:hidden mb-8">
-        <Button variant="outline" onClick={() => navigate('/client-dashboard')}>
+        <Button variant="outline" onClick={() => navigate('/client/interventions')}>
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour au tableau de bord
+          Retour à la liste des interventions
         </Button>
       </div>
 
@@ -439,7 +533,7 @@ const InterventionDetails = () => {
                   <Separator className="my-6" />
                   
                   <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Détails de l'intervention</h3>
+                    <h3 className="text-lg font-semibold mb-3">Informations générales</h3>
                     
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
                       <div className="flex items-start">
@@ -480,36 +574,117 @@ const InterventionDetails = () => {
                       </div>
                     </div>
                     
+                    {/* Section Équipe & Matériel */}
+                    <div className="mt-8">
+                      <h3 className="text-lg font-semibold mb-3">Équipe & Matériel</h3>
+                      
+                      {/* Équipes assignées */}
+                      {intervention.intervention_equipes && 
+                      intervention.intervention_equipes.length > 0 ? (
+                        <div className="mb-6">
+                          <h4 className="font-medium mb-2 flex items-center">
+                            <Users className="w-4 h-4 mr-2 text-muted-foreground" />
+                            Équipe(s) technique(s)
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {intervention.intervention_equipes.map((item) => (
+                              <div key={item.equipe_id} className="flex items-center border rounded-md p-3">
+                                <User className="w-8 h-8 text-primary mr-3" />
+                                <div>
+                                  <p className="font-medium">{item.equipes?.nom}</p>
+                                  <p className="text-xs text-muted-foreground">
+                                    {item.equipes?.specialisation || "Équipe technique"}
+                                  </p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mb-6 p-4 border border-dashed rounded-md text-center text-muted-foreground">
+                          <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>Aucune équipe n'a encore été assignée à cette intervention</p>
+                        </div>
+                      )}
+                      
+                      {/* Matériel utilisé */}
+                      {materiels && materiels.length > 0 ? (
+                        <div className="mt-6">
+                          <h4 className="font-medium mb-2 flex items-center">
+                            <Tool className="w-4 h-4 mr-2 text-muted-foreground" />
+                            Matériel utilisé
+                          </h4>
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                            {materiels.map((item) => (
+                              <div key={item.materiel_id} className="flex items-center border rounded-md p-3">
+                                <Package className="w-8 h-8 text-primary mr-3" />
+                                <div>
+                                  <p className="font-medium">{item.materiels?.type_materiel}</p>
+                                  <p className="text-xs">Réf: {item.materiels?.reference}</p>
+                                  {item.materiels?.etat && (
+                                    <p className="text-xs text-muted-foreground">
+                                      État: {item.materiels.etat}
+                                    </p>
+                                  )}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="mt-4 p-4 border border-dashed rounded-md text-center text-muted-foreground">
+                          <Tool className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <p>Aucun matériel n'a encore été assigné à cette intervention</p>
+                        </div>
+                      )}
+                    </div>
+                    
                     {intervention.rapport && (
-                      <div className="mt-6">
-                        <h4 className="font-medium mb-2">Rapport d'intervention</h4>
+                      <div className="mt-8">
+                        <h4 className="font-medium mb-2 flex items-center">
+                          <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
+                          Rapport d'intervention
+                        </h4>
                         <div className="bg-muted p-4 rounded-md">
                           <p className="whitespace-pre-line">{intervention.rapport}</p>
                         </div>
                       </div>
                     )}
-                    
-                    {intervention.intervention_equipes && 
-                     intervention.intervention_equipes.length > 0 && (
-                      <div className="mt-6">
-                        <h4 className="font-medium mb-2">Équipe(s) technique(s)</h4>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                          {intervention.intervention_equipes.map((item) => (
-                            <div key={item.equipe_id} className="flex items-center border rounded-md p-3">
-                              <User className="w-8 h-8 text-primary mr-3" />
-                              <div>
-                                <p className="font-medium">{item.equipes?.nom}</p>
-                                <p className="text-xs text-muted-foreground">
-                                  {item.equipes?.specialisation || "Équipe technique"}
-                                </p>
-                              </div>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    )}
                   </div>
                 </>
+              )}
+              
+              {/* Bouton d'annulation de la demande */}
+              {canCancelDemande() && (
+                <div className="mt-8 print:hidden">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="w-full sm:w-auto">
+                        <X className="mr-2 h-4 w-4" />
+                        Annuler ma demande d'intervention
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Annuler la demande d'intervention</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Êtes-vous sûr de vouloir annuler cette demande d'intervention ?
+                          Cette action est irréversible.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Retour</AlertDialogCancel>
+                        <AlertDialogAction 
+                          onClick={handleCancelDemande}
+                          disabled={cancellingDemande}
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                        >
+                          {cancellingDemande ? 'Annulation...' : 'Confirmer l\'annulation'}
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               )}
             </CardContent>
           </Card>
@@ -638,6 +813,14 @@ const InterventionDetails = () => {
                   Contacter le support
                 </a>
               </Button>
+              
+              {/* Bouton pour voir le PV si disponible */}
+              {intervention && intervention.pv_intervention_id && (
+                <Button className="w-full" onClick={() => navigate(`/client/pv/${intervention.pv_intervention_id}`)}>
+                  <FileText className="mr-2 h-4 w-4" />
+                  Voir le PV d'intervention
+                </Button>
+              )}
             </CardFooter>
           </Card>
           
@@ -653,6 +836,12 @@ const InterventionDetails = () => {
               <Button variant="outline" className="w-full" onClick={handleDownloadPdf}>
                 <Download className="mr-2 h-4 w-4" />
                 Télécharger PDF
+              </Button>
+              
+              {/* Ajouter un lien vers la liste des PVs */}
+              <Button variant="outline" className="w-full" onClick={() => navigate('/client/pvs')}>
+                <FileText className="mr-2 h-4 w-4" />
+                Voir tous mes PVs
               </Button>
             </CardContent>
           </Card>
