@@ -25,29 +25,64 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("Client");
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [loadTimeout, setLoadTimeout] = useState<NodeJS.Timeout | null>(null);
   
+  useEffect(() => {
+    let isMounted = true;
+    
+    // Set a timeout to prevent infinite loading
+    const timeout = setTimeout(() => {
+      if (isMounted && isLoading) {
+        setIsLoading(false);
+        setError("Le chargement a pris trop de temps. Veuillez rafraîchir la page ou contacter le support.");
+        toast.error("Délai de chargement dépassé. Veuillez réessayer.");
+      }
+    }, 15000); // 15 seconds timeout
+    
+    setLoadTimeout(timeout);
+    
+    return () => {
+      isMounted = false;
+      if (loadTimeout) clearTimeout(loadTimeout);
+      clearTimeout(timeout);
+    };
+  }, [isLoading]);
+    
   useEffect(() => {
     let isMounted = true;
     
     const loadClientData = async () => {
       if (!session?.user) {
         console.log("Pas de session active dans ClientLayout");
-        toast.error("Veuillez vous connecter pour accéder à l'espace client");
-        navigate('/auth');
+        if (isMounted) {
+          setError("Vous devez être connecté pour accéder à cette page");
+          setIsLoading(false);
+          toast.error("Veuillez vous connecter pour accéder à l'espace client");
+          navigate('/auth');
+        }
         return;
       }
       
       if (userType !== "client") {
         console.log("L'utilisateur n'est pas un client. Type:", userType);
-        toast.error("Cette section est réservée aux clients.");
-        navigate('/auth');
+        if (isMounted) {
+          setError("Vous n'avez pas les permissions nécessaires pour accéder à cette page");
+          setIsLoading(false);
+          toast.error("Cette section est réservée aux clients.");
+          navigate('/auth');
+        }
         return;
       }
       
       if (!clientId) {
         console.log("Impossible de trouver l'ID client dans la base de données");
-        toast.error("Votre profil client n'est pas correctement configuré");
-        navigate('/auth');
+        if (isMounted) {
+          setError("Votre profil client n'est pas correctement configuré");
+          setIsLoading(false);
+          toast.error("Votre profil client n'est pas correctement configuré");
+          navigate('/auth');
+        }
         return;
       }
       
@@ -63,14 +98,17 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         
         if (data && isMounted) {
           setUserName(data.nom_entreprise || "Client");
+          setError(null);
         } else if (isMounted) {
           console.log("Aucune donnée client trouvée pour l'ID:", clientId);
           setUserName(user?.email?.split('@')[0] || "Client");
         }
-      } catch (error) {
+      } catch (error: any) {
         console.error("Error fetching client data:", error);
         if (isMounted) {
           setUserName(user?.email?.split('@')[0] || "Client");
+          setError("Erreur lors de la récupération de vos données");
+          toast.error("Impossible de charger vos informations. Veuillez réessayer.");
         }
       } finally {
         if (isMounted) {
@@ -83,8 +121,10 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
       if (session) {
         loadClientData();
       } else {
-        setIsLoading(false);
-        navigate('/auth');
+        if (isMounted) {
+          setIsLoading(false);
+          navigate('/auth');
+        }
       }
     }
     
@@ -98,12 +138,43 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   };
 
   const handleLogout = async () => {
-    await signOut();
+    try {
+      await signOut();
+    } catch (error) {
+      console.error("Erreur lors de la déconnexion:", error);
+      toast.error("Erreur lors de la déconnexion. Veuillez réessayer.");
+    }
   };
 
   // Afficher le chargement seulement pendant la vérification initiale de l'authentification
   if (loading || (isLoading && !initialized)) {
     return <SmallLoading />;
+  }
+
+  // Afficher un message d'erreur si nécessaire
+  if (error && !isLoading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="bg-white dark:bg-gray-800 p-6 rounded-lg shadow-lg max-w-md w-full">
+          <h2 className="text-xl font-bold text-red-600 mb-4">Erreur</h2>
+          <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
+          <div className="flex justify-between">
+            <button 
+              onClick={() => navigate('/auth')}
+              className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
+            >
+              Se connecter
+            </button>
+            <button 
+              onClick={() => window.location.reload()}
+              className="px-4 py-2 bg-gray-200 dark:bg-gray-700 rounded hover:bg-gray-300 dark:hover:bg-gray-600"
+            >
+              Rafraîchir
+            </button>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   return (

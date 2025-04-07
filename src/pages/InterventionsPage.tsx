@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   clientService, 
@@ -10,9 +10,10 @@ import { FilterOptions } from "@/types/models";
 import { Button } from "@/components/ui/button";
 import { InterventionsFilter } from "@/components/interventions/InterventionsFilter";
 import { InterventionsList } from "@/components/interventions/InterventionsList";
-import { Plus } from "lucide-react";
+import { Plus, RefreshCcw, AlertCircle } from "lucide-react";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { toast } from "sonner";
 
 const InterventionsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -20,93 +21,132 @@ const InterventionsPage = () => {
   const [clients, setClients] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
   const [currentFilters, setCurrentFilters] = useState<FilterOptions>({});
+  const [error, setError] = useState<string | null>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
-  const { toast } = useToast();
+  const { toast: useToastHook } = useToast();
+
+  const fetchData = async () => {
+    setLoading(true);
+    setError(null);
+    
+    // Set a timeout to prevent infinite loading
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    
+    loadTimeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setError("Le chargement a pris trop de temps. Veuillez réessayer.");
+      toast.error("Délai de chargement dépassé. Veuillez rafraîchir la page.");
+    }, 15000); // 15 seconds timeout
+    
+    try {
+      // Get clients and teams
+      const [clientsData, teamsData] = await Promise.all([
+        clientService.getAll(),
+        equipeService.getAll()
+      ]);
+      
+      setClients(clientsData);
+      setTeams(teamsData);
+      
+      // Directly fetch interventions from Supabase
+      const { data: interventionsData, error } = await supabase
+        .from('interventions')
+        .select(`
+          id,
+          date_debut,
+          date_fin,
+          localisation,
+          statut,
+          demande_intervention_id,
+          demande_interventions:demande_intervention_id (
+            description,
+            urgence,
+            client_id,
+            clients:client_id (
+              id,
+              nom_entreprise
+            )
+          ),
+          intervention_equipes (
+            equipe_id,
+            equipes:equipe_id (
+              id,
+              nom
+            )
+          )
+        `);
+        
+      if (error) throw error;
+      
+      // Transform data into the expected format
+      const formattedInterventions = interventionsData.map(item => ({
+        id: item.id,
+        dateDebut: item.date_debut ? new Date(item.date_debut) : null,
+        dateFin: item.date_fin ? new Date(item.date_fin) : null,
+        localisation: item.localisation,
+        statut: item.statut,
+        client: {
+          id: item.demande_interventions?.clients?.id || '',
+          nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
+        },
+        demande: {
+          description: item.demande_interventions?.description || '',
+          urgence: item.demande_interventions?.urgence || 'basse'
+        },
+        equipes: item.intervention_equipes?.map(eq => ({
+          id: eq.equipes?.id || '',
+          nom: eq.equipes?.nom || 'Équipe inconnue'
+        })) || []
+      }));
+      
+      console.log("Interventions récupérées:", formattedInterventions);
+      setInterventions(formattedInterventions);
+    } catch (error: any) {
+      console.error("Error fetching interventions data:", error);
+      setError("Impossible de charger les données des interventions. " + error.message);
+      useToastHook({
+        variant: "destructive",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les données des interventions.",
+      });
+    } finally {
+      setLoading(false);
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    }
+  };
 
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        // Get clients and teams
-        const [clientsData, teamsData] = await Promise.all([
-          clientService.getAll(),
-          equipeService.getAll()
-        ]);
-        
-        setClients(clientsData);
-        setTeams(teamsData);
-        
-        // Directly fetch interventions from Supabase
-        const { data: interventionsData, error } = await supabase
-          .from('interventions')
-          .select(`
-            id,
-            date_debut,
-            date_fin,
-            localisation,
-            statut,
-            demande_intervention_id,
-            demande_interventions:demande_intervention_id (
-              description,
-              urgence,
-              client_id,
-              clients:client_id (
-                id,
-                nom_entreprise
-              )
-            ),
-            intervention_equipes (
-              equipe_id,
-              equipes:equipe_id (
-                id,
-                nom
-              )
-            )
-          `);
-          
-        if (error) throw error;
-        
-        // Transform data into the expected format
-        const formattedInterventions = interventionsData.map(item => ({
-          id: item.id,
-          dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-          dateFin: item.date_fin ? new Date(item.date_fin) : null,
-          localisation: item.localisation,
-          statut: item.statut,
-          client: {
-            id: item.demande_interventions?.clients?.id || '',
-            nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-          },
-          demande: {
-            description: item.demande_interventions?.description || '',
-            urgence: item.demande_interventions?.urgence || 'basse'
-          },
-          equipes: item.intervention_equipes?.map(eq => ({
-            id: eq.equipes?.id || '',
-            nom: eq.equipes?.nom || 'Équipe inconnue'
-          })) || []
-        }));
-        
-        console.log("Interventions récupérées:", formattedInterventions);
-        setInterventions(formattedInterventions);
-      } catch (error) {
-        console.error("Error fetching interventions data:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur de chargement",
-          description: "Impossible de charger les données des interventions.",
-        });
-      } finally {
-        setLoading(false);
+    fetchData();
+    
+    return () => {
+      // Clean up timeout on unmount
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
     };
-
-    fetchData();
-  }, [toast]);
+  }, []);
 
   const handleFilter = async (filters: FilterOptions) => {
     setLoading(true);
+    setError(null);
     setCurrentFilters(filters);
+    
+    // Set a timeout to prevent infinite loading
+    if (loadTimeoutRef.current) {
+      clearTimeout(loadTimeoutRef.current);
+    }
+    
+    loadTimeoutRef.current = setTimeout(() => {
+      setLoading(false);
+      setError("Le filtrage a pris trop de temps. Veuillez réessayer.");
+      toast.error("Délai de filtrage dépassé. Veuillez rafraîchir la page.");
+    }, 10000); // 10 seconds timeout
     
     try {
       // Build Supabase query with filters
@@ -146,11 +186,6 @@ const InterventionsPage = () => {
         query = query.eq('demande_interventions.client_id', filters.client);
       }
       
-      if (filters.team) {
-        // This is a bit tricky with the current structure
-        // For a proper solution, we'd need to use a more complex query or post-filter the results
-      }
-      
       if (filters.dateRange?.from) {
         query = query.gte('date_debut', filters.dateRange.from.toISOString());
       }
@@ -162,6 +197,12 @@ const InterventionsPage = () => {
       const { data, error } = await query;
       
       if (error) throw error;
+      
+      // Clear the timeout as data has been fetched
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
       
       // Transform data into the expected format
       const formattedInterventions = data.map(item => ({
@@ -184,36 +225,42 @@ const InterventionsPage = () => {
         })) || []
       }));
       
-      console.log("Interventions filtrées:", formattedInterventions);
-      setInterventions(formattedInterventions);
-    } catch (error) {
+      // Post-filter for team (if needed)
+      let filteredInterventions = formattedInterventions;
+      if (filters.team) {
+        filteredInterventions = formattedInterventions.filter(intervention => 
+          intervention.equipes.some(eq => eq.id === filters.team)
+        );
+      }
+      
+      console.log("Interventions filtrées:", filteredInterventions);
+      setInterventions(filteredInterventions);
+    } catch (error: any) {
       console.error("Error filtering interventions:", error);
-      toast({
+      setError("Impossible d'appliquer les filtres. " + error.message);
+      useToastHook({
         variant: "destructive",
         title: "Erreur de filtrage",
         description: "Impossible d'appliquer les filtres.",
       });
     } finally {
       setLoading(false);
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
     }
   };
 
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
-      toast({
-        title: "Statut mis à jour",
-        description: `L'intervention a été mise à jour vers: ${newStatus}`,
-      });
-      
-      // Mettre à jour l'interface utilisateur
+      // First update the UI optimistically
       setInterventions(
         interventions.map((intervention) => {
           if (intervention.id === id) {
             return {
               ...intervention,
               statut: newStatus,
-              // Si le statut est "en_cours", définir la date de début sur maintenant
-              // Si le statut est "terminée", définir la date de fin sur maintenant
               ...(newStatus === "en_cours" && { dateDebut: new Date() }),
               ...(newStatus === "terminée" && { dateFin: new Date() }),
             };
@@ -221,14 +268,39 @@ const InterventionsPage = () => {
           return intervention;
         })
       );
-    } catch (error) {
+
+      // Then update the database
+      const { error } = await supabase
+        .from('interventions')
+        .update({ 
+          statut: newStatus,
+          ...(newStatus === "en_cours" && { date_debut: new Date().toISOString() }),
+          ...(newStatus === "terminée" && { date_fin: new Date().toISOString() }),
+        })
+        .eq('id', id);
+      
+      if (error) throw error;
+      
+      toast.success(`Statut de l'intervention mis à jour : ${newStatus}`);
+      
+      useToastHook({
+        title: "Statut mis à jour",
+        description: `L'intervention a été mise à jour vers: ${newStatus}`,
+      });
+    } catch (error: any) {
       console.error("Error updating intervention status:", error);
-      toast({
+      // Revert the optimistic update
+      fetchData();
+      useToastHook({
         variant: "destructive",
         title: "Erreur de mise à jour",
         description: "Impossible de modifier le statut de l'intervention.",
       });
     }
+  };
+
+  const handleRefresh = () => {
+    fetchData();
   };
 
   return (
@@ -240,12 +312,20 @@ const InterventionsPage = () => {
             Consultez, planifiez et gérez toutes les interventions.
           </p>
         </div>
-        <Link to="/admin/interventions/new">
-          <Button className="flex items-center gap-2">
-            <Plus className="h-4 w-4" />
-            <span>Nouvelle intervention</span>
-          </Button>
-        </Link>
+        <div className="flex gap-2">
+          {!loading && (
+            <Button variant="outline" onClick={handleRefresh} disabled={loading}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Actualiser
+            </Button>
+          )}
+          <Link to="/admin/interventions/new">
+            <Button className="flex items-center gap-2">
+              <Plus className="h-4 w-4" />
+              <span>Nouvelle intervention</span>
+            </Button>
+          </Link>
+        </div>
       </div>
 
       <InterventionsFilter
@@ -260,6 +340,16 @@ const InterventionsPage = () => {
             <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary mx-auto"></div>
             <p className="mt-4 text-muted-foreground">Chargement des interventions...</p>
           </div>
+        </div>
+      ) : error ? (
+        <div className="rounded-md border p-8 text-center">
+          <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium mb-2">Erreur de chargement</h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={handleRefresh}>
+            <RefreshCcw className="h-4 w-4 mr-2" />
+            Réessayer
+          </Button>
         </div>
       ) : (
         <InterventionsList

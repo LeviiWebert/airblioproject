@@ -1,5 +1,5 @@
 
-import { useState, useContext } from "react";
+import { useState, useContext, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
@@ -16,9 +16,28 @@ export const useAuth = () => {
   
   const { session, user, userType, loading, initialized, clientId } = context;
   const navigate = useNavigate();
+  const [authError, setAuthError] = useState<string | null>(null);
+
+  // Add an effect to handle loading timeouts
+  useEffect(() => {
+    let timeoutId: NodeJS.Timeout | null = null;
+    
+    if (loading && !initialized) {
+      // Set a timeout to prevent infinite loading
+      timeoutId = setTimeout(() => {
+        console.error("Auth loading timeout reached");
+        toast.error("Le chargement des données d'authentification a pris trop de temps. Veuillez rafraîchir la page.");
+      }, 10000); // 10 seconds timeout
+    }
+    
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+    };
+  }, [loading, initialized]);
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
     try {
+      setAuthError(null);
       console.log("Attempting to sign in:", email);
       
       const { data, error } = await supabase.auth.signInWithPassword({ email, password });
@@ -37,6 +56,7 @@ export const useAuth = () => {
       return type;
     } catch (error: any) {
       console.error("Error signing in:", error.message);
+      setAuthError(error.message);
       toast.error(`Erreur de connexion: ${error.message}`);
       throw error;
     }
@@ -44,6 +64,7 @@ export const useAuth = () => {
 
   const signUp = async (email: string, password: string, userType: "admin" | "client"): Promise<string | null> => {
     try {
+      setAuthError(null);
       // Set metadata for user type
       const metadata = { user_type: userType };
       
@@ -79,6 +100,7 @@ export const useAuth = () => {
       return null;
     } catch (error: any) {
       console.error("Error signing up:", error.message);
+      setAuthError(error.message);
       toast.error(`Erreur d'inscription: ${error.message}`);
       throw error;
     }
@@ -86,11 +108,13 @@ export const useAuth = () => {
 
   const signOut = async () => {
     try {
+      setAuthError(null);
       await supabase.auth.signOut();
       toast.success("Vous avez été déconnecté");
       navigate('/auth');
     } catch (error: any) {
       console.error("Error signing out:", error.message);
+      setAuthError(error.message);
       toast.error(`Erreur de déconnexion: ${error.message}`);
     }
   };
@@ -102,6 +126,7 @@ export const useAuth = () => {
     loading,
     initialized,
     clientId,
+    authError,
     signIn,
     signUp,
     signOut

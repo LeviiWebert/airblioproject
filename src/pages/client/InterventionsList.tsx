@@ -1,4 +1,5 @@
-import { useEffect, useState } from "react";
+
+import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -8,7 +9,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
-import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User } from "lucide-react";
+import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User, RefreshCcw } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
@@ -19,77 +20,114 @@ const InterventionsList = () => {
   const [interventions, setInterventions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
 
-  useEffect(() => {
-    const fetchInterventions = async () => {
-      if (!clientId) {
-        setLoading(false);
-        setError("Votre profil client n'est pas correctement configuré");
-        return;
+  const fetchInterventions = async () => {
+    if (!clientId) {
+      setLoading(false);
+      setError("Votre profil client n'est pas correctement configuré");
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'identifier votre compte client. Veuillez vous reconnecter."
+      });
+      return;
+    }
+    
+    try {
+      setLoading(true);
+      setError(null);
+      console.log("Chargement des interventions pour le client ID:", clientId);
+      
+      // Set a timeout to prevent infinite loading
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
       
-      try {
-        setLoading(true);
-        setError(null);
-        console.log("Chargement des interventions pour le client ID:", clientId);
-        
-        // Récupérer toutes les demandes d'intervention du client
-        const { data: demandes, error: demandesError } = await supabase
-          .from('demande_interventions')
-          .select(`
+      loadTimeoutRef.current = setTimeout(() => {
+        setLoading(false);
+        setError("Le chargement a pris trop de temps. Veuillez réessayer.");
+        toast({
+          variant: "destructive", 
+          title: "Délai de chargement dépassé",
+          description: "La récupération des données a pris trop de temps. Veuillez réessayer."
+        });
+      }, 10000); // 10 seconds timeout
+      
+      // Récupérer toutes les demandes d'intervention du client
+      const { data: demandes, error: demandesError } = await supabase
+        .from('demande_interventions')
+        .select(`
+          id,
+          date_demande,
+          description,
+          urgence,
+          statut,
+          intervention_id,
+          interventions:intervention_id (
             id,
-            date_demande,
-            description,
-            urgence,
+            date_debut,
+            date_fin,
+            rapport,
+            localisation,
             statut,
-            intervention_id,
-            interventions:intervention_id (
-              id,
-              date_debut,
-              date_fin,
-              rapport,
-              localisation,
-              statut,
-              intervention_equipes:intervention_equipes (
-                equipe_id,
-                equipes:equipes (
-                  id,
-                  nom,
-                  specialisation
-                )
-              ),
-              pv_intervention_id
-            )
-          `)
-          .eq('client_id', clientId)
-          .order('date_demande', { ascending: false });
-          
-        if (demandesError) {
-          console.error("Erreur lors du chargement des interventions:", demandesError);
-          setError("Impossible de charger vos interventions");
-          toast({
-            variant: "destructive", 
-            title: "Erreur",
-            description: "Impossible de charger vos interventions. Veuillez réessayer ultérieurement."
-          });
-        } else {
-          console.log("Interventions chargées avec succès:", demandes?.length || 0);
-          setInterventions(demandes || []);
-        }
-      } catch (error: any) {
-        console.error("Exception lors du chargement des interventions:", error);
-        setError("Une erreur est survenue lors du chargement de vos interventions");
+            intervention_equipes:intervention_equipes (
+              equipe_id,
+              equipes:equipes (
+                id,
+                nom,
+                specialisation
+              )
+            ),
+            pv_intervention_id
+          )
+        `)
+        .eq('client_id', clientId)
+        .order('date_demande', { ascending: false });
+        
+      // Clear the timeout as data has been fetched
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+        
+      if (demandesError) {
+        console.error("Erreur lors du chargement des interventions:", demandesError);
+        setError("Impossible de charger vos interventions");
         toast({
           variant: "destructive", 
           title: "Erreur",
           description: "Impossible de charger vos interventions. Veuillez réessayer ultérieurement."
         });
-      } finally {
-        setLoading(false);
+      } else {
+        console.log("Interventions chargées avec succès:", demandes?.length || 0);
+        setInterventions(demandes || []);
+      }
+    } catch (error: any) {
+      console.error("Exception lors du chargement des interventions:", error);
+      setError("Une erreur est survenue lors du chargement de vos interventions");
+      toast({
+        variant: "destructive", 
+        title: "Erreur",
+        description: "Impossible de charger vos interventions. Veuillez réessayer ultérieurement."
+      });
+    } finally {
+      setLoading(false);
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+        loadTimeoutRef.current = null;
+      }
+    }
+  };
+
+  useEffect(() => {
+    fetchInterventions();
+    
+    return () => {
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
       }
     };
-
-    fetchInterventions();
   }, [toast, clientId]);
 
   const getPendingInterventions = () => {
@@ -120,6 +158,10 @@ const InterventionsList = () => {
     return format(new Date(dateString), "dd MMMM yyyy à HH:mm", { locale: fr });
   };
 
+  const handleRetry = () => {
+    fetchInterventions();
+  };
+
   return (
     <ClientLayout>
       <div className="container mx-auto py-8 px-4">
@@ -128,7 +170,13 @@ const InterventionsList = () => {
             <h1 className="text-3xl font-bold">Mes interventions</h1>
             <p className="text-muted-foreground">Consultez et suivez toutes vos interventions</p>
           </div>
-          <div className="mt-4 md:mt-0">
+          <div className="mt-4 md:mt-0 flex gap-2">
+            {!loading && (
+              <Button variant="outline" onClick={handleRetry} disabled={loading}>
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Actualiser
+              </Button>
+            )}
             <Button asChild>
               <Link to="/intervention/request">
                 Nouvelle demande
@@ -139,17 +187,26 @@ const InterventionsList = () => {
 
         {loading ? (
           <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+            <div className="text-center">
+              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="mt-4 text-sm text-muted-foreground">Chargement de vos interventions...</p>
+            </div>
           </div>
         ) : error ? (
           <Card>
-            <CardContent className="p-8 text-center">
-              <p className="text-red-500 mb-4">{error}</p>
-              <Button asChild>
-                <Link to="/client-dashboard">
-                  Retour au tableau de bord
-                </Link>
-              </Button>
+            <CardContent className="p-8">
+              <div className="text-center">
+                <p className="text-red-500 mb-4">{error}</p>
+                <Button onClick={handleRetry} className="mr-2">
+                  <RefreshCcw className="h-4 w-4 mr-2" />
+                  Réessayer
+                </Button>
+                <Button variant="outline" asChild>
+                  <Link to="/client-dashboard">
+                    Retour au tableau de bord
+                  </Link>
+                </Button>
+              </div>
             </CardContent>
           </Card>
         ) : (
