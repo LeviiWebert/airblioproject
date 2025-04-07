@@ -1,7 +1,6 @@
 
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { ClientLayout } from "@/components/layout/ClientLayout";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
@@ -163,117 +162,115 @@ const InterventionsList = () => {
   };
 
   return (
-    <ClientLayout>
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
-          <div>
-            <h1 className="text-3xl font-bold">Mes interventions</h1>
-            <p className="text-muted-foreground">Consultez et suivez toutes vos interventions</p>
-          </div>
-          <div className="mt-4 md:mt-0 flex gap-2">
-            {!loading && (
-              <Button variant="outline" onClick={handleRetry} disabled={loading}>
-                <RefreshCcw className="h-4 w-4 mr-2" />
-                Actualiser
-              </Button>
-            )}
-            <Button asChild>
-              <Link to="/intervention/request">
-                Nouvelle demande
-              </Link>
+    <div className="container mx-auto py-8 px-4">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mb-6">
+        <div>
+          <h1 className="text-3xl font-bold">Mes interventions</h1>
+          <p className="text-muted-foreground">Consultez et suivez toutes vos interventions</p>
+        </div>
+        <div className="mt-4 md:mt-0 flex gap-2">
+          {!loading && (
+            <Button variant="outline" onClick={handleRetry} disabled={loading}>
+              <RefreshCcw className="h-4 w-4 mr-2" />
+              Actualiser
             </Button>
+          )}
+          <Button asChild>
+            <Link to="/intervention/request">
+              Nouvelle demande
+            </Link>
+          </Button>
+        </div>
+      </div>
+
+      {loading ? (
+        <div className="flex items-center justify-center h-64">
+          <div className="text-center">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
+            <p className="mt-4 text-sm text-muted-foreground">Chargement de vos interventions...</p>
           </div>
         </div>
-
-        {loading ? (
-          <div className="flex items-center justify-center h-64">
+      ) : error ? (
+        <Card>
+          <CardContent className="p-8">
             <div className="text-center">
-              <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin mx-auto"></div>
-              <p className="mt-4 text-sm text-muted-foreground">Chargement de vos interventions...</p>
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button onClick={handleRetry} className="mr-2">
+                <RefreshCcw className="h-4 w-4 mr-2" />
+                Réessayer
+              </Button>
+              <Button variant="outline" asChild>
+                <Link to="/client-dashboard">
+                  Retour au tableau de bord
+                </Link>
+              </Button>
             </div>
-          </div>
-        ) : error ? (
-          <Card>
-            <CardContent className="p-8">
-              <div className="text-center">
-                <p className="text-red-500 mb-4">{error}</p>
-                <Button onClick={handleRetry} className="mr-2">
-                  <RefreshCcw className="h-4 w-4 mr-2" />
-                  Réessayer
-                </Button>
-                <Button variant="outline" asChild>
-                  <Link to="/client-dashboard">
-                    Retour au tableau de bord
-                  </Link>
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        ) : (
-          <Tabs defaultValue="all" className="space-y-6">
-            <TabsList>
-              <TabsTrigger value="all">Toutes ({interventions.length})</TabsTrigger>
-              <TabsTrigger value="pending">En attente ({getPendingInterventions().length})</TabsTrigger>
-              <TabsTrigger value="active">En cours ({getActiveInterventions().length})</TabsTrigger>
-              <TabsTrigger value="completed">Terminées ({getCompletedInterventions().length})</TabsTrigger>
-            </TabsList>
+          </CardContent>
+        </Card>
+      ) : (
+        <Tabs defaultValue="all" className="space-y-6">
+          <TabsList>
+            <TabsTrigger value="all">Toutes ({interventions.length})</TabsTrigger>
+            <TabsTrigger value="pending">En attente ({getPendingInterventions().length})</TabsTrigger>
+            <TabsTrigger value="active">En cours ({getActiveInterventions().length})</TabsTrigger>
+            <TabsTrigger value="completed">Terminées ({getCompletedInterventions().length})</TabsTrigger>
+          </TabsList>
 
-            <TabsContent value="all" className="space-y-4">
-              {interventions.length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <p className="text-muted-foreground mb-4">Vous n'avez pas encore d'interventions.</p>
-                    <Button asChild>
-                      <Link to="/intervention/request">
-                        Faire une demande d'intervention
-                      </Link>
-                    </Button>
-                  </CardContent>
-                </Card>
-              ) : (
-                renderInterventionsList(interventions)
-              )}
-            </TabsContent>
+          <TabsContent value="all" className="space-y-4">
+            {interventions.length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground mb-4">Vous n'avez pas encore d'interventions.</p>
+                  <Button asChild>
+                    <Link to="/intervention/request">
+                      Faire une demande d'intervention
+                    </Link>
+                  </Button>
+                </CardContent>
+              </Card>
+            ) : (
+              renderInterventionsList(interventions)
+            )}
+          </TabsContent>
 
-            <TabsContent value="pending" className="space-y-4">
-              {getPendingInterventions().length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <p className="text-muted-foreground">Vous n'avez pas d'interventions en attente.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                renderInterventionsList(getPendingInterventions())
-              )}
-            </TabsContent>
+          <TabsContent value="pending" className="space-y-4">
+            {getPendingInterventions().length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">Vous n'avez pas d'interventions en attente.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              renderInterventionsList(getPendingInterventions())
+            )}
+          </TabsContent>
 
-            <TabsContent value="active" className="space-y-4">
-              {getActiveInterventions().length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <p className="text-muted-foreground">Vous n'avez pas d'interventions en cours.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                renderInterventionsList(getActiveInterventions())
-              )}
-            </TabsContent>
+          <TabsContent value="active" className="space-y-4">
+            {getActiveInterventions().length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">Vous n'avez pas d'interventions en cours.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              renderInterventionsList(getActiveInterventions())
+            )}
+          </TabsContent>
 
-            <TabsContent value="completed" className="space-y-4">
-              {getCompletedInterventions().length === 0 ? (
-                <Card>
-                  <CardContent className="p-8 text-center">
-                    <p className="text-muted-foreground">Vous n'avez pas d'interventions terminées.</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                renderInterventionsList(getCompletedInterventions())
-              )}
-            </TabsContent>
-          </Tabs>
-        )}
-      </div>
-    </ClientLayout>
+          <TabsContent value="completed" className="space-y-4">
+            {getCompletedInterventions().length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">Vous n'avez pas d'interventions terminées.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              renderInterventionsList(getCompletedInterventions())
+            )}
+          </TabsContent>
+        </Tabs>
+      )}
+    </div>
   );
 
   function renderInterventionsList(interventionsList: any[]) {

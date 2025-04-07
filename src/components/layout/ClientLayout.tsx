@@ -14,8 +14,8 @@ interface ClientLayoutProps {
 }
 
 const SmallLoading = () => (
-  <div className="flex items-center justify-center h-screen">
-    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+  <div className="flex items-center justify-center h-32">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-primary"></div>
   </div>
 );
 
@@ -43,7 +43,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         setIsLoading(false);
         setError("Le chargement a pris trop de temps. Veuillez rafraîchir la page ou contacter le support.");
         toast.error("Délai de chargement dépassé. Veuillez réessayer.");
-      }, 10000); // Reduced from 15s to 10s for faster feedback
+      }, 5000); // Reduced from 10s to 5s for faster feedback
       
       setLoadTimeout(timeout);
       
@@ -56,10 +56,13 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     let isMounted = true;
     
     const loadClientData = async () => {
-      // Skip the whole process if not initialized or still loading
+      // Skip the whole process if not initialized or still loading auth
       if (!initialized || loading) {
+        console.log("Auth not initialized yet in ClientLayout");
         return;
       }
+      
+      console.log("Loading client data with auth state: initialized=" + initialized + ", loading=" + loading);
       
       // Check if there's no session
       if (!session?.user) {
@@ -68,7 +71,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           setError("Vous devez être connecté pour accéder à cette page");
           setIsLoading(false);
           toast.error("Veuillez vous connecter pour accéder à l'espace client");
-          navigate('/auth');
+          navigate('/auth', { replace: true });
         }
         return;
       }
@@ -80,7 +83,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           setError("Vous n'avez pas les permissions nécessaires pour accéder à cette page");
           setIsLoading(false);
           toast.error("Cette section est réservée aux clients.");
-          navigate('/auth');
+          navigate('/auth', { replace: true });
         }
         return;
       }
@@ -92,7 +95,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           setError("Votre profil client n'est pas correctement configuré");
           setIsLoading(false);
           toast.error("Votre profil client n'est pas correctement configuré");
-          navigate('/auth');
+          navigate('/auth', { replace: true });
         }
         return;
       }
@@ -162,7 +165,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           <p className="text-gray-700 dark:text-gray-300 mb-4">{error}</p>
           <div className="flex justify-between">
             <button 
-              onClick={() => navigate('/auth')}
+              onClick={() => navigate('/auth', { replace: true })}
               className="px-4 py-2 bg-primary text-white rounded hover:bg-primary/90"
             >
               Se connecter

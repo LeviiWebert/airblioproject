@@ -20,19 +20,16 @@ export const useAuth = () => {
 
   // Add an effect to handle loading timeouts
   useEffect(() => {
-    let timeoutId: NodeJS.Timeout | null = null;
-    
     if (loading && !initialized) {
+      console.log("Setup loading timeout in useAuth hook");
       // Set a timeout to prevent infinite loading
-      timeoutId = setTimeout(() => {
+      const timeoutId = setTimeout(() => {
         console.error("Auth loading timeout reached in useAuth hook");
         toast.error("Le chargement des données d'authentification a pris trop de temps. Veuillez rafraîchir la page.");
-      }, 8000); // Reduced from 10s to 8s for faster feedback
+      }, 5000); // Reduced from 8s to 5s for faster feedback
+      
+      return () => clearTimeout(timeoutId);
     }
-    
-    return () => {
-      if (timeoutId) clearTimeout(timeoutId);
-    };
   }, [loading, initialized]);
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
@@ -111,7 +108,7 @@ export const useAuth = () => {
       setAuthError(null);
       await supabase.auth.signOut();
       toast.success("Vous avez été déconnecté");
-      navigate('/auth');
+      navigate('/auth', { replace: true });
     } catch (error: any) {
       console.error("Error signing out:", error.message);
       setAuthError(error.message);

@@ -8,55 +8,35 @@ import ClientInterventionDetails from "@/pages/client/InterventionDetails";
 import InterventionRecap from "@/pages/client/InterventionRecap";
 import { ProtectedClientRoute } from "@/components/auth/ProtectedClientRoute";
 
+// Helper function to wrap client components
+const withClientProtection = (Component: React.ComponentType<any>) => (
+  <ProtectedClientRoute>
+    <ClientLayout>
+      <Component />
+    </ClientLayout>
+  </ProtectedClientRoute>
+);
+
+// Client routes configuration
 export const clientRoutes: RouteObject[] = [
   {
     path: "/client-dashboard",
-    element: (
-      <ProtectedClientRoute>
-        <ClientLayout>
-          <ClientDashboard />
-        </ClientLayout>
-      </ProtectedClientRoute>
-    ),
+    element: withClientProtection(ClientDashboard)
   },
   {
     path: "/client/profile",
-    element: (
-      <ProtectedClientRoute>
-        <ClientLayout>
-          <ClientProfile />
-        </ClientLayout>
-      </ProtectedClientRoute>
-    ),
+    element: withClientProtection(ClientProfile)
   },
   {
     path: "/client/interventions",
-    element: (
-      <ProtectedClientRoute>
-        <ClientLayout>
-          <ClientInterventionsList />
-        </ClientLayout>
-      </ProtectedClientRoute>
-    ),
+    element: withClientProtection(ClientInterventionsList)
   },
   {
     path: "/client/intervention/:id",
-    element: (
-      <ProtectedClientRoute>
-        <ClientLayout>
-          <ClientInterventionDetails />
-        </ClientLayout>
-      </ProtectedClientRoute>
-    ),
+    element: withClientProtection(ClientInterventionDetails)
   },
   {
     path: "/client/intervention/recap/:id",
-    element: (
-      <ProtectedClientRoute>
-        <ClientLayout>
-          <InterventionRecap />
-        </ClientLayout>
-      </ProtectedClientRoute>
-    ),
-  },
+    element: withClientProtection(InterventionRecap)
+  }
 ];
