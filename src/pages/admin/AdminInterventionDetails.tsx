@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -102,7 +101,6 @@ const AdminInterventionDetails = () => {
         
         setLoading(true);
         
-        // Fetch the intervention request with client data
         const { data: demandeData, error: demandeError } = await supabase
           .from('demande_interventions')
           .select(`
@@ -127,7 +125,6 @@ const AdminInterventionDetails = () => {
         
         setDemande(demandeData);
         
-        // Create a history entry for the request creation
         const history = [
           {
             date: demandeData.date_demande,
@@ -138,7 +135,6 @@ const AdminInterventionDetails = () => {
         ];
         
         if (demandeData.intervention_id) {
-          // Fetch intervention details
           const { data: interventionData, error: interventionError } = await supabase
             .from('interventions')
             .select(`
@@ -158,7 +154,6 @@ const AdminInterventionDetails = () => {
           
           if (interventionError) throw interventionError;
           
-          // Add intervention creation to history
           history.push({
             date: interventionData.created_at,
             type: 'intervention',
@@ -168,7 +163,6 @@ const AdminInterventionDetails = () => {
           
           setIntervention(interventionData);
           
-          // Fetch teams assigned to the intervention
           const { data: teamsData, error: teamsError } = await supabase
             .from('intervention_equipes')
             .select(`
@@ -188,7 +182,6 @@ const AdminInterventionDetails = () => {
               teams: teams
             }));
             
-            // Add team assignment to history
             if (teams.length > 0) {
               history.push({
                 date: interventionData.updated_at,
@@ -199,7 +192,6 @@ const AdminInterventionDetails = () => {
             }
           }
           
-          // Fetch equipment assigned to the intervention
           const { data: equipmentData, error: equipmentError } = await supabase
             .from('intervention_materiels')
             .select(`
@@ -220,7 +212,6 @@ const AdminInterventionDetails = () => {
               equipment: equipment
             }));
             
-            // Add equipment assignment to history
             if (equipment.length > 0) {
               history.push({
                 date: interventionData.updated_at,
@@ -231,7 +222,6 @@ const AdminInterventionDetails = () => {
             }
           }
           
-          // Fetch PV if exists
           if (interventionData.pv_intervention_id) {
             const { data: pvData, error: pvError } = await supabase
               .from('pv_interventions')
@@ -250,7 +240,6 @@ const AdminInterventionDetails = () => {
                 pv_interventions: pvData
               }));
               
-              // Add PV creation to history
               history.push({
                 date: interventionData.updated_at,
                 type: 'pv',
@@ -258,31 +247,32 @@ const AdminInterventionDetails = () => {
                 status: interventionData.statut
               });
               
-              // Add PV validation to history if validated
               if (pvData.validation_client !== null) {
-                const historyEntry = {
-                  date: pvData.date_validation,
-                  type: pvData.validation_client ? 'pv_validated' : 'pv_rejected',
-                  text: pvData.validation_client 
-                    ? 'Procès-verbal validé par le client' 
-                    : 'Procès-verbal refusé par le client',
-                  status: interventionData.statut
-                };
+                const validationStatus = pvData.validation_client ? 'pv_validated' : 'pv_rejected';
+                const validationText = pvData.validation_client 
+                  ? 'Procès-verbal validé par le client' 
+                  : 'Procès-verbal refusé par le client';
                 
                 if (pvData.commentaire) {
                   history.push({
-                    ...historyEntry,
-                    text: historyEntry.text + (pvData.commentaire ? ` avec commentaire` : ''),
-                    comment: pvData.commentaire
+                    date: pvData.date_validation,
+                    type: validationStatus,
+                    text: validationText + (pvData.commentaire ? ` avec commentaire` : ''),
+                    status: interventionData.statut,
+                    commentaire: pvData.commentaire
                   });
                 } else {
-                  history.push(historyEntry);
+                  history.push({
+                    date: pvData.date_validation,
+                    type: validationStatus,
+                    text: validationText,
+                    status: interventionData.statut
+                  });
                 }
               }
             }
           }
           
-          // Add completion to history if completed
           if (interventionData.statut === 'terminée') {
             history.push({
               date: interventionData.date_fin || interventionData.updated_at,
@@ -293,7 +283,6 @@ const AdminInterventionDetails = () => {
           }
         }
         
-        // Sort history by date
         history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setHistory(history);
         
@@ -330,7 +319,6 @@ const AdminInterventionDetails = () => {
       
       if (pvError) throw pvError;
       
-      // Update intervention with PV ID
       const { error: updateError } = await supabase
         .from('interventions')
         .update({ pv_intervention_id: pvData.id })
@@ -340,7 +328,6 @@ const AdminInterventionDetails = () => {
       
       toast({ title: "Succès", description: "Le PV a été créé avec succès." });
       
-      // Refresh the page to see the changes
       window.location.reload();
       
     } catch (error) {
@@ -566,8 +553,8 @@ const AdminInterventionDetails = () => {
                                 <CardDescription>Type: {item.type_materiel}</CardDescription>
                               </CardHeader>
                               <CardContent>
-                                <Badge variant={item.etat === "disponible" ? "success" : 
-                                  item.etat === "en utilisation" ? "warning" : "destructive"}>
+                                <Badge variant={item.etat === "disponible" ? "default" : 
+                                  item.etat === "en utilisation" ? "outline" : "destructive"}>
                                   {item.etat}
                                 </Badge>
                               </CardContent>
@@ -577,7 +564,7 @@ const AdminInterventionDetails = () => {
                       </div>
                     ) : (
                       <div className="text-center py-6">
-                        <Tool className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
+                        <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
                         <h3 className="text-lg font-medium mb-1">Aucun matériel assigné</h3>
                         <p className="text-muted-foreground max-w-md mx-auto">
                           Cette intervention n'a pas encore de matériel assigné ou est en attente de planification.
@@ -615,9 +602,9 @@ const AdminInterventionDetails = () => {
                                 <InterventionStatusBadge status={item.status} />
                               </div>
                             )}
-                            {item.comment && (
+                            {item.commentaire && (
                               <div className="mt-2 bg-background p-2 rounded border">
-                                <p className="text-sm text-muted-foreground">"{item.comment}"</p>
+                                <p className="text-sm text-muted-foreground">"{item.commentaire}"</p>
                               </div>
                             )}
                           </div>

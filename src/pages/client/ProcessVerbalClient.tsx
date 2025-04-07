@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -75,7 +74,6 @@ const ProcessVerbalClient = () => {
         
         if (pvError) throw pvError;
         
-        // Check if the PV belongs to the client
         if (pvData.client_id !== clientId) {
           navigate('/client-dashboard');
           toast({
@@ -86,7 +84,6 @@ const ProcessVerbalClient = () => {
           return;
         }
         
-        // Fetch the intervention details
         if (pvData.intervention_id) {
           const { data: interventionData, error: interventionError } = await supabase
             .from('interventions')
@@ -148,7 +145,6 @@ const ProcessVerbalClient = () => {
         
       if (error) throw error;
       
-      // Refresh data
       const { data: pvData } = await supabase
         .from('pv_interventions')
         .select(`
