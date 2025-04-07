@@ -25,9 +25,9 @@ export const useAuth = () => {
     if (loading && !initialized) {
       // Set a timeout to prevent infinite loading
       timeoutId = setTimeout(() => {
-        console.error("Auth loading timeout reached");
+        console.error("Auth loading timeout reached in useAuth hook");
         toast.error("Le chargement des données d'authentification a pris trop de temps. Veuillez rafraîchir la page.");
-      }, 10000); // 10 seconds timeout
+      }, 8000); // Reduced from 10s to 8s for faster feedback
     }
     
     return () => {

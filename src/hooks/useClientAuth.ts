@@ -8,7 +8,28 @@ export function useClientAuth() {
   const [userName, setUserName] = useState<string>("");
   const [isLoading, setIsLoading] = useState(true);
   const [isAuthChecked, setIsAuthChecked] = useState(false);
+  const [authTimeout, setAuthTimeout] = useState<NodeJS.Timeout | null>(null);
   const navigate = useNavigate();
+  
+  // Add a timeout to prevent infinite loading
+  useEffect(() => {
+    if (isLoading && !isAuthChecked) {
+      const timeout = setTimeout(() => {
+        console.log("Auth checking timeout reached in useClientAuth");
+        setIsLoading(false);
+        setIsAuthChecked(true);
+        toast.error("La vérification d'authentification a pris trop de temps. Veuillez vous reconnecter.");
+        navigate('/auth');
+      }, 8000); // 8 seconds timeout
+      
+      setAuthTimeout(timeout);
+      
+      return () => {
+        if (authTimeout) clearTimeout(authTimeout);
+        clearTimeout(timeout);
+      };
+    }
+  }, [isLoading, isAuthChecked, navigate, authTimeout]);
   
   useEffect(() => {
     let mounted = true;
@@ -22,8 +43,10 @@ export function useClientAuth() {
         const { data: { user } } = await supabase.auth.getUser();
         if (!user) {
           console.error("Utilisateur introuvable");
-          setIsLoading(false);
-          setIsAuthChecked(true);
+          if (mounted) {
+            setIsLoading(false);
+            setIsAuthChecked(true);
+          }
           return;
         }
         
@@ -47,15 +70,19 @@ export function useClientAuth() {
             
           if (adminData) {
             console.log("L'utilisateur est un admin, redirection vers /admin");
-            navigate('/admin');
+            if (mounted) navigate('/admin');
           } else {
             console.log("L'utilisateur n'est pas un client ou admin valide");
-            toast.error("Compte utilisateur non trouvé. Veuillez contacter l'administrateur.");
-            navigate('/auth');
+            if (mounted) {
+              toast.error("Compte utilisateur non trouvé. Veuillez contacter l'administrateur.");
+              navigate('/auth');
+            }
           }
           
-          setIsLoading(false);
-          setIsAuthChecked(true);
+          if (mounted) {
+            setIsLoading(false);
+            setIsAuthChecked(true);
+          }
           return;
         }
         
@@ -63,21 +90,27 @@ export function useClientAuth() {
         if (clientData) {
           console.log("Client authentifié avec succès:", clientData);
           // Récupérer le nom de l'utilisateur si disponible
-          setUserName(clientData?.nom_entreprise || "Client");
+          if (mounted) setUserName(clientData?.nom_entreprise || "Client");
         } else {
           console.log("L'utilisateur n'est pas un client. Redirection vers /auth");
-          toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
-          navigate('/auth');
+          if (mounted) {
+            toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
+            navigate('/auth');
+          }
         }
         
-        setIsLoading(false);
-        setIsAuthChecked(true);
+        if (mounted) {
+          setIsLoading(false);
+          setIsAuthChecked(true);
+        }
       } catch (error: any) {
         console.error("Erreur lors de la vérification du rôle client:", error);
-        toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
-        setIsLoading(false);
-        setIsAuthChecked(true);
-        navigate('/auth');
+        if (mounted) {
+          toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
+          setIsLoading(false);
+          setIsAuthChecked(true);
+          navigate('/auth');
+        }
       }
     };
     
@@ -88,9 +121,11 @@ export function useClientAuth() {
         
         if (!data.session) {
           console.log("Aucune session trouvée. Redirection vers /auth");
-          setIsLoading(false);
-          setIsAuthChecked(true);
-          if (mounted) navigate('/auth');
+          if (mounted) {
+            setIsLoading(false);
+            setIsAuthChecked(true);
+            navigate('/auth');
+          }
           return;
         }
         
@@ -129,8 +164,9 @@ export function useClientAuth() {
     return () => {
       mounted = false;
       subscription.unsubscribe();
+      if (authTimeout) clearTimeout(authTimeout);
     };
-  }, [navigate]);
+  }, [navigate, authTimeout]);
 
   const handleLogout = async () => {
     try {
