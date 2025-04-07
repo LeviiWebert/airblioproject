@@ -6,6 +6,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Button } from "@/components/ui/button";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
+import { toast } from "sonner";
 
 interface InterventionRequestsTableProps {
   requests: any[];
@@ -18,6 +19,25 @@ export const InterventionRequestsTable = ({
   onAccept, 
   onReject 
 }: InterventionRequestsTableProps) => {
+  // Handler to prevent accidental double-clicks
+  const handleAccept = (request: any) => {
+    // Check if the request is not already being processed
+    if (request.statut !== 'en_attente') {
+      toast.error("Cette demande a déjà été traitée");
+      return;
+    }
+    onAccept(request);
+  };
+
+  const handleReject = (request: any) => {
+    // Check if the request is not already being processed
+    if (request.statut !== 'en_attente') {
+      toast.error("Cette demande a déjà été traitée");
+      return;
+    }
+    onReject(request);
+  };
+
   return (
     <div className="rounded-md border">
       <Table>
@@ -52,14 +72,16 @@ export const InterventionRequestsTable = ({
                   <Button 
                     variant="outline" 
                     className="border-green-500 hover:bg-green-500 hover:text-white text-green-500"
-                    onClick={() => onAccept(request)}
+                    onClick={() => handleAccept(request)}
+                    disabled={request.statut !== 'en_attente'}
                   >
                     <CheckCircle className="h-4 w-4 mr-1" /> Accepter
                   </Button>
                   <Button 
                     variant="outline"
                     className="border-red-500 hover:bg-red-500 hover:text-white text-red-500"
-                    onClick={() => onReject(request)}
+                    onClick={() => handleReject(request)}
+                    disabled={request.statut !== 'en_attente'}
                   >
                     <XCircle className="h-4 w-4 mr-1" /> Refuser
                   </Button>

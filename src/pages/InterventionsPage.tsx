@@ -12,6 +12,7 @@ import { InterventionsFilter } from "@/components/interventions/InterventionsFil
 import { InterventionsList } from "@/components/interventions/InterventionsList";
 import { Plus } from "lucide-react";
 import { Link } from "react-router-dom";
+import { supabase } from "@/integrations/supabase/client";
 
 const InterventionsPage = () => {
   const [loading, setLoading] = useState(true);
@@ -26,15 +27,68 @@ const InterventionsPage = () => {
     const fetchData = async () => {
       setLoading(true);
       try {
-        const [interventionsData, clientsData, teamsData] = await Promise.all([
-          interventionService.getDetailedInterventions(),
+        // Get clients and teams
+        const [clientsData, teamsData] = await Promise.all([
           clientService.getAll(),
           equipeService.getAll()
         ]);
-
-        setInterventions(interventionsData);
+        
         setClients(clientsData);
         setTeams(teamsData);
+        
+        // Directly fetch interventions from Supabase
+        const { data: interventionsData, error } = await supabase
+          .from('interventions')
+          .select(`
+            id,
+            date_debut,
+            date_fin,
+            localisation,
+            statut,
+            demande_intervention_id,
+            demande_interventions:demande_intervention_id (
+              description,
+              urgence,
+              client_id,
+              clients:client_id (
+                id,
+                nom_entreprise
+              )
+            ),
+            intervention_equipes (
+              equipe_id,
+              equipes:equipe_id (
+                id,
+                nom
+              )
+            )
+          `);
+          
+        if (error) throw error;
+        
+        // Transform data into the expected format
+        const formattedInterventions = interventionsData.map(item => ({
+          id: item.id,
+          dateDebut: item.date_debut ? new Date(item.date_debut) : null,
+          dateFin: item.date_fin ? new Date(item.date_fin) : null,
+          localisation: item.localisation,
+          statut: item.statut,
+          client: {
+            id: item.demande_interventions?.clients?.id || '',
+            nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
+          },
+          demande: {
+            description: item.demande_interventions?.description || '',
+            urgence: item.demande_interventions?.urgence || 'basse'
+          },
+          equipes: item.intervention_equipes?.map(eq => ({
+            id: eq.equipes?.id || '',
+            nom: eq.equipes?.nom || 'Équipe inconnue'
+          })) || []
+        }));
+        
+        console.log("Interventions récupérées:", formattedInterventions);
+        setInterventions(formattedInterventions);
       } catch (error) {
         console.error("Error fetching interventions data:", error);
         toast({
@@ -55,8 +109,83 @@ const InterventionsPage = () => {
     setCurrentFilters(filters);
     
     try {
-      const filteredInterventions = await interventionService.getDetailedInterventions(filters);
-      setInterventions(filteredInterventions);
+      // Build Supabase query with filters
+      let query = supabase
+        .from('interventions')
+        .select(`
+          id,
+          date_debut,
+          date_fin,
+          localisation,
+          statut,
+          demande_intervention_id,
+          demande_interventions:demande_intervention_id (
+            description,
+            urgence,
+            client_id,
+            clients:client_id (
+              id,
+              nom_entreprise
+            )
+          ),
+          intervention_equipes (
+            equipe_id,
+            equipes:equipe_id (
+              id,
+              nom
+            )
+          )
+        `);
+      
+      // Apply filters
+      if (filters.status) {
+        query = query.eq('statut', filters.status);
+      }
+      
+      if (filters.clientId) {
+        query = query.eq('demande_interventions.client_id', filters.clientId);
+      }
+      
+      if (filters.teamId) {
+        // This is a bit tricky with the current structure
+        // For a proper solution, we'd need to use a more complex query or post-filter the results
+      }
+      
+      if (filters.startDate) {
+        query = query.gte('date_debut', filters.startDate.toISOString());
+      }
+      
+      if (filters.endDate) {
+        query = query.lte('date_debut', filters.endDate.toISOString());
+      }
+      
+      const { data, error } = await query;
+      
+      if (error) throw error;
+      
+      // Transform data into the expected format
+      const formattedInterventions = data.map(item => ({
+        id: item.id,
+        dateDebut: item.date_debut ? new Date(item.date_debut) : null,
+        dateFin: item.date_fin ? new Date(item.date_fin) : null,
+        localisation: item.localisation,
+        statut: item.statut,
+        client: {
+          id: item.demande_interventions?.clients?.id || '',
+          nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
+        },
+        demande: {
+          description: item.demande_interventions?.description || '',
+          urgence: item.demande_interventions?.urgence || 'basse'
+        },
+        equipes: item.intervention_equipes?.map(eq => ({
+          id: eq.equipes?.id || '',
+          nom: eq.equipes?.nom || 'Équipe inconnue'
+        })) || []
+      }));
+      
+      console.log("Interventions filtrées:", formattedInterventions);
+      setInterventions(formattedInterventions);
     } catch (error) {
       console.error("Error filtering interventions:", error);
       toast({

@@ -84,7 +84,7 @@ export const useInterventionRequests = () => {
             { 
               demande_intervention_id: selectedRequest.id,
               statut: 'planifiée',
-              localisation: 'À déterminer',
+              localisation: selectedRequest.localisation || 'À déterminer',
               rapport: ''
             }
           ])
@@ -100,7 +100,16 @@ export const useInterventionRequests = () => {
           .eq('id', selectedRequest.id);
         
         if (updateError) throw updateError;
+        
+        console.log("Intervention créée:", intervention);
       }
+      
+      // Notification de succès
+      toast.success(
+        actionType === "accept" 
+          ? "Demande acceptée avec succès" 
+          : "Demande refusée avec succès"
+      );
       
       // Réinitialiser l'état
       setSelectedRequest(null);
@@ -125,6 +134,7 @@ export const useInterventionRequests = () => {
     actionType,
     handleAccept,
     handleReject,
-    confirmAction
+    confirmAction,
+    refreshRequests: fetchRequests
   };
 };

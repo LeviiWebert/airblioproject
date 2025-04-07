@@ -17,6 +17,8 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 import { clientService, equipeService } from "@/services/dataService";
+import { supabase } from "@/integrations/supabase/client";
+import { toast as sonnerToast } from "sonner";
 
 const formSchema = z.object({
   clientId: z.string().min(1, { message: "Veuillez sélectionner un client" }),
@@ -71,23 +73,74 @@ const NewInterventionPage = () => {
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
-      // Dans une véritable application, cela créerait l'intervention via une API
       console.log("Valeurs du formulaire:", values);
       
-      // Simulation d'un délai de création
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      // Créer d'abord une demande d'intervention
+      const { data: demandeData, error: demandeError } = await supabase
+        .from('demande_interventions')
+        .insert([
+          {
+            client_id: values.clientId,
+            description: values.description,
+            urgence: values.urgence,
+            statut: 'validée'
+          }
+        ])
+        .select()
+        .single();
+      
+      if (demandeError) throw demandeError;
+      
+      // Ensuite créer l'intervention
+      const { data: interventionData, error: interventionError } = await supabase
+        .from('interventions')
+        .insert([
+          {
+            demande_intervention_id: demandeData.id,
+            date_debut: values.dateDebut.toISOString(),
+            localisation: values.localisation,
+            statut: 'planifiée',
+            rapport: ''
+          }
+        ])
+        .select()
+        .single();
+      
+      if (interventionError) throw interventionError;
+      
+      // Mettre à jour la demande avec l'ID de l'intervention
+      const { error: updateDemandeError } = await supabase
+        .from('demande_interventions')
+        .update({ intervention_id: interventionData.id })
+        .eq('id', demandeData.id);
+      
+      if (updateDemandeError) throw updateDemandeError;
+      
+      // Créer l'association avec l'équipe
+      const { error: equipeError } = await supabase
+        .from('intervention_equipes')
+        .insert([
+          {
+            intervention_id: interventionData.id,
+            equipe_id: values.equipeId
+          }
+        ]);
+      
+      if (equipeError) throw equipeError;
+      
+      sonnerToast.success("Intervention créée avec succès");
       
       toast({
         title: "Intervention créée",
         description: "L'intervention a été créée avec succès.",
       });
       navigate("/admin/interventions");
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la création de l'intervention:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de créer l'intervention.",
+        description: `Impossible de créer l'intervention: ${error.message}`,
       });
     } finally {
       setLoading(false);
