@@ -8,6 +8,7 @@ import ClientInterventionDetails from "@/pages/client/InterventionDetails";
 import InterventionRecap from "@/pages/client/InterventionRecap";
 import { ProtectedClientRoute } from "@/components/auth/ProtectedClientRoute";
 import ProcessVerbalClient from "@/pages/client/ProcessVerbalClient";
+import PVList from "@/pages/client/PVList";
 
 // Helper function to wrap client components with protection and layout
 const withClientProtection = (Component: React.ComponentType<any>) => (
@@ -43,5 +44,9 @@ export const clientRoutes: RouteObject[] = [
   {
     path: "/client/pv/:id",
     element: withClientProtection(ProcessVerbalClient)
+  },
+  {
+    path: "/client/pvs",
+    element: withClientProtection(PVList)
   }
 ];
