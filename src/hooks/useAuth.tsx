@@ -1,13 +1,27 @@
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, createContext, useContext } from "react";
+import { Session, User } from "@supabase/supabase-js";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { supabase } from "@/integrations/supabase/client";
-import { Session } from "@supabase/supabase-js";
 import { checkUserType } from "@/utils/userTypeChecker";
 import { createClientProfile, createAdminProfile } from "@/utils/authUtils";
 
-export function useAuth() {
+interface AuthContextType {
+  session: Session | null;
+  user: User | null;
+  userType: string | null;
+  loading: boolean;
+  initialized: boolean;
+  signIn: (email: string, password: string) => Promise<string | null>;
+  signUp: (email: string, password: string, userType: "admin" | "client") => Promise<string | null>;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
+  const [user, setUser] = useState<User | null>(null);
   const [session, setSession] = useState<Session | null>(null);
   const [userType, setUserType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
@@ -15,172 +29,129 @@ export function useAuth() {
   const navigate = useNavigate();
 
   useEffect(() => {
-    let mounted = true;
-    
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
-      console.log("Changement d'état d'authentification:", event);
-      
-      if (!mounted) return;
-      
-      if (newSession?.user?.id) {
-        setSession(newSession);
-        
-        setTimeout(async () => {
-          if (!mounted) return;
-          
-          const type = await checkUserType(newSession.user.id);
-          console.log("Type d'utilisateur détecté:", type);
-          setUserType(type);
-          setLoading(false);
-        }, 0);
-      } else {
-        setSession(null);
-        setUserType(null);
-        setLoading(false);
-      }
-    });
+    const setUpAuthStateListener = () => {
+      // Listen for auth changes
+      const { data: { subscription } } = supabase.auth.onAuthStateChange(
+        async (event, currentSession) => {
+          console.log("Auth state changed:", event);
+          setSession(currentSession);
+          setUser(currentSession?.user ?? null);
 
-    const initSession = async () => {
-      try {
-        const { data: { session } } = await supabase.auth.getSession();
-        
-        if (!mounted) return;
-        
-        setSession(session);
-        
-        if (session?.user?.id) {
-          const type = await checkUserType(session.user.id);
-          console.log("Type d'utilisateur détecté à l'initialisation:", type);
-          setUserType(type);
+          if (currentSession?.user) {
+            // Defer the call to checkUserType to avoid recursive Supabase calls in the callback
+            setTimeout(async () => {
+              try {
+                const type = await checkUserType(currentSession.user.id);
+                setUserType(type);
+                console.log("User type detected:", type);
+              } catch (error) {
+                console.error("Error checking user type in auth change:", error);
+              }
+            }, 0);
+          } else {
+            setUserType(null);
+          }
         }
-      } catch (error) {
-        console.error("Erreur lors de la récupération de la session:", error);
-      } finally {
-        if (mounted) {
-          setLoading(false);
-          setInitialized(true);
+      );
+
+      // Initial session check
+      supabase.auth.getSession().then(async ({ data: { session: initialSession } }) => {
+        setSession(initialSession);
+        setUser(initialSession?.user ?? null);
+
+        if (initialSession?.user) {
+          try {
+            const type = await checkUserType(initialSession.user.id);
+            setUserType(type);
+            console.log("Initial user type:", type);
+          } catch (error) {
+            console.error("Error checking initial user type:", error);
+          }
         }
-      }
+
+        setLoading(false);
+        setInitialized(true);
+      });
+
+      return subscription;
     };
-    
-    initSession();
+
+    const subscription = setUpAuthStateListener();
 
     return () => {
-      mounted = false;
       subscription.unsubscribe();
     };
   }, []);
 
-  const signUp = async (email: string, password: string, userType: "admin" | "client") => {
+  const signIn = async (email: string, password: string): Promise<string | null> => {
     try {
       setLoading(true);
-      console.log(`Tentative d'inscription en tant que ${userType} pour: ${email}`);
+      console.log("Attempting to sign in:", email);
       
-      // Désactiver la confirmation par email pour faciliter les tests
-      const { data, error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: {
-            user_type: userType
-          },
-          // On ne définit pas emailRedirectTo pour ne pas déclencher la confirmation par email
-        }
-      });
-
+      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      
       if (error) {
-        console.error("Erreur d'inscription:", error);
-        if (error.message.includes('already registered')) {
-          throw new Error("Cet email est déjà utilisé. Essayez de vous connecter.");
-        } else if (error.message.includes('stronger password')) {
-          throw new Error("Votre mot de passe est trop faible. Utilisez au moins 6 caractères avec des lettres et des chiffres.");
-        } else {
-          throw error;
-        }
+        throw error;
       }
-
-      if (data.user) {
-        if (userType === "client") {
-          await createClientProfile(data.user.id, email);
-        } else if (userType === "admin") {
-          await createAdminProfile(data.user.id, email);
-        }
-      }
-
-      if (data.session) {
-        setSession(data.session);
-        
-        const type = await checkUserType(data.user!.id);
-        setUserType(type);
-        
-        toast.success("Inscription réussie! Vous êtes maintenant connecté.");
-        
-        if (type === "admin") {
-          navigate("/admin", { replace: true });
-        } else if (type === "client") {
-          navigate("/client-dashboard", { replace: true });
-        }
-        
-        return type;
-      } else {
-        // Si l'authentification n'a pas créé de session immédiate (cas rare avec emailRedirectTo désactivé)
-        toast.success("Inscription réussie! Essayez de vous connecter.");
-        return null;
-      }
+      
+      console.log("Sign in successful for:", email);
+      const session = data.session;
+      const user = session.user;
+      
+      // Determine user type after login
+      const type = await checkUserType(user.id);
+      console.log("User type after login:", type);
+      
+      return type;
     } catch (error: any) {
-      console.error("Erreur d'inscription:", error);
-      toast.error(error.message || "Erreur lors de l'inscription");
+      console.error("Error signing in:", error.message);
+      toast.error(`Erreur de connexion: ${error.message}`);
       throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const signIn = async (email: string, password: string) => {
+  const signUp = async (email: string, password: string, userType: "admin" | "client"): Promise<string | null> => {
     try {
       setLoading(true);
-      console.log(`Tentative de connexion pour: ${email}`);
       
-      const { data, error } = await supabase.auth.signInWithPassword({
+      // Set metadata for user type
+      const metadata = { user_type: userType };
+      
+      // Create the user
+      const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: metadata,
+          emailRedirectTo: window.location.origin + '/auth',
+        }
       });
-
+      
       if (error) {
-        if (error.message.includes('Invalid login')) {
-          throw new Error("Email ou mot de passe incorrect");
-        } else if (error.message.includes('Email not confirmed')) {
-          throw new Error("Email non confirmé. Veuillez vérifier votre boîte mail");
-        } else {
-          throw error;
-        }
+        throw error;
       }
-
+      
+      // If Supabase is configured to not require email confirmation, the user will be signed in immediately
       if (data.session) {
-        const userId = data.session.user.id;
-        console.log(`Connexion réussie. Vérification du type pour l'utilisateur ${userId}`);
+        const userId = data.user.id;
         
-        const type = await checkUserType(userId);
-        console.log(`Type d'utilisateur détecté: ${type}`);
-        
-        if (!type) {
-          await supabase.auth.signOut();
-          throw new Error("Votre compte n'est associé à aucun profil. Veuillez contacter l'administrateur.");
+        // Create the appropriate profile
+        if (userType === "admin") {
+          await createAdminProfile(userId, email);
+          return "admin";
+        } else {
+          await createClientProfile(userId, email);
+          return "client";
         }
-        
-        toast.success("Connexion réussie");
-        
-        if (type === "admin") {
-          navigate("/admin", { replace: true });
-        } else if (type === "client") {
-          navigate("/client-dashboard", { replace: true });
-        }
-        
-        return type;
       }
+      
+      toast.success("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
+      return null;
     } catch (error: any) {
-      console.error("Erreur de connexion:", error);
-      toast.error(error.message || "Échec de la connexion");
+      console.error("Error signing up:", error.message);
+      toast.error(`Erreur d'inscription: ${error.message}`);
       throw error;
     } finally {
       setLoading(false);
@@ -191,23 +162,38 @@ export function useAuth() {
     try {
       setLoading(true);
       await supabase.auth.signOut();
-      toast.success("Vous avez été déconnecté avec succès");
-      navigate('/');
-    } catch (error) {
-      console.error("Erreur lors de la déconnexion:", error);
-      toast.error("Erreur lors de la déconnexion");
+      toast.success("Vous avez été déconnecté");
+      navigate('/auth');
+    } catch (error: any) {
+      console.error("Error signing out:", error.message);
+      toast.error(`Erreur de déconnexion: ${error.message}`);
     } finally {
       setLoading(false);
     }
   };
 
-  return {
-    session,
-    userType,
-    loading,
-    initialized,
-    signIn,
-    signUp,
-    signOut
-  };
-}
+  return (
+    <AuthContext.Provider value={{
+      session,
+      user,
+      userType,
+      loading,
+      initialized,
+      signIn,
+      signUp,
+      signOut
+    }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error("useAuth must be used within an AuthProvider");
+  }
+  return context;
+};
+
+export default useAuth;

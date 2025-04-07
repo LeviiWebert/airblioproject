@@ -11,37 +11,45 @@ export function useClientAuth() {
   const navigate = useNavigate();
   
   useEffect(() => {
-    let authSubscription: { unsubscribe: () => void } | null = null;
+    let mounted = true;
     
     // Fonction pour vérifier le rôle client
     const checkClientRole = async (userId: string) => {
       try {
         console.log("Vérification du rôle client pour l'utilisateur:", userId);
         
+        // Récupérer les informations de l'utilisateur pour avoir l'email
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) {
+          console.error("Utilisateur introuvable");
+          setIsLoading(false);
+          setIsAuthChecked(true);
+          return;
+        }
+        
         // Vérifier si l'utilisateur existe dans la table clients
         const { data: clientData, error: clientError } = await supabase
           .from('clients')
           .select('*')
-          .eq('id', userId)
-          .single();
+          .eq('email', user.email)
+          .maybeSingle();
         
         if (clientError) {
           console.error("Erreur lors de la vérification du client:", clientError);
           
           // Vérifier si l'utilisateur est un admin
-          const { data: adminData, error: adminError } = await supabase
+          const { data: adminData } = await supabase
             .from('utilisateurs')
             .select('role')
-            .eq('id', userId)
+            .eq('email', user.email)
             .eq('role', 'admin')
-            .single();
+            .maybeSingle();
             
-          if (!adminError && adminData) {
+          if (adminData) {
             console.log("L'utilisateur est un admin, redirection vers /admin");
             navigate('/admin');
           } else {
             console.log("L'utilisateur n'est pas un client ou admin valide");
-            await supabase.auth.signOut();
             toast.error("Compte utilisateur non trouvé. Veuillez contacter l'administrateur.");
             navigate('/auth');
           }
@@ -59,7 +67,6 @@ export function useClientAuth() {
         } else {
           console.log("L'utilisateur n'est pas un client. Redirection vers /auth");
           toast.error("Vous devez être connecté en tant que client pour accéder à cette page");
-          await supabase.auth.signOut();
           navigate('/auth');
         }
         
@@ -83,15 +90,19 @@ export function useClientAuth() {
           console.log("Aucune session trouvée. Redirection vers /auth");
           setIsLoading(false);
           setIsAuthChecked(true);
+          if (mounted) navigate('/auth');
           return;
         }
         
-        await checkClientRole(data.session.user.id);
+        if (mounted) await checkClientRole(data.session.user.id);
       } catch (error: any) {
         console.error("Erreur d'authentification:", error);
-        toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
-        setIsLoading(false);
-        setIsAuthChecked(true);
+        if (mounted) {
+          toast.error("Erreur d'authentification: " + (error.message || "Connexion impossible"));
+          setIsLoading(false);
+          setIsAuthChecked(true);
+          navigate('/auth');
+        }
       }
     };
     
@@ -101,25 +112,23 @@ export function useClientAuth() {
       
       if (!session) {
         console.log("Pas de session active dans l'événement auth change");
-        setIsLoading(false);
-        setIsAuthChecked(true);
-        return;
+        if (mounted) {
+          setIsLoading(false);
+          setIsAuthChecked(true);
+          return;
+        }
       }
 
-      await checkClientRole(session.user.id);
+      if (mounted) await checkClientRole(session.user.id);
     });
-    
-    // Assigner correctement l'abonnement pour pouvoir se désabonner plus tard
-    authSubscription = { unsubscribe: () => subscription.unsubscribe() };
     
     // Vérification initiale de l'authentification
     checkAuth();
     
     // Nettoyer l'abonnement à la déconnexion du composant
     return () => {
-      if (authSubscription) {
-        authSubscription.unsubscribe();
-      }
+      mounted = false;
+      subscription.unsubscribe();
     };
   }, [navigate]);
 

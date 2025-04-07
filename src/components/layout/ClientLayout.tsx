@@ -32,7 +32,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         
         if (!data.session) {
           console.log("Pas de session active dans ClientLayout");
-          toast.error("Session expirée. Veuillez vous reconnecter.");
+          toast.error("Veuillez vous connecter pour accéder à l'espace client");
           navigate('/auth');
           return;
         }
@@ -43,33 +43,13 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         
         // Vérifier d'abord le metadata (plus fiable)
         if (userMetadata?.user_type === 'admin') {
+          console.log("Utilisateur est un admin, redirection vers /admin");
           toast.error("Cette section est réservée aux clients.");
           navigate('/admin');
           return;
         }
         
-        // Vérifier si c'est un email administrateur conventionnel
-        if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
-          toast.error("Cette section est réservée aux clients.");
-          navigate('/admin');
-          return;
-        }
-        
-        // Vérifier dans la base de données si l'utilisateur est un admin
-        const { data: adminData } = await supabase
-          .from('utilisateurs')
-          .select('role')
-          .eq('email', userEmail)
-          .eq('role', 'admin')
-          .maybeSingle();
-          
-        if (adminData) {
-          toast.error("Cette section est réservée aux clients.");
-          navigate('/admin');
-          return;
-        }
-        
-        // Vérifier si l'utilisateur est bien dans la table des clients
+        // On vérifie dans la base de données le statut de l'utilisateur
         const { data: clientData, error: clientError } = await supabase
           .from('clients')
           .select('id')
@@ -77,6 +57,23 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           .maybeSingle();
           
         if (!clientData || clientError) {
+          console.log("Utilisateur non trouvé dans la table clients");
+          
+          // Vérifier si c'est un admin
+          const { data: adminData } = await supabase
+            .from('utilisateurs')
+            .select('role')
+            .eq('email', userEmail)
+            .eq('role', 'admin')
+            .maybeSingle();
+            
+          if (adminData) {
+            console.log("Utilisateur est un admin, redirection vers /admin");
+            toast.error("Cette section est réservée aux clients.");
+            navigate('/admin');
+            return;
+          }
+          
           toast.error("Votre compte n'est pas associé à un profil client.");
           navigate('/auth');
         }
@@ -87,6 +84,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
       }
     };
     
+    // Vérifier la session uniquement si l'authentification a été vérifiée
     if (isAuthChecked) {
       checkClientSession();
     }
