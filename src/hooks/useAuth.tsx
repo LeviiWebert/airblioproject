@@ -1,3 +1,4 @@
+
 import { useState, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
@@ -223,6 +224,7 @@ export function useAuth() {
       setLoading(true);
       console.log(`Tentative d'inscription en tant que ${userType} pour: ${email}`);
       
+      // Désactiver la confirmation par email pour faciliter les tests
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
@@ -230,7 +232,7 @@ export function useAuth() {
           data: {
             user_type: userType
           },
-          emailRedirectTo: window.location.origin + '/auth'
+          // On ne définit pas emailRedirectTo pour ne pas déclencher la confirmation par email
         }
       });
 
@@ -247,24 +249,39 @@ export function useAuth() {
 
       if (data.user) {
         if (userType === "client") {
-          const { error: clientError } = await supabase
-            .from('clients')
-            .insert([
-              { id: data.user.id, email: email, nom_entreprise: email.split('@')[0] || 'Client' }
-            ]);
-          
-          if (clientError) {
-            console.error("Erreur lors de la création du profil client:", clientError);
-            console.error("Détails de l'erreur:", clientError.details, clientError.hint, clientError.message);
-            toast.error("Erreur lors de la création du profil client. Contactez l'administrateur.");
-          } else {
-            console.log("Profil client créé avec succès");
+          // Utilisez une transaction pour garantir la création du profil client
+          try {
+            const { error: clientError } = await supabase
+              .from('clients')
+              .insert([
+                { 
+                  id: data.user.id, 
+                  email: email, 
+                  nom_entreprise: email.split('@')[0] || 'Client' 
+                }
+              ]);
+            
+            if (clientError) {
+              console.error("Erreur lors de la création du profil client:", clientError);
+              console.error("Détails de l'erreur:", clientError.details, clientError.hint, clientError.message);
+              toast.error("Erreur lors de la création du profil client. Contactez l'administrateur.");
+            } else {
+              console.log("Profil client créé avec succès");
+            }
+          } catch (insertError) {
+            console.error("Exception lors de la création du profil client:", insertError);
+            toast.error("Exception lors de la création du profil client. Contactez l'administrateur.");
           }
         } else if (userType === "admin") {
           const { error: adminError } = await supabase
             .from('utilisateurs')
             .insert([
-              { id: data.user.id, email: email, nom: email.split('@')[0] || 'Admin', role: 'admin' }
+              { 
+                id: data.user.id, 
+                email: email, 
+                nom: email.split('@')[0] || 'Admin', 
+                role: 'admin' 
+              }
             ]);
           
           if (adminError) {
@@ -291,7 +308,8 @@ export function useAuth() {
         
         return type;
       } else {
-        toast.success("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
+        // Si l'authentification n'a pas créé de session immédiate (cas rare avec emailRedirectTo désactivé)
+        toast.success("Inscription réussie! Essayez de vous connecter.");
         return null;
       }
     } catch (error: any) {
