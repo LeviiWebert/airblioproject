@@ -64,7 +64,7 @@ export const adminRoutes: RouteObject[] = [
     element: withAdminProtection(InterventionRequests)
   },
   {
-    path: "/admin/new-intervention",
+    path: "/admin/interventions/new",
     element: withAdminProtection(NewInterventionPage)
   },
   {

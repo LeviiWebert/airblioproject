@@ -87,7 +87,7 @@ const InterventionDetails = () => {
     );
 
     return () => subscription.unsubscribe();
-  }, [navigate, form]);
+  }, [navigate, form, session, userType, clientId]);
 
   const onSubmit = (data: DetailsValues) => {
     setIsLoading(true);
