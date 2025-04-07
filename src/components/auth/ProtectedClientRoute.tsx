@@ -20,7 +20,7 @@ export const ProtectedClientRoute = ({ children }: { children: React.ReactNode }
         setIsCheckingAuth(false);
         toast.error("Vérification d'authentification trop longue. Veuillez vous reconnecter.");
         navigate('/auth', { replace: true });
-      }, 3000); // Reduced to 3 seconds for faster feedback
+      }, 2000); // Reduced to 2 seconds for faster feedback
       
       setAuthTimeout(timeout);
       
@@ -37,6 +37,7 @@ export const ProtectedClientRoute = ({ children }: { children: React.ReactNode }
     if (initialized) {
       console.log("Auth initialized in ProtectedClientRoute, processing auth state");
       
+      // Check if we have metadata and can quickly determine the auth state
       if (!session) {
         console.log("No session in ProtectedClientRoute");
         toast.error("Veuillez vous connecter pour accéder à cette page");

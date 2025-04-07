@@ -14,7 +14,7 @@ export const checkUserType = async (userId: string): Promise<string | null> => {
       setTimeout(() => {
         console.error("Timeout occurred in checkUserType");
         resolve(null);
-      }, 2000); // Reduced to 2 second timeout for faster feedback
+      }, 1500); // Reduced to 1.5 second timeout for faster feedback
     });
     
     // Create the actual check function with prioritized metadata check

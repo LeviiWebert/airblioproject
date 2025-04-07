@@ -1,143 +1,77 @@
 
 import { RouteObject } from "react-router-dom";
 import { BackOfficeLayout } from "@/components/layout/BackOfficeLayout";
+import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
 import Dashboard from "@/pages/Dashboard";
+import ClientsPage from "@/pages/admin/ClientsPage";
+import TeamsPage from "@/pages/admin/TeamsPage";
+import EquipmentPage from "@/pages/admin/EquipmentPage";
+import BillingPage from "@/pages/admin/BillingPage";
+import LogisticsPage from "@/pages/admin/LogisticsPage";
+import ReportsPage from "@/pages/admin/ReportsPage";
 import InterventionsPage from "@/pages/InterventionsPage";
 import InterventionRequests from "@/pages/InterventionRequests";
 import NewInterventionPage from "@/pages/admin/NewInterventionPage";
-import TeamsPage from "@/pages/admin/TeamsPage";
-import EquipmentPage from "@/pages/admin/EquipmentPage";
-import ClientsPage from "@/pages/admin/ClientsPage";
-import ReportsPage from "@/pages/admin/ReportsPage";
-import LogisticsPage from "@/pages/admin/LogisticsPage";
-import BillingPage from "@/pages/admin/BillingPage";
-import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
+import AdminInterventionDetails from "@/pages/admin/AdminInterventionDetails";
+import ProcessVerbalPage from "@/pages/admin/ProcessVerbalPage";
 
+// Helper function to wrap components with protection and layout
+const withAdminProtection = (Component: React.ComponentType<any>) => (
+  <ProtectedAdminRoute>
+    <BackOfficeLayout>
+      <Component />
+    </BackOfficeLayout>
+  </ProtectedAdminRoute>
+);
+
+// Admin routes configuration
 export const adminRoutes: RouteObject[] = [
   {
     path: "/admin",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <Dashboard />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
-  },
-  {
-    path: "/admin/interventions",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <InterventionsPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
-  },
-  {
-    path: "/admin/interventions/new",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <NewInterventionPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
-  },
-  {
-    path: "/admin/interventions/requests",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <InterventionRequests />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
-  },
-  {
-    path: "/admin/teams",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <TeamsPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
-  },
-  {
-    path: "/admin/equipment",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <EquipmentPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    element: withAdminProtection(Dashboard)
   },
   {
     path: "/admin/clients",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <ClientsPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    element: withAdminProtection(ClientsPage)
   },
   {
-    path: "/admin/reports",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <ReportsPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    path: "/admin/teams",
+    element: withAdminProtection(TeamsPage)
   },
   {
-    path: "/admin/logistics",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <LogisticsPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    path: "/admin/equipment",
+    element: withAdminProtection(EquipmentPage)
   },
   {
     path: "/admin/billing",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <BillingPage />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    element: withAdminProtection(BillingPage)
   },
   {
-    path: "/admin/statistics",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <div className="p-4">
-            <h1 className="text-2xl font-bold">Statistiques</h1>
-            <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-          </div>
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    path: "/admin/logistics",
+    element: withAdminProtection(LogisticsPage)
   },
   {
-    path: "/admin/settings",
-    element: (
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <div className="p-4">
-            <h1 className="text-2xl font-bold">Paramètres</h1>
-            <p className="text-muted-foreground">Cette fonctionnalité sera bientôt disponible.</p>
-          </div>
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    ),
+    path: "/admin/reports",
+    element: withAdminProtection(ReportsPage)
   },
+  {
+    path: "/admin/interventions",
+    element: withAdminProtection(InterventionsPage)
+  },
+  {
+    path: "/admin/intervention-requests",
+    element: withAdminProtection(InterventionRequests)
+  },
+  {
+    path: "/admin/new-intervention",
+    element: withAdminProtection(NewInterventionPage)
+  },
+  {
+    path: "/admin/intervention/:id",
+    element: withAdminProtection(AdminInterventionDetails)
+  },
+  {
+    path: "/admin/pv/:id",
+    element: withAdminProtection(ProcessVerbalPage)
+  }
 ];
