@@ -3,6 +3,7 @@ import React, { useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { isAdminUser } from "@/utils/authUtils";
 
 const Index = () => {
   const navigate = useNavigate();
@@ -20,25 +21,21 @@ const Index = () => {
           // Use user metadata if available
           const userMetadata = session.user.user_metadata;
           
-          // First priority - check user_type in metadata (most reliable method)
-          if (userMetadata?.user_type === 'admin') {
-            console.log("Redirection vers /admin car user_type metadata est 'admin'");
+          // Vérifier si l'utilisateur est un admin d'abord
+          if (isAdminUser(userEmail, userMetadata)) {
+            console.log("Redirection vers /admin car l'utilisateur est un admin");
             navigate('/admin', { replace: true });
             return;
-          } else if (userMetadata?.user_type === 'client') {
+          }
+          
+          // First priority - check user_type in metadata for client (most reliable method)
+          if (userMetadata?.user_type === 'client') {
             console.log("Redirection vers /client-dashboard car user_type metadata est 'client'");
             navigate('/client-dashboard', { replace: true });
             return;
           }
           
-          // Special case for known admin emails
-          if (userEmail === "leviwebert147@gmail.com" || userEmail?.includes("admin")) {
-            console.log("Email identifié comme administrateur par convention");
-            navigate('/admin', { replace: true });
-            return;
-          }
-          
-          // Check admin table
+          // Check admin table (double check)
           const { data: adminData } = await supabase
             .from('utilisateurs')
             .select('role')

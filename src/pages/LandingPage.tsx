@@ -1,10 +1,10 @@
-
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
+import { isAdminUser } from "@/utils/authUtils";
 
 const LandingPage = () => {
   const [session, setSession] = useState<Session | null>(null);
@@ -53,8 +53,22 @@ const LandingPage = () => {
       setSession(session);
       
       if (session?.user?.id) {
+        const userEmail = session.user.email;
+        const userMetadata = session.user.user_metadata;
+        
+        // Si c'est un admin, on redirige tout de suite sans attendre la vérification dans la BD
+        if (isAdminUser(userEmail, userMetadata)) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+        
         const type = await checkUserType(session.user.id);
         setUserType(type);
+        
+        // Si c'est un admin après vérification dans la BD, on redirige
+        if (type === "admin") {
+          navigate("/admin", { replace: true });
+        }
       } else {
         setUserType(null);
       }
@@ -67,8 +81,22 @@ const LandingPage = () => {
       setSession(session);
       
       if (session?.user?.id) {
+        const userEmail = session.user.email;
+        const userMetadata = session.user.user_metadata;
+        
+        // Si c'est un admin, on redirige tout de suite sans attendre la vérification dans la BD
+        if (isAdminUser(userEmail, userMetadata)) {
+          navigate("/admin", { replace: true });
+          return;
+        }
+        
         const type = await checkUserType(session.user.id);
         setUserType(type);
+        
+        // Si c'est un admin après vérification dans la BD, on redirige
+        if (type === "admin") {
+          navigate("/admin", { replace: true });
+        }
       } else {
         setUserType(null);
       }
@@ -78,7 +106,7 @@ const LandingPage = () => {
       mounted = false;
       subscription.unsubscribe();
     };
-  }, []);
+  }, [navigate]);
 
   // Si l'utilisateur est connecté en tant qu'admin, le rediriger immédiatement vers le dashboard
   if (session && userType === "admin") {
