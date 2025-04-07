@@ -4,10 +4,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { ClientHeader } from "./client/ClientHeader";
 import { ClientSidebar } from "./client/ClientSidebar";
 import { Loading } from "@/components/ui/loading";
-import { useClientAuth } from "@/hooks/useClientAuth";
 import { useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -21,81 +20,56 @@ const SmallLoading = () => (
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { userName, isLoading, isAuthChecked, handleLogout } = useClientAuth();
+  const { session, user, userType, loading, initialized, signOut } = useAuth();
   const navigate = useNavigate();
+  const [userName, setUserName] = useState<string>("Client");
   
   useEffect(() => {
-    // Vérification supplémentaire de la session et du type d'utilisateur
-    const checkClientSession = async () => {
+    const loadClientData = async () => {
+      if (!session?.user) {
+        console.log("Pas de session active dans ClientLayout");
+        toast.error("Veuillez vous connecter pour accéder à l'espace client");
+        navigate('/auth');
+        return;
+      }
+      
+      if (userType !== "client") {
+        console.log("L'utilisateur n'est pas un client. Type:", userType);
+        toast.error("Cette section est réservée aux clients.");
+        navigate('/auth');
+        return;
+      }
+      
       try {
-        const { data } = await supabase.auth.getSession();
-        
-        if (!data.session) {
-          console.log("Pas de session active dans ClientLayout");
-          toast.error("Veuillez vous connecter pour accéder à l'espace client");
-          navigate('/auth');
-          return;
-        }
-        
-        // Vérifier le type d'utilisateur pour s'assurer que c'est bien un client
-        const userEmail = data.session.user.email;
-        const userMetadata = data.session.user.user_metadata;
-        
-        // Vérifier d'abord le metadata (plus fiable)
-        if (userMetadata?.user_type === 'admin') {
-          console.log("Utilisateur est un admin, redirection vers /admin");
-          toast.error("Cette section est réservée aux clients.");
-          navigate('/admin');
-          return;
-        }
-        
-        // On vérifie dans la base de données le statut de l'utilisateur
-        const { data: clientData, error: clientError } = await supabase
-          .from('clients')
-          .select('id')
-          .eq('email', userEmail)
-          .maybeSingle();
-          
-        if (!clientData || clientError) {
-          console.log("Utilisateur non trouvé dans la table clients");
-          
-          // Vérifier si c'est un admin
-          const { data: adminData } = await supabase
-            .from('utilisateurs')
-            .select('role')
-            .eq('email', userEmail)
-            .eq('role', 'admin')
-            .maybeSingle();
-            
-          if (adminData) {
-            console.log("Utilisateur est un admin, redirection vers /admin");
-            toast.error("Cette section est réservée aux clients.");
-            navigate('/admin');
-            return;
-          }
-          
-          toast.error("Votre compte n'est pas associé à un profil client.");
-          navigate('/auth');
+        // Try to get client name from database
+        const { data, error } = await fetch(`/api/client-name?userId=${user?.id}`).then(res => res.json());
+        if (data && !error) {
+          setUserName(data.nom_entreprise || "Client");
+        } else {
+          console.log("Utilisateur client confirmé, nom par défaut utilisé");
+          setUserName(user?.email?.split('@')[0] || "Client");
         }
       } catch (error) {
-        console.error("Erreur lors de la vérification des droits client:", error);
-        toast.error("Erreur de vérification des droits d'accès");
-        navigate('/auth');
+        console.error("Error fetching client data:", error);
+        setUserName(user?.email?.split('@')[0] || "Client");
       }
     };
     
-    // Vérifier la session uniquement si l'authentification a été vérifiée
-    if (isAuthChecked) {
-      checkClientSession();
+    if (initialized && !loading && session) {
+      loadClientData();
     }
-  }, [isAuthChecked, navigate]);
+  }, [session, user, userType, loading, initialized, navigate]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);
   };
 
+  const handleLogout = async () => {
+    await signOut();
+  };
+
   // Afficher le chargement seulement pendant la vérification initiale de l'authentification
-  if (isLoading && !isAuthChecked) {
+  if (loading && !initialized) {
     return <SmallLoading />;
   }
 
