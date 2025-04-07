@@ -1,3 +1,4 @@
+
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, Navigate } from "react-router-dom";
 import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
@@ -16,6 +17,23 @@ const LandingPage = () => {
     
     const checkUserType = async (userId: string) => {
       try {
+        // First priority: check metadata (fastest method)
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) return null;
+        
+        // Check user metadata first
+        const userMetadata = user.user_metadata;
+        if (userMetadata?.user_type === 'admin') {
+          return "admin";
+        }
+        
+        if (userMetadata?.user_type === 'client') {
+          return "client";
+        }
+        
+        // Only if no metadata, check database
+        const userEmail = user.email;
+        
         // Vérifier d'abord si l'utilisateur est un admin
         const { data: adminData } = await supabase
           .from('utilisateurs')
@@ -56,19 +74,20 @@ const LandingPage = () => {
         const userEmail = session.user.email;
         const userMetadata = session.user.user_metadata;
         
+        // Check user_type in metadata (fastest method)
+        if (userMetadata?.user_type === 'client') {
+          setUserType("client");
+          return;
+        }
+        
         // Si c'est un admin, on redirige tout de suite sans attendre la vérification dans la BD
-        if (isAdminUser(userEmail, userMetadata)) {
-          navigate("/admin", { replace: true });
+        if (userMetadata?.user_type === 'admin' || isAdminUser(userEmail, userMetadata)) {
+          setUserType("admin");
           return;
         }
         
         const type = await checkUserType(session.user.id);
         setUserType(type);
-        
-        // Si c'est un admin après vérification dans la BD, on redirige
-        if (type === "admin") {
-          navigate("/admin", { replace: true });
-        }
       } else {
         setUserType(null);
       }
@@ -84,19 +103,20 @@ const LandingPage = () => {
         const userEmail = session.user.email;
         const userMetadata = session.user.user_metadata;
         
+        // Check user_type in metadata (fastest method)
+        if (userMetadata?.user_type === 'client') {
+          setUserType("client");
+          return;
+        }
+        
         // Si c'est un admin, on redirige tout de suite sans attendre la vérification dans la BD
-        if (isAdminUser(userEmail, userMetadata)) {
-          navigate("/admin", { replace: true });
+        if (userMetadata?.user_type === 'admin' || isAdminUser(userEmail, userMetadata)) {
+          setUserType("admin");
           return;
         }
         
         const type = await checkUserType(session.user.id);
         setUserType(type);
-        
-        // Si c'est un admin après vérification dans la BD, on redirige
-        if (type === "admin") {
-          navigate("/admin", { replace: true });
-        }
       } else {
         setUserType(null);
       }
@@ -117,22 +137,25 @@ const LandingPage = () => {
     if (session) {
       // Si déjà connecté, rediriger vers le tableau de bord approprié
       if (userType === "admin") {
-        navigate("/admin");
+        navigate("/admin", { replace: true });
       } else if (userType === "client") {
-        navigate("/client-dashboard");
+        navigate("/client-dashboard", { replace: true });
+      } else {
+        // If user type is unknown but session exists
+        navigate("/index", { replace: true });
       }
     } else {
-      navigate("/auth");
+      navigate("/auth", { replace: true });
     }
   };
   
   const handleInterventionRequest = () => {
     // Si connecté en tant que client, rediriger vers la demande d'intervention
     if (session && userType === "client") {
-      navigate("/intervention/request");
+      navigate("/intervention/request", { replace: true });
     } else {
       // Sinon rediriger vers l'authentification avec retour à la page de demande
-      navigate("/auth", { state: { returnTo: "/intervention/request" } });
+      navigate("/auth", { state: { returnTo: "/intervention/request" }, replace: true });
     }
   };
 

@@ -8,7 +8,7 @@ import ClientInterventionDetails from "@/pages/client/InterventionDetails";
 import InterventionRecap from "@/pages/client/InterventionRecap";
 import { ProtectedClientRoute } from "@/components/auth/ProtectedClientRoute";
 
-// Helper function to wrap client components
+// Helper function to wrap client components with protection and layout
 const withClientProtection = (Component: React.ComponentType<any>) => (
   <ProtectedClientRoute>
     <ClientLayout>

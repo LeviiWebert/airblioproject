@@ -20,7 +20,7 @@ export const ProtectedClientRoute = ({ children }: { children: React.ReactNode }
         setIsCheckingAuth(false);
         toast.error("Vérification d'authentification trop longue. Veuillez vous reconnecter.");
         navigate('/auth', { replace: true });
-      }, 5000); // Reduced to 5 seconds for faster feedback
+      }, 3000); // Reduced to 3 seconds for faster feedback
       
       setAuthTimeout(timeout);
       

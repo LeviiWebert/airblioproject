@@ -18,22 +18,25 @@ const Index = () => {
           const userEmail = session.user.email;
           console.log(`Vérification de l'email ${userEmail} pour la redirection`);
           
-          // Use user metadata if available
+          // Use user metadata if available (fastest method)
           const userMetadata = session.user.user_metadata;
+          console.log("Metadata utilisateur:", userMetadata);
           
-          // Vérifier si l'utilisateur est un admin d'abord
-          if (isAdminUser(userEmail, userMetadata)) {
-            console.log("Redirection vers /admin car l'utilisateur est un admin");
-            navigate('/admin', { replace: true });
-            return;
-          }
-          
-          // First priority - check user_type in metadata for client (most reliable method)
+          // First priority - check metadata for client
           if (userMetadata?.user_type === 'client') {
             console.log("Redirection vers /client-dashboard car user_type metadata est 'client'");
             navigate('/client-dashboard', { replace: true });
             return;
           }
+          
+          // Check if admin based on metadata or email
+          if (userMetadata?.user_type === 'admin' || isAdminUser(userEmail, userMetadata)) {
+            console.log("Redirection vers /admin car l'utilisateur est un admin");
+            navigate('/admin', { replace: true });
+            return;
+          }
+          
+          // Only do database checks if metadata doesn't define the type
           
           // Check admin table (double check)
           const { data: adminData } = await supabase

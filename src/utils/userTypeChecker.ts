@@ -9,15 +9,15 @@ export const checkUserType = async (userId: string): Promise<string | null> => {
   try {
     console.log("Vérification du type d'utilisateur:", userId);
     
-    // Use a timeout to prevent hanging
+    // Use a shorter timeout to prevent hanging
     const timeoutPromise = new Promise<null>((resolve) => {
       setTimeout(() => {
         console.error("Timeout occurred in checkUserType");
         resolve(null);
-      }, 3000); // Reduced to 3 second timeout for faster feedback
+      }, 2000); // Reduced to 2 second timeout for faster feedback
     });
     
-    // Create the actual check function
+    // Create the actual check function with prioritized metadata check
     const checkPromise = async (): Promise<string | null> => {
       const { data: { user } } = await supabase.auth.getUser();
       
@@ -27,22 +27,25 @@ export const checkUserType = async (userId: string): Promise<string | null> => {
       }
       
       const userEmail = user.email;
-      console.log(`Vérification de l'email ${userEmail} pour la redirection`);
-      
-      // First check if this is a client based on metadata
       const userMetadata = user.user_metadata;
+      
+      console.log("Metadata utilisateur:", userMetadata);
+      
+      // PRIORITY 1: Check metadata first (fastest method)
       if (userMetadata?.user_type === 'client') {
         console.log("Utilisateur identifié comme client via metadata");
         return "client";
       }
       
-      // Next check if this is an admin based on metadata or email
       if (userMetadata?.user_type === 'admin' || isAdminUser(userEmail, userMetadata)) {
-        console.log("Utilisateur identifié comme administrateur via metadata ou email");
+        console.log("Utilisateur identifié comme administrateur via metadata");
         return "admin";
       }
       
-      // Check in client table by email
+      // PRIORITY 2: Only continue to database checks if metadata doesn't resolve the type
+      console.log(`Vérification de l'email ${userEmail} dans la base de données`);
+      
+      // Check in client table by email (most common case)
       const { data: clientData, error: clientError } = await supabase
         .from('clients')
         .select('id, email')
