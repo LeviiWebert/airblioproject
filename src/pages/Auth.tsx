@@ -10,6 +10,7 @@ import { AlertCircle } from "lucide-react";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useAuth } from "@/hooks/useAuth";
+import { SmallLoading } from "@/components/ui/loading";
 
 const Auth = () => {
   const navigate = useNavigate();
@@ -23,16 +24,28 @@ const Auth = () => {
   const [userTypeSelection, setUserTypeSelection] = useState<"admin" | "client">("client");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(false);
+  const [isRedirecting, setIsRedirecting] = useState(false);
 
   // Rediriger si déjà authentifié
   useEffect(() => {
+    console.log("Auth page effect - initialized:", initialized, "session:", !!session, "userType:", userType);
+    
     if (initialized && session) {
+      setIsRedirecting(true);
       console.log("Session active détectée, redirection en cours...");
-      if (userType === "admin") {
-        navigate("/admin");
-      } else if (userType === "client") {
-        navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
-      }
+      
+      // Petit délai pour éviter les problèmes de redirection
+      setTimeout(() => {
+        if (userType === "admin") {
+          navigate("/admin");
+        } else if (userType === "client") {
+          navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
+        } else {
+          // Si le type d'utilisateur n'est pas encore déterminé mais qu'il y a une session
+          // On le redirige vers l'index qui saura gérer ce cas
+          navigate("/index");
+        }
+      }, 100);
     }
   }, [initialized, session, userType, navigate, returnTo]);
 
@@ -96,10 +109,34 @@ const Auth = () => {
   };
 
   // Afficher le spinner pendant le chargement initial
-  if (!initialized && loading) {
+  if (!initialized) {
     return (
       <div className="flex min-h-screen items-center justify-center">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary"></div>
+        <SmallLoading />
+      </div>
+    );
+  }
+
+  // Si on est en train de rediriger
+  if (isRedirecting) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <SmallLoading />
+          <p className="mt-4 text-muted-foreground">Redirection en cours...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Si l'utilisateur est déjà connecté mais qu'on n'a pas encore commencé la redirection
+  if (session) {
+    return (
+      <div className="flex min-h-screen items-center justify-center">
+        <div className="text-center">
+          <SmallLoading />
+          <p className="mt-4 text-muted-foreground">Vous êtes connecté, redirection en cours...</p>
+        </div>
       </div>
     );
   }
@@ -164,7 +201,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={localLoading || loading}
+                      disabled={localLoading}
                       className="bg-white"
                     />
                   </div>
@@ -181,14 +218,14 @@ const Auth = () => {
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       required
-                      disabled={localLoading || loading}
+                      disabled={localLoading}
                       className="bg-white"
                     />
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={localLoading || loading}>
-                    {(localLoading || loading) ? (
+                  <Button type="submit" className="w-full" disabled={localLoading}>
+                    {localLoading ? (
                       <><span className="mr-2">Connexion en cours</span>
                       <span className="animate-pulse">...</span></>
                     ) : (
@@ -250,7 +287,7 @@ const Auth = () => {
                       value={email}
                       onChange={(e) => setEmail(e.target.value)}
                       required
-                      disabled={localLoading || loading}
+                      disabled={localLoading}
                       className="bg-white"
                     />
                   </div>
@@ -263,15 +300,15 @@ const Auth = () => {
                       onChange={(e) => setPassword(e.target.value)}
                       required
                       minLength={6}
-                      disabled={localLoading || loading}
+                      disabled={localLoading}
                       className="bg-white"
                     />
                     <p className="text-xs text-gray-500">Le mot de passe doit contenir au moins 6 caractères</p>
                   </div>
                 </CardContent>
                 <CardFooter>
-                  <Button type="submit" className="w-full" disabled={localLoading || loading}>
-                    {(localLoading || loading) ? (
+                  <Button type="submit" className="w-full" disabled={localLoading}>
+                    {localLoading ? (
                       <><span className="mr-2">Inscription en cours</span>
                       <span className="animate-pulse">...</span></>
                     ) : (
