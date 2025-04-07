@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -49,15 +50,15 @@ const InterventionDetails = () => {
           return;
         }
         
-        const { data: { session } } = await supabase.auth.getSession();
+        const { data } = await supabase.auth.getSession();
         
-        if (!session) {
+        if (!data.session) {
           navigate("/auth", { state: { returnTo: "/intervention/request" } });
           return;
         }
         
-        if (session.user?.email) {
-          form.setValue("email", session.user.email);
+        if (data.session.user?.email) {
+          form.setValue("email", data.session.user.email);
         }
         
         const storedData = sessionStorage.getItem("interventionStep1");
@@ -71,7 +72,7 @@ const InterventionDetails = () => {
         setAuthChecked(true);
       } catch (error) {
         console.error("Erreur de vérification de l'authentification:", error);
-        toast.error("Erreur lors de la vérification de votre session");
+        toast("Erreur lors de la vérification de votre session");
         navigate("/auth");
       }
     };
@@ -79,8 +80,8 @@ const InterventionDetails = () => {
     checkAuth();
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (event, session) => {
-        if (!session) {
+      (event, sessionData) => {
+        if (!sessionData) {
           navigate("/auth", { state: { returnTo: "/intervention/request" } });
         }
       }
@@ -269,6 +270,20 @@ const InterventionDetails = () => {
       </footer>
     </div>
   );
+};
+
+const onSubmit = (data: DetailsValues) => {
+  setIsLoading(true);
+  
+  const combinedData = {
+    ...step1Data,
+    contactDetails: data
+  };
+  
+  sessionStorage.setItem("interventionData", JSON.stringify(combinedData));
+  
+  navigate("/intervention/schedule");
+  setIsLoading(false);
 };
 
 export default InterventionDetails;
