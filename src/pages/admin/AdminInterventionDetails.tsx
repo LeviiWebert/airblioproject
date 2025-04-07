@@ -84,6 +84,14 @@ interface DemandeIntervention {
   intervention?: Intervention;
 }
 
+interface HistoryItem {
+  date: string;
+  type: string;
+  text: string;
+  status: string;
+  commentaire?: string;
+}
+
 const AdminInterventionDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -92,7 +100,7 @@ const AdminInterventionDetails = () => {
   const [intervention, setIntervention] = useState<Intervention | null>(null);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
-  const [history, setHistory] = useState<any[]>([]);
+  const [history, setHistory] = useState<HistoryItem[]>([]);
 
   useEffect(() => {
     const fetchInterventionDetails = async () => {
@@ -125,7 +133,7 @@ const AdminInterventionDetails = () => {
         
         setDemande(demandeData);
         
-        const history = [
+        const history: HistoryItem[] = [
           {
             date: demandeData.date_demande,
             type: 'creation',
@@ -578,7 +586,7 @@ const AdminInterventionDetails = () => {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold mb-3">Historique de l'intervention</h3>
                     <div className="space-y-4">
-                      {history.map((item: any, index) => (
+                      {history.map((item: HistoryItem, index) => (
                         <div key={index} className="flex">
                           <div className="mr-4 mt-1">
                             {item.type === 'creation' && <Info className="h-6 w-6 text-blue-500" />}
