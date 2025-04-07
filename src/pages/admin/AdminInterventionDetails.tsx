@@ -10,7 +10,7 @@ import {
   MapPin, 
   MessageSquare, 
   User, 
-  Tool, 
+  Wrench, 
   Clipboard, 
   CheckCircle,
   AlertTriangle,
@@ -260,15 +260,24 @@ const AdminInterventionDetails = () => {
               
               // Add PV validation to history if validated
               if (pvData.validation_client !== null) {
-                history.push({
+                const historyEntry = {
                   date: pvData.date_validation,
                   type: pvData.validation_client ? 'pv_validated' : 'pv_rejected',
                   text: pvData.validation_client 
                     ? 'Procès-verbal validé par le client' 
                     : 'Procès-verbal refusé par le client',
-                  status: interventionData.statut,
-                  comment: pvData.commentaire
-                });
+                  status: interventionData.statut
+                };
+                
+                if (pvData.commentaire) {
+                  history.push({
+                    ...historyEntry,
+                    text: historyEntry.text + (pvData.commentaire ? ` avec commentaire` : ''),
+                    comment: pvData.commentaire
+                  });
+                } else {
+                  history.push(historyEntry);
+                }
               }
             }
           }
@@ -582,13 +591,13 @@ const AdminInterventionDetails = () => {
                   <div className="space-y-4">
                     <h3 className="text-lg font-semibold mb-3">Historique de l'intervention</h3>
                     <div className="space-y-4">
-                      {history.map((item, index) => (
+                      {history.map((item: any, index) => (
                         <div key={index} className="flex">
                           <div className="mr-4 mt-1">
                             {item.type === 'creation' && <Info className="h-6 w-6 text-blue-500" />}
                             {item.type === 'intervention' && <Calendar className="h-6 w-6 text-indigo-500" />}
                             {item.type === 'team' && <User className="h-6 w-6 text-violet-500" />}
-                            {item.type === 'equipment' && <Tool className="h-6 w-6 text-orange-500" />}
+                            {item.type === 'equipment' && <Wrench className="h-6 w-6 text-orange-500" />}
                             {item.type === 'pv' && <FileText className="h-6 w-6 text-emerald-500" />}
                             {item.type === 'pv_validated' && <CheckCircle className="h-6 w-6 text-green-500" />}
                             {item.type === 'pv_rejected' && <AlertTriangle className="h-6 w-6 text-red-500" />}
@@ -683,7 +692,7 @@ const AdminInterventionDetails = () => {
                       {intervention.pv_interventions?.validation_client === null ? (
                         <Badge variant="outline">En attente de validation</Badge>
                       ) : intervention.pv_interventions?.validation_client ? (
-                        <Badge variant="success">Validé par le client</Badge>
+                        <Badge variant="default" className="bg-green-500">Validé par le client</Badge>
                       ) : (
                         <Badge variant="destructive">Refusé par le client</Badge>
                       )}
@@ -723,6 +732,14 @@ const AdminInterventionDetails = () => {
               >
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Envoyer un rappel
+              </Button>
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={() => navigate('/admin/reports')}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Accéder aux rapports
               </Button>
             </CardContent>
           </Card>

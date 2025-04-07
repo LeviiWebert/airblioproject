@@ -274,7 +274,7 @@ const ProcessVerbalClient = () => {
                   {pv.validation_client === null ? (
                     <Badge variant="outline">En attente de validation</Badge>
                   ) : pv.validation_client ? (
-                    <Badge variant="success">Validé</Badge>
+                    <Badge variant="default" className="bg-green-500">Validé</Badge>
                   ) : (
                     <Badge variant="destructive">Refusé</Badge>
                   )}
@@ -425,7 +425,7 @@ const ProcessVerbalClient = () => {
                 </div>
               ) : pv.validation_client ? (
                 <div className="text-center p-2">
-                  <Badge variant="success" className="mb-2">Validé</Badge>
+                  <Badge variant="default" className="bg-green-500 mb-2">Validé</Badge>
                   <p className="text-sm text-muted-foreground">
                     Vous avez validé ce PV le {format(new Date(pv.date_validation || ''), "dd/MM/yyyy", { locale: fr })}.
                   </p>
