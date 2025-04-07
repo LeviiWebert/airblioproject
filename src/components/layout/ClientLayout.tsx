@@ -24,8 +24,11 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const { session, user, userType, loading, initialized, clientId, signOut } = useAuth();
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("Client");
+  const [isLoading, setIsLoading] = useState(true);
   
   useEffect(() => {
+    let isMounted = true;
+    
     const loadClientData = async () => {
       if (!session?.user) {
         console.log("Pas de session active dans ClientLayout");
@@ -54,25 +57,40 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
           .from('clients')
           .select('nom_entreprise')
           .eq('id', clientId)
-          .single();
+          .maybeSingle();
         
         if (error) throw error;
         
-        if (data) {
+        if (data && isMounted) {
           setUserName(data.nom_entreprise || "Client");
-        } else {
+        } else if (isMounted) {
           console.log("Aucune donnée client trouvée pour l'ID:", clientId);
           setUserName(user?.email?.split('@')[0] || "Client");
         }
       } catch (error) {
         console.error("Error fetching client data:", error);
-        setUserName(user?.email?.split('@')[0] || "Client");
+        if (isMounted) {
+          setUserName(user?.email?.split('@')[0] || "Client");
+        }
+      } finally {
+        if (isMounted) {
+          setIsLoading(false);
+        }
       }
     };
     
-    if (initialized && !loading && session) {
-      loadClientData();
+    if (initialized && !loading) {
+      if (session) {
+        loadClientData();
+      } else {
+        setIsLoading(false);
+        navigate('/auth');
+      }
     }
+    
+    return () => {
+      isMounted = false;
+    };
   }, [session, user, userType, loading, initialized, navigate, clientId]);
 
   const toggleSidebar = () => {
@@ -84,7 +102,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
   };
 
   // Afficher le chargement seulement pendant la vérification initiale de l'authentification
-  if (loading && !initialized) {
+  if (loading || (isLoading && !initialized)) {
     return <SmallLoading />;
   }
 

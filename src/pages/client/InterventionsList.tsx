@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
@@ -12,21 +11,28 @@ import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { useAuth } from "@/hooks/useAuth";
 
 const InterventionsList = () => {
   const { toast } = useToast();
+  const { clientId } = useAuth();
   const [interventions, setInterventions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchInterventions = async () => {
+      if (!clientId) {
+        setLoading(false);
+        setError("Votre profil client n'est pas correctement configuré");
+        return;
+      }
+      
       try {
-        const { data: { user } } = await supabase.auth.getUser();
+        setLoading(true);
+        setError(null);
+        console.log("Chargement des interventions pour le client ID:", clientId);
         
-        if (!user) {
-          throw new Error("Utilisateur non connecté");
-        }
-
         // Récupérer toutes les demandes d'intervention du client
         const { data: demandes, error: demandesError } = await supabase
           .from('demande_interventions')
@@ -55,14 +61,24 @@ const InterventionsList = () => {
               pv_intervention_id
             )
           `)
-          .eq('client_id', user.id)
+          .eq('client_id', clientId)
           .order('date_demande', { ascending: false });
           
-        if (demandesError) throw demandesError;
-
-        setInterventions(demandes || []);
+        if (demandesError) {
+          console.error("Erreur lors du chargement des interventions:", demandesError);
+          setError("Impossible de charger vos interventions");
+          toast({
+            variant: "destructive", 
+            title: "Erreur",
+            description: "Impossible de charger vos interventions. Veuillez réessayer ultérieurement."
+          });
+        } else {
+          console.log("Interventions chargées avec succès:", demandes?.length || 0);
+          setInterventions(demandes || []);
+        }
       } catch (error: any) {
-        console.error("Erreur lors du chargement des interventions:", error);
+        console.error("Exception lors du chargement des interventions:", error);
+        setError("Une erreur est survenue lors du chargement de vos interventions");
         toast({
           variant: "destructive", 
           title: "Erreur",
@@ -74,7 +90,7 @@ const InterventionsList = () => {
     };
 
     fetchInterventions();
-  }, [toast]);
+  }, [toast, clientId]);
 
   const getPendingInterventions = () => {
     return interventions.filter(intervention => 
@@ -104,18 +120,6 @@ const InterventionsList = () => {
     return format(new Date(dateString), "dd MMMM yyyy à HH:mm", { locale: fr });
   };
 
-  if (loading) {
-    return (
-      <ClientLayout>
-        <div className="container mx-auto py-8 px-4">
-          <div className="flex items-center justify-center h-64">
-            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
-          </div>
-        </div>
-      </ClientLayout>
-    );
-  }
-
   return (
     <ClientLayout>
       <div className="container mx-auto py-8 px-4">
@@ -133,67 +137,84 @@ const InterventionsList = () => {
           </div>
         </div>
 
-        <Tabs defaultValue="all" className="space-y-6">
-          <TabsList>
-            <TabsTrigger value="all">Toutes ({interventions.length})</TabsTrigger>
-            <TabsTrigger value="pending">En attente ({getPendingInterventions().length})</TabsTrigger>
-            <TabsTrigger value="active">En cours ({getActiveInterventions().length})</TabsTrigger>
-            <TabsTrigger value="completed">Terminées ({getCompletedInterventions().length})</TabsTrigger>
-          </TabsList>
+        {loading ? (
+          <div className="flex items-center justify-center h-64">
+            <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+          </div>
+        ) : error ? (
+          <Card>
+            <CardContent className="p-8 text-center">
+              <p className="text-red-500 mb-4">{error}</p>
+              <Button asChild>
+                <Link to="/client-dashboard">
+                  Retour au tableau de bord
+                </Link>
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          <Tabs defaultValue="all" className="space-y-6">
+            <TabsList>
+              <TabsTrigger value="all">Toutes ({interventions.length})</TabsTrigger>
+              <TabsTrigger value="pending">En attente ({getPendingInterventions().length})</TabsTrigger>
+              <TabsTrigger value="active">En cours ({getActiveInterventions().length})</TabsTrigger>
+              <TabsTrigger value="completed">Terminées ({getCompletedInterventions().length})</TabsTrigger>
+            </TabsList>
 
-          <TabsContent value="all" className="space-y-4">
-            {interventions.length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-muted-foreground mb-4">Vous n'avez pas encore d'interventions.</p>
-                  <Button asChild>
-                    <Link to="/intervention/request">
-                      Faire une demande d'intervention
-                    </Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            ) : (
-              renderInterventionsList(interventions)
-            )}
-          </TabsContent>
+            <TabsContent value="all" className="space-y-4">
+              {interventions.length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground mb-4">Vous n'avez pas encore d'interventions.</p>
+                    <Button asChild>
+                      <Link to="/intervention/request">
+                        Faire une demande d'intervention
+                      </Link>
+                    </Button>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(interventions)
+              )}
+            </TabsContent>
 
-          <TabsContent value="pending" className="space-y-4">
-            {getPendingInterventions().length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-muted-foreground">Vous n'avez pas d'interventions en attente.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              renderInterventionsList(getPendingInterventions())
-            )}
-          </TabsContent>
+            <TabsContent value="pending" className="space-y-4">
+              {getPendingInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Vous n'avez pas d'interventions en attente.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getPendingInterventions())
+              )}
+            </TabsContent>
 
-          <TabsContent value="active" className="space-y-4">
-            {getActiveInterventions().length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-muted-foreground">Vous n'avez pas d'interventions en cours.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              renderInterventionsList(getActiveInterventions())
-            )}
-          </TabsContent>
+            <TabsContent value="active" className="space-y-4">
+              {getActiveInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Vous n'avez pas d'interventions en cours.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getActiveInterventions())
+              )}
+            </TabsContent>
 
-          <TabsContent value="completed" className="space-y-4">
-            {getCompletedInterventions().length === 0 ? (
-              <Card>
-                <CardContent className="p-8 text-center">
-                  <p className="text-muted-foreground">Vous n'avez pas d'interventions terminées.</p>
-                </CardContent>
-              </Card>
-            ) : (
-              renderInterventionsList(getCompletedInterventions())
-            )}
-          </TabsContent>
-        </Tabs>
+            <TabsContent value="completed" className="space-y-4">
+              {getCompletedInterventions().length === 0 ? (
+                <Card>
+                  <CardContent className="p-8 text-center">
+                    <p className="text-muted-foreground">Vous n'avez pas d'interventions terminées.</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                renderInterventionsList(getCompletedInterventions())
+              )}
+            </TabsContent>
+          </Tabs>
+        )}
       </div>
     </ClientLayout>
   );

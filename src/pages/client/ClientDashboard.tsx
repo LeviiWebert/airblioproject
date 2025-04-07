@@ -10,35 +10,45 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/hooks/useAuth";
 
 const ClientDashboard = () => {
   const { toast } = useToast();
+  const { user, clientId } = useAuth();
   const [interventions, setInterventions] = useState<any[]>([]);
   const [techniciens, setTechniciens] = useState<any[]>([]);
   const [clientData, setClientData] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [clientId, setClientId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchUserAndInterventions = async () => {
+      if (!user || !clientId) {
+        console.log("Pas d'utilisateur ou d'ID client disponible");
+        setLoading(false);
+        return;
+      }
+
       try {
-        const { data: { user } } = await supabase.auth.getUser();
-        
-        if (!user) {
-          throw new Error("Utilisateur non authentifié");
-        }
-        
-        setClientId(user.id);
+        setLoading(true);
+        console.log("Chargement des données pour le client ID:", clientId);
         
         // Récupérer les informations du client
         const { data: clientData, error: clientError } = await supabase
           .from('clients')
           .select('*')
-          .eq('id', user.id)
-          .single();
+          .eq('id', clientId)
+          .maybeSingle(); // Using maybeSingle instead of single to avoid errors
           
-        if (clientError) throw clientError;
-        setClientData(clientData);
+        if (clientError) {
+          console.error("Erreur lors de la récupération des données client:", clientError);
+          toast({
+            variant: "destructive", 
+            title: "Erreur",
+            description: "Impossible de charger vos informations client."
+          });
+        } else if (clientData) {
+          setClientData(clientData);
+        }
         
         // Récupérer toutes les demandes d'intervention du client
         const { data: demandesData, error: demandesError } = await supabase
@@ -59,77 +69,84 @@ const ClientDashboard = () => {
               statut
             )
           `)
-          .eq('client_id', user.id)
+          .eq('client_id', clientId)
           .order('date_demande', { ascending: false });
           
-        if (demandesError) throw demandesError;
-        setInterventions(demandesData || []);
-        
-        // Récupérer les équipes d'intervention pour les demandes
-        if (demandesData && demandesData.length > 0) {
-          // Filtrer pour ne récupérer que les interventions qui ont un ID
-          const interventionIds = demandesData
-            .filter(demande => demande.intervention_id)
-            .map(demande => demande.intervention_id);
-            
-          if (interventionIds.length > 0) {
-            // Récupérer les équipes par intervention
-            const { data: interventionEquipes, error: equipesError } = await supabase
-              .from('intervention_equipes')
-              .select(`
-                equipe_id,
-                intervention_id,
-                equipes:equipe_id (
-                  id,
-                  nom,
-                  specialisation
-                )
-              `)
-              .in('intervention_id', interventionIds);
+        if (demandesError) {
+          console.error("Erreur lors de la récupération des demandes:", demandesError);
+          toast({
+            variant: "destructive", 
+            title: "Erreur",
+            description: "Impossible de charger vos interventions."
+          });
+        } else {
+          setInterventions(demandesData || []);
+          
+          // Récupérer les équipes d'intervention pour les demandes
+          if (demandesData && demandesData.length > 0) {
+            // Filtrer pour ne récupérer que les interventions qui ont un ID
+            const interventionIds = demandesData
+              .filter(demande => demande.intervention_id)
+              .map(demande => demande.intervention_id);
               
-            if (equipesError) throw equipesError;
-            
-            // Si des équipes sont trouvées, récupérer les membres
-            if (interventionEquipes && interventionEquipes.length > 0) {
-              const equipeIds = interventionEquipes
-                .map(ie => ie.equipe_id)
-                .filter((id): id is string => id !== null);
-              
-              if (equipeIds.length > 0) {
-                // Récupérer les membres des équipes
-                const { data: equipeMembres, error: equipeMembresError } = await supabase
-                  .from('equipe_membres')
-                  .select(`
-                    equipe_id,
-                    utilisateur:utilisateur_id (
-                      id,
-                      nom,
-                      role,
-                      email,
-                      disponibilite
-                    )
-                  `)
-                  .in('equipe_id', equipeIds);
-                  
-                if (equipeMembresError) throw equipeMembresError;
+            if (interventionIds.length > 0) {
+              // Récupérer les équipes par intervention
+              const { data: interventionEquipes, error: equipesError } = await supabase
+                .from('intervention_equipes')
+                .select(`
+                  equipe_id,
+                  intervention_id,
+                  equipes:equipe_id (
+                    id,
+                    nom,
+                    specialisation
+                  )
+                `)
+                .in('intervention_id', interventionIds);
                 
-                // Extraire les techniciens uniques par ID
-                const technicienMap = new Map();
-                if (equipeMembres) {
-                  equipeMembres.forEach((membre: any) => {
-                    if (membre.utilisateur && membre.utilisateur.role === 'technicien') {
-                      technicienMap.set(membre.utilisateur.id, membre.utilisateur);
-                    }
-                  });
+              if (equipesError) {
+                console.error("Erreur lors de la récupération des équipes:", equipesError);
+              } else if (interventionEquipes && interventionEquipes.length > 0) {
+                const equipeIds = interventionEquipes
+                  .map(ie => ie.equipe_id)
+                  .filter((id): id is string => id !== null);
+                
+                if (equipeIds.length > 0) {
+                  // Récupérer les membres des équipes
+                  const { data: equipeMembres, error: equipeMembresError } = await supabase
+                    .from('equipe_membres')
+                    .select(`
+                      equipe_id,
+                      utilisateur:utilisateur_id (
+                        id,
+                        nom,
+                        role,
+                        email,
+                        disponibilite
+                      )
+                    `)
+                    .in('equipe_id', equipeIds);
+                    
+                  if (equipeMembresError) {
+                    console.error("Erreur lors de la récupération des membres d'équipe:", equipeMembresError);
+                  } else if (equipeMembres) {
+                    // Extraire les techniciens uniques par ID
+                    const technicienMap = new Map();
+                    equipeMembres.forEach((membre: any) => {
+                      if (membre.utilisateur && membre.utilisateur.role === 'technicien') {
+                        technicienMap.set(membre.utilisateur.id, membre.utilisateur);
+                      }
+                    });
+                    
+                    setTechniciens(Array.from(technicienMap.values()));
+                  }
                 }
-                
-                setTechniciens(Array.from(technicienMap.values()));
               }
             }
           }
         }
       } catch (error: any) {
-        console.error("Erreur lors du chargement des données:", error);
+        console.error("Erreur générale lors du chargement des données:", error);
         toast({
           variant: "destructive", 
           title: "Erreur",
@@ -140,8 +157,12 @@ const ClientDashboard = () => {
       }
     };
     
-    fetchUserAndInterventions();
-  }, [toast]);
+    if (clientId) {
+      fetchUserAndInterventions();
+    } else {
+      setLoading(false);
+    }
+  }, [toast, user, clientId]);
 
   const getInterventionsByStatus = (status: string) => {
     return interventions.filter(intervention => intervention.statut === status);
@@ -181,7 +202,7 @@ const ClientDashboard = () => {
         <div>
           <h1 className="text-3xl font-bold">Tableau de bord</h1>
           <p className="text-muted-foreground">
-            Bienvenue dans votre espace client, {clientData?.nom_entreprise}
+            Bienvenue dans votre espace client, {clientData?.nom_entreprise || "Client"}
           </p>
         </div>
         <div className="mt-4 md:mt-0">
