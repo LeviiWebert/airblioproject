@@ -142,21 +142,21 @@ const InterventionsPage = () => {
         query = query.eq('statut', filters.status);
       }
       
-      if (filters.clientId) {
-        query = query.eq('demande_interventions.client_id', filters.clientId);
+      if (filters.client) {
+        query = query.eq('demande_interventions.client_id', filters.client);
       }
       
-      if (filters.teamId) {
+      if (filters.team) {
         // This is a bit tricky with the current structure
         // For a proper solution, we'd need to use a more complex query or post-filter the results
       }
       
-      if (filters.startDate) {
-        query = query.gte('date_debut', filters.startDate.toISOString());
+      if (filters.dateRange?.from) {
+        query = query.gte('date_debut', filters.dateRange.from.toISOString());
       }
       
-      if (filters.endDate) {
-        query = query.lte('date_debut', filters.endDate.toISOString());
+      if (filters.dateRange?.to) {
+        query = query.lte('date_debut', filters.dateRange.to.toISOString());
       }
       
       const { data, error } = await query;
