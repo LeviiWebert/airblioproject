@@ -17,6 +17,7 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
+import { useAuth } from "@/hooks/useAuth";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00", 
@@ -37,10 +38,10 @@ type ScheduleValues = z.infer<typeof scheduleSchema>;
 const InterventionSchedule = () => {
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isSubmitting, setIsSubmitting] = useState<boolean>(false);
   const [combinedData, setCombinedData] = useState<any>(null);
+  const { session, user, clientId } = useAuth();
 
   const form = useForm<ScheduleValues>({
     resolver: zodResolver(scheduleSchema),
@@ -51,33 +52,19 @@ const InterventionSchedule = () => {
 
   useEffect(() => {
     // Vérifier si l'utilisateur est authentifié
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (!session) {
-        navigate("/auth", { state: { returnTo: "/intervention/request" } });
-      } else {
-        setSession(session);
-        
-        // Récupérer les données des étapes précédentes
-        const storedData = sessionStorage.getItem("interventionData");
-        if (storedData) {
-          setCombinedData(JSON.parse(storedData));
-        } else {
-          navigate("/intervention/request");
-        }
-      }
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-        if (!session) {
-          navigate("/auth", { state: { returnTo: "/intervention/request" } });
-        }
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, [navigate]);
+    if (!session) {
+      navigate("/auth", { state: { returnTo: "/intervention/request" } });
+      return;
+    }
+    
+    // Récupérer les données des étapes précédentes
+    const storedData = sessionStorage.getItem("interventionData");
+    if (storedData) {
+      setCombinedData(JSON.parse(storedData));
+    } else {
+      navigate("/intervention/request");
+    }
+  }, [session, navigate]);
 
   const onSubmit = async (data: ScheduleValues) => {
     setIsSubmitting(true);
@@ -94,8 +81,8 @@ const InterventionSchedule = () => {
       
       console.log("Données complètes de la demande:", finalData);
       
-      if (!session?.user?.id) {
-        throw new Error("Utilisateur non authentifié");
+      if (!clientId) {
+        throw new Error("ID client non disponible");
       }
       
       // Créer la demande d'intervention dans la base de données
@@ -103,7 +90,7 @@ const InterventionSchedule = () => {
         .from('demande_interventions')
         .insert([
           {
-            client_id: session.user.id,
+            client_id: clientId,
             description: finalData.description, 
             urgence: finalData.urgence,
             statut: "en_attente",
@@ -112,7 +99,10 @@ const InterventionSchedule = () => {
         ])
         .select();
       
-      if (error) throw error;
+      if (error) {
+        console.error("Erreur d'insertion:", error);
+        throw error;
+      }
       
       console.log("Demande créée avec succès:", insertedData);
       
@@ -140,7 +130,6 @@ const InterventionSchedule = () => {
     }
   };
 
-  // Fonction pour désactiver les dates passées et les weekends
   const disabledDays = (date: Date) => {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
@@ -149,7 +138,6 @@ const InterventionSchedule = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation Bar */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
@@ -352,7 +340,6 @@ const InterventionSchedule = () => {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-gray-800 text-gray-200">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center text-gray-400 text-sm">

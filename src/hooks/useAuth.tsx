@@ -14,7 +14,7 @@ export const useAuth = () => {
     throw new Error("useAuth must be used within an AuthProvider");
   }
   
-  const { session, user, userType, loading, initialized } = context;
+  const { session, user, userType, loading, initialized, clientId } = context;
   const navigate = useNavigate();
 
   const signIn = async (email: string, password: string): Promise<string | null> => {
@@ -101,6 +101,7 @@ export const useAuth = () => {
     userType,
     loading,
     initialized,
+    clientId,
     signIn,
     signUp,
     signOut

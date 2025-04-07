@@ -7,6 +7,7 @@ import { Loading } from "@/components/ui/loading";
 import { useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { supabase } from "@/integrations/supabase/client";
 
 interface ClientLayoutProps {
   children: ReactNode;
@@ -20,7 +21,7 @@ const SmallLoading = () => (
 
 export const ClientLayout = ({ children }: ClientLayoutProps) => {
   const [sidebarOpen, setSidebarOpen] = useState(true);
-  const { session, user, userType, loading, initialized, signOut } = useAuth();
+  const { session, user, userType, loading, initialized, clientId, signOut } = useAuth();
   const navigate = useNavigate();
   const [userName, setUserName] = useState<string>("Client");
   
@@ -40,13 +41,27 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
         return;
       }
       
+      if (!clientId) {
+        console.log("Impossible de trouver l'ID client dans la base de données");
+        toast.error("Votre profil client n'est pas correctement configuré");
+        navigate('/auth');
+        return;
+      }
+      
       try {
-        // Try to get client name from database
-        const { data, error } = await fetch(`/api/client-name?userId=${user?.id}`).then(res => res.json());
-        if (data && !error) {
+        // Récupérer les données du client directement depuis Supabase
+        const { data, error } = await supabase
+          .from('clients')
+          .select('nom_entreprise')
+          .eq('id', clientId)
+          .single();
+        
+        if (error) throw error;
+        
+        if (data) {
           setUserName(data.nom_entreprise || "Client");
         } else {
-          console.log("Utilisateur client confirmé, nom par défaut utilisé");
+          console.log("Aucune donnée client trouvée pour l'ID:", clientId);
           setUserName(user?.email?.split('@')[0] || "Client");
         }
       } catch (error) {
@@ -58,7 +73,7 @@ export const ClientLayout = ({ children }: ClientLayoutProps) => {
     if (initialized && !loading && session) {
       loadClientData();
     }
-  }, [session, user, userType, loading, initialized, navigate]);
+  }, [session, user, userType, loading, initialized, navigate, clientId]);
 
   const toggleSidebar = () => {
     setSidebarOpen(!sidebarOpen);

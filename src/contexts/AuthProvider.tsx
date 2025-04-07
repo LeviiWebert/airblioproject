@@ -10,12 +10,14 @@ export const AuthContext = createContext<{
   userType: string | null;
   loading: boolean;
   initialized: boolean;
+  clientId: string | null;
 }>({
   session: null,
   user: null,
   userType: null,
   loading: true,
   initialized: false,
+  clientId: null,
 });
 
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
@@ -24,6 +26,28 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [userType, setUserType] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [initialized, setInitialized] = useState(false);
+  const [clientId, setClientId] = useState<string | null>(null);
+
+  // Fonction pour récupérer l'ID client à partir de l'email de l'utilisateur
+  const fetchClientId = async (email: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle();
+      
+      if (error) {
+        console.error("Erreur lors de la récupération de l'ID client:", error);
+        return null;
+      }
+      
+      return data?.id || null;
+    } catch (error) {
+      console.error("Exception lors de la récupération de l'ID client:", error);
+      return null;
+    }
+  };
 
   useEffect(() => {
     const getInitialSession = async () => {
@@ -36,6 +60,13 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const type = await checkUserType(session.user.id);
           setUserType(type);
           console.log("Initial user type in AuthProvider:", type);
+          
+          // Si c'est un client, récupérer son ID dans la table clients
+          if (type === "client" && session.user.email) {
+            const id = await fetchClientId(session.user.email);
+            setClientId(id);
+            console.log("Client ID récupéré:", id);
+          }
         }
       } catch (error) {
         console.error("Error in AuthProvider initial session:", error);
@@ -55,11 +86,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
           const type = await checkUserType(session.user.id);
           setUserType(type);
           console.log("Updated user type in AuthProvider:", type);
+          
+          // Si c'est un client, récupérer son ID dans la table clients
+          if (type === "client" && session.user.email) {
+            const id = await fetchClientId(session.user.email);
+            setClientId(id);
+            console.log("Client ID mis à jour:", id);
+          } else {
+            setClientId(null);
+          }
         } catch (error) {
           console.error("Error checking user type in AuthProvider:", error);
         }
       } else {
         setUserType(null);
+        setClientId(null);
       }
       
       setLoading(false);
@@ -79,6 +120,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     userType,
     loading,
     initialized,
+    clientId,
   };
 
   return (
