@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -26,7 +25,7 @@ import {
   User, 
   Users, 
   X,
-  Tool,
+  Wrench,
   Package
 } from "lucide-react";
 import { SmallLoading } from "@/components/ui/loading";
@@ -96,7 +95,7 @@ interface DemandeIntervention {
 const InterventionDetails = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { toast } = useToast();
+  const { toast: uiToast } = useToast();
   const [demande, setDemande] = useState<DemandeIntervention | null>(null);
   const [intervention, setIntervention] = useState<Intervention | null>(null);
   const [loading, setLoading] = useState(true);
@@ -144,7 +143,7 @@ const InterventionDetails = () => {
         
         if (demandeData.client_id !== user.id) {
           navigate('/client-dashboard');
-          toast({
+          uiToast({
             variant: "destructive",
             title: "Accès refusé",
             description: "Vous n'êtes pas autorisé à consulter cette intervention."
@@ -197,7 +196,6 @@ const InterventionDetails = () => {
             }
           }
           
-          // Récupérer les équipes affectées à l'intervention
           const { data: equipesData, error: equipesError } = await supabase
             .from('intervention_equipes')
             .select(`
@@ -217,7 +215,6 @@ const InterventionDetails = () => {
             }));
           }
           
-          // Récupérer le matériel utilisé pour l'intervention
           const { data: materielsData, error: materielsError } = await supabase
             .from('intervention_materiels')
             .select(`
@@ -241,7 +238,7 @@ const InterventionDetails = () => {
         }
       } catch (error) {
         console.error("Erreur lors du chargement de l'intervention:", error);
-        toast({
+        uiToast({
           variant: "destructive",
           title: "Erreur",
           description: "Impossible de charger les détails de l'intervention."
@@ -253,14 +250,14 @@ const InterventionDetails = () => {
     };
 
     fetchInterventionDetails();
-  }, [id, navigate, toast]);
+  }, [id, navigate, uiToast]);
 
   const handleValidateIntervention = async (validate: boolean) => {
     try {
       setSubmitting(true);
       
       if (!intervention?.pv_intervention_id) {
-        toast({
+        uiToast({
           variant: "destructive",
           title: "Erreur",
           description: "Aucun PV d'intervention à valider."
@@ -366,7 +363,7 @@ const InterventionDetails = () => {
       
       await fetchInterventionDetails();
       
-      toast({
+      uiToast({
         title: validate ? "Intervention validée" : "Intervention rejetée",
         description: validate 
           ? "Merci pour votre validation de l'intervention." 
@@ -374,7 +371,7 @@ const InterventionDetails = () => {
       });
     } catch (error) {
       console.error("Erreur lors de la validation de l'intervention:", error);
-      toast({
+      uiToast({
         variant: "destructive",
         title: "Erreur",
         description: "Impossible de valider l'intervention."
@@ -397,7 +394,6 @@ const InterventionDetails = () => {
         
       if (error) throw error;
       
-      // Mettre à jour l'état local
       setDemande(prev => {
         if (!prev) return null;
         return {
@@ -406,11 +402,11 @@ const InterventionDetails = () => {
         };
       });
       
-      toast.success("Votre demande d'intervention a été annulée");
+      toast("Votre demande d'intervention a été annulée");
       
     } catch (error) {
       console.error("Erreur lors de l'annulation de la demande:", error);
-      toast.error("Impossible d'annuler la demande d'intervention");
+      toast("Impossible d'annuler la demande d'intervention");
     } finally {
       setCancellingDemande(false);
     }
@@ -421,7 +417,7 @@ const InterventionDetails = () => {
   };
 
   const handleDownloadPdf = () => {
-    toast({
+    uiToast({
       title: "Téléchargement du PDF",
       description: "Le récapitulatif de l'intervention a été téléchargé."
     });
@@ -435,8 +431,6 @@ const InterventionDetails = () => {
   const canCancelDemande = () => {
     if (!demande) return false;
     
-    // On peut annuler une demande si elle est en attente, en cours d'analyse ou validée
-    // mais pas encore planifiée ou en cours
     const cancelableStatuses = ["en_attente", "en_cours_analyse", "validée"];
     return cancelableStatuses.includes(demande.statut);
   };
@@ -611,7 +605,7 @@ const InterventionDetails = () => {
                       {materiels && materiels.length > 0 ? (
                         <div className="mt-6">
                           <h4 className="font-medium mb-2 flex items-center">
-                            <Tool className="w-4 h-4 mr-2 text-muted-foreground" />
+                            <Wrench className="w-4 h-4 mr-2 text-muted-foreground" />
                             Matériel utilisé
                           </h4>
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -633,7 +627,7 @@ const InterventionDetails = () => {
                         </div>
                       ) : (
                         <div className="mt-4 p-4 border border-dashed rounded-md text-center text-muted-foreground">
-                          <Tool className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                          <Wrench className="w-8 h-8 mx-auto mb-2 opacity-50" />
                           <p>Aucun matériel n'a encore été assigné à cette intervention</p>
                         </div>
                       )}
