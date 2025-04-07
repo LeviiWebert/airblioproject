@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -270,20 +269,6 @@ const InterventionDetails = () => {
       </footer>
     </div>
   );
-};
-
-const onSubmit = (data: DetailsValues) => {
-  setIsLoading(true);
-  
-  const combinedData = {
-    ...step1Data,
-    contactDetails: data
-  };
-  
-  sessionStorage.setItem("interventionData", JSON.stringify(combinedData));
-  
-  navigate("/intervention/schedule");
-  setIsLoading(false);
 };
 
 export default InterventionDetails;
