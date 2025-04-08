@@ -49,6 +49,7 @@ import {
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { interventionService } from "@/services/supabaseService/interventionService";
+import { supabase } from "@/integrations/supabase/client";
 
 interface Client {
   id: string;
