@@ -176,7 +176,7 @@ export const InterventionsList = ({ interventions, onStatusChange }: Interventio
                     <DropdownMenuContent align="end">
                       <DropdownMenuLabel>Actions</DropdownMenuLabel>
                       <DropdownMenuItem asChild>
-                        <Link to={`/interventions/${intervention.id}`}>
+                        <Link to={`/admin/intervention/${intervention.id}`}>
                           Voir les détails
                         </Link>
                       </DropdownMenuItem>
@@ -198,7 +198,7 @@ export const InterventionsList = ({ interventions, onStatusChange }: Interventio
                         </>
                       )}
                       <DropdownMenuItem asChild>
-                        <Link to={`/interventions/${intervention.id}/edit`}>
+                        <Link to={`/admin/interventions/new?edit=${intervention.id}`}>
                           Modifier
                         </Link>
                       </DropdownMenuItem>
