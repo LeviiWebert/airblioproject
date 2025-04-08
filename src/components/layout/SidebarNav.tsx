@@ -58,7 +58,7 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       subItems: [
         { title: "Liste des interventions", href: "/admin/interventions" },
         { title: "Nouvelle intervention", href: "/admin/interventions/new" },
-        { title: "Demandes en attente", href: "/admin/interventions/requests" },
+        { title: "Demandes en attente", href: "/admin/intervention-requests" },
       ],
     },
     {
