@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -14,7 +15,9 @@ import {
   CheckCircle,
   AlertTriangle,
   Info,
-  ExternalLink
+  ExternalLink,
+  Printer,
+  Edit
 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -29,6 +32,25 @@ import { SmallLoading } from "@/components/ui/loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
+import { 
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter
+} from "@/components/ui/dialog";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Label } from "@/components/ui/label";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Client {
   id: string;
@@ -101,6 +123,15 @@ const AdminInterventionDetails = () => {
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState("details");
   const [history, setHistory] = useState<HistoryItem[]>([]);
+  
+  // Pour la modification d'équipe et matériel
+  const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
+  const [isEquipmentDialogOpen, setIsEquipmentDialogOpen] = useState(false);
+  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
+  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
+  const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
+  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
+  const [isUpdating, setIsUpdating] = useState(false);
 
   useEffect(() => {
     const fetchInterventionDetails = async () => {
@@ -294,6 +325,23 @@ const AdminInterventionDetails = () => {
         history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setHistory(history);
         
+        // Charger les équipes disponibles
+        const { data: teamsData } = await supabase
+          .from('equipes')
+          .select('*');
+        if (teamsData) {
+          setAvailableTeams(teamsData);
+        }
+        
+        // Charger le matériel disponible
+        const { data: equipmentData } = await supabase
+          .from('materiels')
+          .select('*')
+          .in('etat', ['disponible']);
+        if (equipmentData) {
+          setAvailableEquipment(equipmentData);
+        }
+        
       } catch (error) {
         console.error("Erreur lors du chargement de l'intervention:", error);
         toast({
@@ -353,6 +401,133 @@ const AdminInterventionDetails = () => {
       navigate(`/admin/pv/${intervention.pv_intervention_id}`);
     }
   };
+  
+  const handleEditIntervention = () => {
+    navigate(`/admin/interventions/new?edit=${id}`);
+  };
+  
+  const handlePrintIntervention = () => {
+    toast({
+      title: "Impression",
+      description: "Préparation du document PDF en cours...",
+    });
+    // Logique d'impression à implémenter
+  };
+
+  const handleAssignTeam = async () => {
+    if (!intervention || !selectedTeam) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      // Vérifier si une équipe est déjà assignée
+      if (intervention.teams && intervention.teams.length > 0) {
+        // Supprimer l'assignation existante
+        await supabase
+          .from('intervention_equipes')
+          .delete()
+          .eq('intervention_id', intervention.id);
+      }
+      
+      // Assigner la nouvelle équipe
+      const { error } = await supabase
+        .from('intervention_equipes')
+        .insert({
+          intervention_id: intervention.id,
+          equipe_id: selectedTeam
+        });
+      
+      if (error) throw error;
+      
+      // Mettre à jour le statut de l'intervention si nécessaire
+      if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
+        await supabase
+          .from('interventions')
+          .update({ statut: 'planifiée' })
+          .eq('id', intervention.id);
+      }
+      
+      toast({
+        title: "Équipe assignée",
+        description: "L'équipe a été assignée avec succès."
+      });
+      
+      setIsTeamDialogOpen(false);
+      window.location.reload();
+      
+    } catch (error) {
+      console.error("Erreur lors de l'assignation de l'équipe:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'assigner l'équipe."
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
+  
+  const handleAssignEquipment = async () => {
+    if (!intervention || selectedEquipment.length === 0) return;
+    
+    setIsUpdating(true);
+    
+    try {
+      // Supprimer les assignations existantes
+      if (intervention.equipment && intervention.equipment.length > 0) {
+        await supabase
+          .from('intervention_materiels')
+          .delete()
+          .eq('intervention_id', intervention.id);
+      }
+      
+      // Créer les nouvelles assignations
+      const insertData = selectedEquipment.map(equipId => ({
+        intervention_id: intervention.id,
+        materiel_id: equipId
+      }));
+      
+      const { error } = await supabase
+        .from('intervention_materiels')
+        .insert(insertData);
+      
+      if (error) throw error;
+      
+      // Mettre à jour l'état du matériel
+      for (const equipId of selectedEquipment) {
+        await supabase
+          .from('materiels')
+          .update({ etat: 'en utilisation' })
+          .eq('id', equipId);
+      }
+      
+      // Mettre à jour le statut de l'intervention si nécessaire
+      if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
+        await supabase
+          .from('interventions')
+          .update({ statut: 'planifiée' })
+          .eq('id', intervention.id);
+      }
+      
+      toast({
+        title: "Matériel assigné",
+        description: "Le matériel a été assigné avec succès."
+      });
+      
+      setIsEquipmentDialogOpen(false);
+      window.location.reload();
+      
+    } catch (error) {
+      console.error("Erreur lors de l'assignation du matériel:", error);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'assigner le matériel."
+      });
+    } finally {
+      setIsUpdating(false);
+    }
+  };
 
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Non définie";
@@ -388,6 +563,8 @@ const AdminInterventionDetails = () => {
     );
   }
 
+  const canModify = !intervention || intervention.statut !== 'terminée';
+
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8 flex items-center justify-between">
@@ -396,7 +573,19 @@ const AdminInterventionDetails = () => {
           Retour aux interventions
         </Button>
         
-        <div>
+        <div className="flex gap-2">
+          <Button variant="outline" onClick={handlePrintIntervention}>
+            <Printer className="mr-2 h-4 w-4" />
+            Imprimer
+          </Button>
+          
+          {canModify && (
+            <Button onClick={handleEditIntervention}>
+              <Edit className="mr-2 h-4 w-4" />
+              Modifier
+            </Button>
+          )}
+          
           {intervention && intervention.statut === 'terminée' && !intervention.pv_intervention_id && (
             <Button onClick={handleCreatePV}>
               <FileText className="mr-2 h-4 w-4" />
@@ -524,19 +713,61 @@ const AdminInterventionDetails = () => {
                 
                 <TabsContent value="teams">
                   <div className="space-y-6">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold mb-3">Équipes assignées</h3>
+                      {canModify && (
+                        <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <User className="mr-2 h-4 w-4" />
+                              Assigner une équipe
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent>
+                            <DialogHeader>
+                              <DialogTitle>Assigner une équipe</DialogTitle>
+                              <DialogDescription>
+                                Sélectionnez l'équipe à assigner à cette intervention.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4">
+                              <Label htmlFor="team-select">Équipe</Label>
+                              <Select onValueChange={setSelectedTeam} value={selectedTeam || undefined}>
+                                <SelectTrigger id="team-select">
+                                  <SelectValue placeholder="Sélectionner une équipe" />
+                                </SelectTrigger>
+                                <SelectContent>
+                                  {availableTeams.map((team) => (
+                                    <SelectItem key={team.id} value={team.id}>
+                                      {team.nom} {team.specialisation ? `(${team.specialisation})` : ''}
+                                    </SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                            </div>
+                            <DialogFooter>
+                              <Button variant="outline" onClick={() => setIsTeamDialogOpen(false)}>
+                                Annuler
+                              </Button>
+                              <Button onClick={handleAssignTeam} disabled={!selectedTeam || isUpdating}>
+                                {isUpdating ? "Assignation..." : "Assigner l'équipe"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
+                    
                     {intervention?.teams && intervention.teams.length > 0 ? (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-3">Équipes assignées</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {intervention.teams.map((team) => (
-                            <Card key={team.id} className="bg-muted/50">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-base">{team.nom}</CardTitle>
-                                <CardDescription>{team.specialisation || "Équipe technique"}</CardDescription>
-                              </CardHeader>
-                            </Card>
-                          ))}
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {intervention.teams.map((team) => (
+                          <Card key={team.id} className="bg-muted/50">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-base">{team.nom}</CardTitle>
+                              <CardDescription>{team.specialisation || "Équipe technique"}</CardDescription>
+                            </CardHeader>
+                          </Card>
+                        ))}
                       </div>
                     ) : (
                       <div className="text-center py-6">
@@ -550,25 +781,84 @@ const AdminInterventionDetails = () => {
                     
                     <Separator />
                     
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-lg font-semibold mb-3">Matériel utilisé</h3>
+                      {canModify && (
+                        <Dialog open={isEquipmentDialogOpen} onOpenChange={setIsEquipmentDialogOpen}>
+                          <DialogTrigger asChild>
+                            <Button size="sm">
+                              <Wrench className="mr-2 h-4 w-4" />
+                              Assigner du matériel
+                            </Button>
+                          </DialogTrigger>
+                          <DialogContent className="sm:max-w-md">
+                            <DialogHeader>
+                              <DialogTitle>Assigner du matériel</DialogTitle>
+                              <DialogDescription>
+                                Sélectionnez le matériel à utiliser pour cette intervention.
+                              </DialogDescription>
+                            </DialogHeader>
+                            <ScrollArea className="h-72 mt-4">
+                              <div className="space-y-4">
+                                {availableEquipment.map((equip) => (
+                                  <div key={equip.id} className="flex items-center space-x-2">
+                                    <Checkbox 
+                                      id={`equip-${equip.id}`} 
+                                      checked={selectedEquipment.includes(equip.id)}
+                                      onCheckedChange={(checked) => {
+                                        if (checked) {
+                                          setSelectedEquipment([...selectedEquipment, equip.id]);
+                                        } else {
+                                          setSelectedEquipment(selectedEquipment.filter(id => id !== equip.id));
+                                        }
+                                      }}
+                                    />
+                                    <Label htmlFor={`equip-${equip.id}`} className="flex-1">
+                                      <div className="font-medium">{equip.reference}</div>
+                                      <div className="text-sm text-muted-foreground">{equip.type_materiel}</div>
+                                    </Label>
+                                  </div>
+                                ))}
+                                
+                                {availableEquipment.length === 0 && (
+                                  <div className="text-center py-4">
+                                    <p className="text-muted-foreground">Aucun matériel disponible</p>
+                                  </div>
+                                )}
+                              </div>
+                            </ScrollArea>
+                            <DialogFooter className="mt-4">
+                              <Button variant="outline" onClick={() => setIsEquipmentDialogOpen(false)}>
+                                Annuler
+                              </Button>
+                              <Button 
+                                onClick={handleAssignEquipment}
+                                disabled={selectedEquipment.length === 0 || isUpdating}
+                              >
+                                {isUpdating ? "Assignation..." : "Assigner le matériel"}
+                              </Button>
+                            </DialogFooter>
+                          </DialogContent>
+                        </Dialog>
+                      )}
+                    </div>
+                    
                     {intervention?.equipment && intervention.equipment.length > 0 ? (
-                      <div>
-                        <h3 className="text-lg font-semibold mb-3">Matériel utilisé</h3>
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          {intervention.equipment.map((item) => (
-                            <Card key={item.id} className="bg-muted/50">
-                              <CardHeader className="pb-2">
-                                <CardTitle className="text-base">{item.reference}</CardTitle>
-                                <CardDescription>Type: {item.type_materiel}</CardDescription>
-                              </CardHeader>
-                              <CardContent>
-                                <Badge variant={item.etat === "disponible" ? "default" : 
-                                  item.etat === "en utilisation" ? "outline" : "destructive"}>
-                                  {item.etat}
-                                </Badge>
-                              </CardContent>
-                            </Card>
-                          ))}
-                        </div>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {intervention.equipment.map((item) => (
+                          <Card key={item.id} className="bg-muted/50">
+                            <CardHeader className="pb-2">
+                              <CardTitle className="text-base">{item.reference}</CardTitle>
+                              <CardDescription>Type: {item.type_materiel}</CardDescription>
+                            </CardHeader>
+                            <CardContent>
+                              <Badge variant={item.etat === "disponible" ? "default" : 
+                                item.etat === "en utilisation" ? "outline" : "destructive"}>
+                                {item.etat}
+                              </Badge>
+                            </CardContent>
+                          </Card>
+                        ))}
                       </div>
                     ) : (
                       <div className="text-center py-6">
@@ -697,6 +987,65 @@ const AdminInterventionDetails = () => {
               )}
             </CardContent>
             <CardFooter className="flex flex-col gap-3">
+              {canModify && (
+                <>
+                  {!intervention?.teams?.length && (
+                    <Button 
+                      className="w-full" 
+                      onClick={() => setIsTeamDialogOpen(true)}
+                    >
+                      <User className="mr-2 h-4 w-4" />
+                      Assigner une équipe
+                    </Button>
+                  )}
+                  
+                  {intervention && !intervention.equipment?.length && (
+                    <Button 
+                      className="w-full" 
+                      onClick={() => setIsEquipmentDialogOpen(true)}
+                    >
+                      <Wrench className="mr-2 h-4 w-4" />
+                      Assigner du matériel
+                    </Button>
+                  )}
+                  
+                  {intervention && intervention.teams?.length && intervention.equipment?.length && (
+                    <Button 
+                      variant="default" 
+                      className="w-full"
+                      onClick={async () => {
+                        try {
+                          if (!intervention) return;
+                          
+                          await supabase
+                            .from('interventions')
+                            .update({ statut: 'planifiée' })
+                            .eq('id', intervention.id);
+                            
+                          toast({
+                            title: "Succès",
+                            description: "L'intervention est maintenant planifiée."
+                          });
+                          
+                          window.location.reload();
+                        } catch (error) {
+                          console.error(error);
+                          toast({
+                            variant: "destructive",
+                            title: "Erreur",
+                            description: "Impossible de mettre à jour le statut de l'intervention."
+                          });
+                        }
+                      }}
+                      disabled={intervention.statut === 'planifiée' || intervention.statut === 'en_cours' || intervention.statut === 'terminée'}
+                    >
+                      <CheckCircle className="mr-2 h-4 w-4" />
+                      Confirmer planification
+                    </Button>
+                  )}
+                </>
+              )}
+              
               <Button variant="outline" className="w-full" onClick={handleViewPV} disabled={!intervention || !intervention.pv_intervention_id}>
                 <FileText className="mr-2 h-4 w-4" />
                 Voir le PV d'intervention
@@ -715,6 +1064,42 @@ const AdminInterventionDetails = () => {
                   Créer un PV d'intervention
                 </Button>
               )}
+              
+              {intervention && (intervention.statut === 'planifiée' || intervention.statut === 'en_cours') && (
+                <Button 
+                  variant="default" 
+                  className="w-full"
+                  onClick={async () => {
+                    try {
+                      await supabase
+                        .from('interventions')
+                        .update({
+                          statut: 'terminée',
+                          date_fin: new Date().toISOString()
+                        })
+                        .eq('id', intervention.id);
+                        
+                      toast({
+                        title: "Succès",
+                        description: "L'intervention a été marquée comme terminée."
+                      });
+                      
+                      window.location.reload();
+                    } catch (error) {
+                      console.error(error);
+                      toast({
+                        variant: "destructive",
+                        title: "Erreur",
+                        description: "Impossible de terminer l'intervention."
+                      });
+                    }
+                  }}
+                >
+                  <CheckCircle className="mr-2 h-4 w-4" />
+                  Marquer comme terminée
+                </Button>
+              )}
+              
               <Button 
                 variant="outline" 
                 className="w-full" 
@@ -728,6 +1113,16 @@ const AdminInterventionDetails = () => {
                 <MessageSquare className="mr-2 h-4 w-4" />
                 Envoyer un rappel
               </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full" 
+                onClick={handlePrintIntervention}
+              >
+                <Printer className="mr-2 h-4 w-4" />
+                Imprimer le récapitulatif
+              </Button>
+              
               <Button 
                 variant="outline" 
                 className="w-full" 
