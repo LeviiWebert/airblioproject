@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
@@ -124,7 +123,6 @@ const AdminInterventionDetails = () => {
   const [activeTab, setActiveTab] = useState("details");
   const [history, setHistory] = useState<HistoryItem[]>([]);
   
-  // Pour la modification d'équipe et matériel
   const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
   const [isEquipmentDialogOpen, setIsEquipmentDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
@@ -139,6 +137,32 @@ const AdminInterventionDetails = () => {
         if (!id) return;
         
         setLoading(true);
+        
+        const { data: interventionData, error: interventionError } = await supabase
+          .from('interventions')
+          .select(`
+            id,
+            date_debut,
+            date_fin,
+            rapport,
+            statut,
+            localisation,
+            demande_intervention_id,
+            pv_intervention_id,
+            created_at,
+            updated_at
+          `)
+          .eq('id', id)
+          .maybeSingle();
+        
+        if (interventionError) throw interventionError;
+        
+        if (!interventionData) {
+          setLoading(false);
+          return;
+        }
+        
+        setIntervention(interventionData);
         
         const { data: demandeData, error: demandeError } = await supabase
           .from('demande_interventions')
@@ -157,189 +181,170 @@ const AdminInterventionDetails = () => {
               tel
             )
           `)
-          .eq('id', id)
-          .single();
-          
+          .eq('id', interventionData.demande_intervention_id)
+          .maybeSingle();
+        
         if (demandeError) throw demandeError;
         
-        setDemande(demandeData);
+        if (!demandeData) {
+          console.warn("Demande d'intervention non trouvée pour l'ID:", interventionData.demande_intervention_id);
+        } else {
+          setDemande(demandeData);
+        }
         
-        const history: HistoryItem[] = [
-          {
+        const history: HistoryItem[] = [];
+        
+        if (demandeData) {
+          history.push({
             date: demandeData.date_demande,
             type: 'creation',
             text: `Demande d'intervention créée par ${demandeData.client?.nom_entreprise || 'Client'}`,
             status: demandeData.statut
-          }
-        ];
+          });
+        }
         
-        if (demandeData.intervention_id) {
-          const { data: interventionData, error: interventionError } = await supabase
-            .from('interventions')
+        history.push({
+          date: interventionData.created_at,
+          type: 'intervention',
+          text: `Intervention planifiée${interventionData.date_debut ? ` pour le ${format(new Date(interventionData.date_debut), "dd MMMM yyyy", { locale: fr })}` : ''}`,
+          status: interventionData.statut
+        });
+        
+        const { data: teamsData, error: teamsError } = await supabase
+          .from('intervention_equipes')
+          .select(`
+            equipe_id,
+            equipes:equipe_id (
+              id,
+              nom,
+              specialisation
+            )
+          `)
+          .eq('intervention_id', id);
+        
+        if (!teamsError && teamsData) {
+          const teams = teamsData.map(item => item.equipes);
+          setIntervention(prev => ({
+            ...prev!,
+            teams: teams
+          }));
+          
+          if (teams.length > 0) {
+            history.push({
+              date: interventionData.updated_at,
+              type: 'team',
+              text: `Équipe${teams.length > 1 ? 's' : ''} assignée${teams.length > 1 ? 's' : ''} : ${teams.map(t => t.nom).join(', ')}`,
+              status: interventionData.statut
+            });
+          }
+        }
+        
+        const { data: equipmentData, error: equipmentError } = await supabase
+          .from('intervention_materiels')
+          .select(`
+            materiel_id,
+            materiels:materiel_id (
+              id,
+              reference,
+              type_materiel,
+              etat
+            )
+          `)
+          .eq('intervention_id', id);
+        
+        if (!equipmentError && equipmentData) {
+          const equipment = equipmentData.map(item => item.materiels);
+          setIntervention(prev => ({
+            ...prev!,
+            equipment: equipment
+          }));
+          
+          if (equipment.length > 0) {
+            history.push({
+              date: interventionData.updated_at,
+              type: 'equipment',
+              text: `Équipement${equipment.length > 1 ? 's' : ''} assigné${equipment.length > 1 ? 's' : ''} : ${equipment.map(e => e.reference).join(', ')}`,
+              status: interventionData.statut
+            });
+          }
+        }
+        
+        if (interventionData.pv_intervention_id) {
+          const { data: pvData, error: pvError } = await supabase
+            .from('pv_interventions')
             .select(`
               id,
-              date_debut,
-              date_fin,
-              rapport,
-              statut,
-              localisation,
-              demande_intervention_id,
-              pv_intervention_id,
-              created_at,
-              updated_at
+              validation_client,
+              date_validation,
+              commentaire
             `)
-            .eq('id', demandeData.intervention_id)
-            .single();
+            .eq('id', interventionData.pv_intervention_id)
+            .maybeSingle();
           
-          if (interventionError) throw interventionError;
-          
-          history.push({
-            date: interventionData.created_at,
-            type: 'intervention',
-            text: `Intervention planifiée${interventionData.date_debut ? ` pour le ${format(new Date(interventionData.date_debut), "dd MMMM yyyy", { locale: fr })}` : ''}`,
-            status: interventionData.statut
-          });
-          
-          setIntervention(interventionData);
-          
-          const { data: teamsData, error: teamsError } = await supabase
-            .from('intervention_equipes')
-            .select(`
-              equipe_id,
-              equipes:equipe_id (
-                id,
-                nom,
-                specialisation
-              )
-            `)
-            .eq('intervention_id', demandeData.intervention_id);
-          
-          if (!teamsError && teamsData) {
-            const teams = teamsData.map(item => item.equipes);
+          if (!pvError && pvData) {
             setIntervention(prev => ({
               ...prev!,
-              teams: teams
+              pv_interventions: pvData
             }));
             
-            if (teams.length > 0) {
-              history.push({
-                date: interventionData.updated_at,
-                type: 'team',
-                text: `Équipe${teams.length > 1 ? 's' : ''} assignée${teams.length > 1 ? 's' : ''} : ${teams.map(t => t.nom).join(', ')}`,
-                status: interventionData.statut
-              });
-            }
-          }
-          
-          const { data: equipmentData, error: equipmentError } = await supabase
-            .from('intervention_materiels')
-            .select(`
-              materiel_id,
-              materiels:materiel_id (
-                id,
-                reference,
-                type_materiel,
-                etat
-              )
-            `)
-            .eq('intervention_id', demandeData.intervention_id);
-          
-          if (!equipmentError && equipmentData) {
-            const equipment = equipmentData.map(item => item.materiels);
-            setIntervention(prev => ({
-              ...prev!,
-              equipment: equipment
-            }));
+            history.push({
+              date: interventionData.updated_at,
+              type: 'pv',
+              text: `Procès-verbal créé`,
+              status: interventionData.statut
+            });
             
-            if (equipment.length > 0) {
-              history.push({
-                date: interventionData.updated_at,
-                type: 'equipment',
-                text: `Équipement${equipment.length > 1 ? 's' : ''} assigné${equipment.length > 1 ? 's' : ''} : ${equipment.map(e => e.reference).join(', ')}`,
-                status: interventionData.statut
-              });
-            }
-          }
-          
-          if (interventionData.pv_intervention_id) {
-            const { data: pvData, error: pvError } = await supabase
-              .from('pv_interventions')
-              .select(`
-                id,
-                validation_client,
-                date_validation,
-                commentaire
-              `)
-              .eq('id', interventionData.pv_intervention_id)
-              .single();
-            
-            if (!pvError && pvData) {
-              setIntervention(prev => ({
-                ...prev!,
-                pv_interventions: pvData
-              }));
+            if (pvData.validation_client !== null) {
+              const validationStatus = pvData.validation_client ? 'pv_validated' : 'pv_rejected';
+              const validationText = pvData.validation_client 
+                ? 'Procès-verbal validé par le client' 
+                : 'Procès-verbal refusé par le client';
               
-              history.push({
-                date: interventionData.updated_at,
-                type: 'pv',
-                text: `Procès-verbal créé`,
-                status: interventionData.statut
-              });
-              
-              if (pvData.validation_client !== null) {
-                const validationStatus = pvData.validation_client ? 'pv_validated' : 'pv_rejected';
-                const validationText = pvData.validation_client 
-                  ? 'Procès-verbal validé par le client' 
-                  : 'Procès-verbal refusé par le client';
-                
-                if (pvData.commentaire) {
-                  history.push({
-                    date: pvData.date_validation,
-                    type: validationStatus,
-                    text: validationText + (pvData.commentaire ? ` avec commentaire` : ''),
-                    status: interventionData.statut,
-                    commentaire: pvData.commentaire
-                  });
-                } else {
-                  history.push({
-                    date: pvData.date_validation,
-                    type: validationStatus,
-                    text: validationText,
-                    status: interventionData.statut
-                  });
-                }
+              if (pvData.commentaire) {
+                history.push({
+                  date: pvData.date_validation,
+                  type: validationStatus,
+                  text: validationText + (pvData.commentaire ? ` avec commentaire` : ''),
+                  status: interventionData.statut,
+                  commentaire: pvData.commentaire
+                });
+              } else {
+                history.push({
+                  date: pvData.date_validation,
+                  type: validationStatus,
+                  text: validationText,
+                  status: interventionData.statut
+                });
               }
             }
           }
-          
-          if (interventionData.statut === 'terminée') {
-            history.push({
-              date: interventionData.date_fin || interventionData.updated_at,
-              type: 'completion',
-              text: `Intervention terminée`,
-              status: 'terminée'
-            });
-          }
+        }
+        
+        if (interventionData.statut === 'terminée') {
+          history.push({
+            date: interventionData.date_fin || interventionData.updated_at,
+            type: 'completion',
+            text: `Intervention terminée`,
+            status: 'terminée'
+          });
         }
         
         history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setHistory(history);
         
-        // Charger les équipes disponibles
-        const { data: teamsData } = await supabase
+        const { data: teamsData2 } = await supabase
           .from('equipes')
           .select('*');
-        if (teamsData) {
-          setAvailableTeams(teamsData);
+        if (teamsData2) {
+          setAvailableTeams(teamsData2);
         }
         
-        // Charger le matériel disponible
-        const { data: equipmentData } = await supabase
+        const { data: equipmentData2 } = await supabase
           .from('materiels')
           .select('*')
           .in('etat', ['disponible']);
-        if (equipmentData) {
-          setAvailableEquipment(equipmentData);
+        if (equipmentData2) {
+          setAvailableEquipment(equipmentData2);
         }
         
       } catch (error) {
@@ -420,16 +425,13 @@ const AdminInterventionDetails = () => {
     setIsUpdating(true);
     
     try {
-      // Vérifier si une équipe est déjà assignée
       if (intervention.teams && intervention.teams.length > 0) {
-        // Supprimer l'assignation existante
         await supabase
           .from('intervention_equipes')
           .delete()
           .eq('intervention_id', intervention.id);
       }
       
-      // Assigner la nouvelle équipe
       const { error } = await supabase
         .from('intervention_equipes')
         .insert({
@@ -439,7 +441,6 @@ const AdminInterventionDetails = () => {
       
       if (error) throw error;
       
-      // Mettre à jour le statut de l'intervention si nécessaire
       if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
         await supabase
           .from('interventions')
@@ -473,7 +474,6 @@ const AdminInterventionDetails = () => {
     setIsUpdating(true);
     
     try {
-      // Supprimer les assignations existantes
       if (intervention.equipment && intervention.equipment.length > 0) {
         await supabase
           .from('intervention_materiels')
@@ -481,7 +481,6 @@ const AdminInterventionDetails = () => {
           .eq('intervention_id', intervention.id);
       }
       
-      // Créer les nouvelles assignations
       const insertData = selectedEquipment.map(equipId => ({
         intervention_id: intervention.id,
         materiel_id: equipId
@@ -493,7 +492,6 @@ const AdminInterventionDetails = () => {
       
       if (error) throw error;
       
-      // Mettre à jour l'état du matériel
       for (const equipId of selectedEquipment) {
         await supabase
           .from('materiels')
@@ -501,7 +499,6 @@ const AdminInterventionDetails = () => {
           .eq('id', equipId);
       }
       
-      // Mettre à jour le statut de l'intervention si nécessaire
       if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
         await supabase
           .from('interventions')
@@ -544,7 +541,7 @@ const AdminInterventionDetails = () => {
     );
   }
 
-  if (!demande) {
+  if (!intervention) {
     return (
       <div className="container mx-auto py-8 px-4">
         <Card>
