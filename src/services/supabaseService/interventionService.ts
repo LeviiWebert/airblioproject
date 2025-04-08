@@ -177,8 +177,128 @@ const updateStatus = async (id: string, status: string) => {
   return data;
 };
 
+const assignTeam = async (interventionId: string, teamId: string) => {
+  try {
+    // D'abord, supprimer toutes les équipes actuellement assignées
+    await supabase
+      .from('intervention_equipes')
+      .delete()
+      .eq('intervention_id', interventionId);
+    
+    // Ensuite assigner la nouvelle équipe
+    const { error } = await supabase
+      .from('intervention_equipes')
+      .insert({
+        intervention_id: interventionId,
+        equipe_id: teamId
+      });
+    
+    if (error) throw error;
+    
+    // Mettre à jour le statut si nécessaire
+    const { data: interventionData } = await supabase
+      .from('interventions')
+      .select('statut')
+      .eq('id', interventionId)
+      .maybeSingle();
+    
+    if (interventionData && (interventionData.statut === 'en_attente' || interventionData.statut === 'validée')) {
+      await supabase
+        .from('interventions')
+        .update({ statut: 'planifiée' })
+        .eq('id', interventionId);
+    }
+    
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const assignEquipment = async (interventionId: string, equipmentIds: string[]) => {
+  try {
+    // D'abord, supprimer tout le matériel actuellement assigné
+    await supabase
+      .from('intervention_materiels')
+      .delete()
+      .eq('intervention_id', interventionId);
+    
+    // Préparer les données pour insérer le nouveau matériel
+    const insertData = equipmentIds.map(equipId => ({
+      intervention_id: interventionId,
+      materiel_id: equipId
+    }));
+    
+    // Insérer les nouvelles assignations de matériel
+    const { error } = await supabase
+      .from('intervention_materiels')
+      .insert(insertData);
+    
+    if (error) throw error;
+    
+    // Mettre à jour l'état du matériel à "en utilisation"
+    for (const equipId of equipmentIds) {
+      await supabase
+        .from('materiels')
+        .update({ etat: 'en utilisation' })
+        .eq('id', equipId);
+    }
+    
+    // Mettre à jour le statut de l'intervention si nécessaire
+    const { data: interventionData } = await supabase
+      .from('interventions')
+      .select('statut')
+      .eq('id', interventionId)
+      .maybeSingle();
+    
+    if (interventionData && (interventionData.statut === 'en_attente' || interventionData.statut === 'validée')) {
+      await supabase
+        .from('interventions')
+        .update({ statut: 'planifiée' })
+        .eq('id', interventionId);
+    }
+    
+    return true;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getAvailableEquipment = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('materiels')
+      .select('*')
+      .in('etat', ['disponible']);
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
+const getAvailableTeams = async () => {
+  try {
+    const { data, error } = await supabase
+      .from('equipes')
+      .select('*');
+    
+    if (error) throw error;
+    
+    return data;
+  } catch (error) {
+    throw error;
+  }
+};
+
 export const interventionService = {
   getAll,
   getById,
   updateStatus,
+  assignTeam,
+  assignEquipment,
+  getAvailableEquipment,
+  getAvailableTeams,
 };

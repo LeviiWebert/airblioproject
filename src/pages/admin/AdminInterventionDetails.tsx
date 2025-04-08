@@ -1,6 +1,5 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { supabase } from "@/integrations/supabase/client";
 import { 
   ArrowLeft, 
   Calendar, 
@@ -29,7 +28,6 @@ import { InterventionStatusBadge } from "@/components/interventions/Intervention
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { SmallLoading } from "@/components/ui/loading";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { toast } from "sonner";
 import { 
   Dialog,
@@ -50,6 +48,7 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
+import { interventionService } from "@/services/supabaseService/interventionService";
 
 interface Client {
   id: string;
@@ -138,24 +137,7 @@ const AdminInterventionDetails = () => {
         
         setLoading(true);
         
-        const { data: interventionData, error: interventionError } = await supabase
-          .from('interventions')
-          .select(`
-            id,
-            date_debut,
-            date_fin,
-            rapport,
-            statut,
-            localisation,
-            demande_intervention_id,
-            pv_intervention_id,
-            created_at,
-            updated_at
-          `)
-          .eq('id', id)
-          .maybeSingle();
-        
-        if (interventionError) throw interventionError;
+        const interventionData = await interventionService.getById(id);
         
         if (!interventionData) {
           setLoading(false);
@@ -164,42 +146,20 @@ const AdminInterventionDetails = () => {
         
         setIntervention(interventionData);
         
-        const { data: demandeData, error: demandeError } = await supabase
-          .from('demande_interventions')
-          .select(`
-            id,
-            description,
-            date_demande,
-            urgence,
-            statut,
-            intervention_id,
-            client_id,
-            client:client_id (
-              id, 
-              nom_entreprise,
-              email,
-              tel
-            )
-          `)
-          .eq('id', interventionData.demande_intervention_id)
-          .maybeSingle();
-        
-        if (demandeError) throw demandeError;
-        
-        if (!demandeData) {
+        if (!interventionData.demande) {
           console.warn("Demande d'intervention non trouvée pour l'ID:", interventionData.demande_intervention_id);
         } else {
-          setDemande(demandeData);
+          setDemande(interventionData.demande);
         }
         
         const history: HistoryItem[] = [];
         
-        if (demandeData) {
+        if (interventionData.demande) {
           history.push({
-            date: demandeData.date_demande,
+            date: interventionData.demande.date_demande,
             type: 'creation',
-            text: `Demande d'intervention créée par ${demandeData.client?.nom_entreprise || 'Client'}`,
-            status: demandeData.statut
+            text: `Demande d'intervention créée par ${interventionData.demande.client?.nom_entreprise || 'Client'}`,
+            status: interventionData.demande.statut
           });
         }
         
@@ -210,107 +170,50 @@ const AdminInterventionDetails = () => {
           status: interventionData.statut
         });
         
-        const { data: teamsData, error: teamsError } = await supabase
-          .from('intervention_equipes')
-          .select(`
-            equipe_id,
-            equipes:equipe_id (
-              id,
-              nom,
-              specialisation
-            )
-          `)
-          .eq('intervention_id', id);
-        
-        if (!teamsError && teamsData) {
-          const teams = teamsData.map(item => item.equipes);
-          setIntervention(prev => ({
-            ...prev!,
-            teams: teams
-          }));
-          
-          if (teams.length > 0) {
-            history.push({
-              date: interventionData.updated_at,
-              type: 'team',
-              text: `Équipe${teams.length > 1 ? 's' : ''} assignée${teams.length > 1 ? 's' : ''} : ${teams.map(t => t.nom).join(', ')}`,
-              status: interventionData.statut
-            });
-          }
+        if (interventionData.teams && interventionData.teams.length > 0) {
+          history.push({
+            date: interventionData.updated_at,
+            type: 'team',
+            text: `Équipe${interventionData.teams.length > 1 ? 's' : ''} assignée${interventionData.teams.length > 1 ? 's' : ''} : ${interventionData.teams.map(t => t.nom).join(', ')}`,
+            status: interventionData.statut
+          });
         }
         
-        const { data: equipmentData, error: equipmentError } = await supabase
-          .from('intervention_materiels')
-          .select(`
-            materiel_id,
-            materiels:materiel_id (
-              id,
-              reference,
-              type_materiel,
-              etat
-            )
-          `)
-          .eq('intervention_id', id);
-        
-        if (!equipmentError && equipmentData) {
-          const equipment = equipmentData.map(item => item.materiels);
-          setIntervention(prev => ({
-            ...prev!,
-            equipment: equipment
-          }));
-          
-          if (equipment.length > 0) {
-            history.push({
-              date: interventionData.updated_at,
-              type: 'equipment',
-              text: `Équipement${equipment.length > 1 ? 's' : ''} assigné${equipment.length > 1 ? 's' : ''} : ${equipment.map(e => e.reference).join(', ')}`,
-              status: interventionData.statut
-            });
-          }
+        if (interventionData.equipment && interventionData.equipment.length > 0) {
+          history.push({
+            date: interventionData.updated_at,
+            type: 'equipment',
+            text: `Équipement${interventionData.equipment.length > 1 ? 's' : ''} assigné${interventionData.equipment.length > 1 ? 's' : ''} : ${interventionData.equipment.map(e => e.reference).join(', ')}`,
+            status: interventionData.statut
+          });
         }
         
         if (interventionData.pv_intervention_id) {
-          const { data: pvData, error: pvError } = await supabase
-            .from('pv_interventions')
-            .select(`
-              id,
-              validation_client,
-              date_validation,
-              commentaire
-            `)
-            .eq('id', interventionData.pv_intervention_id)
-            .maybeSingle();
+          history.push({
+            date: interventionData.updated_at,
+            type: 'pv',
+            text: `Procès-verbal créé`,
+            status: interventionData.statut
+          });
           
-          if (!pvError && pvData) {
-            setIntervention(prev => ({
-              ...prev!,
-              pv_interventions: pvData
-            }));
-            
-            history.push({
-              date: interventionData.updated_at,
-              type: 'pv',
-              text: `Procès-verbal créé`,
-              status: interventionData.statut
-            });
-            
-            if (pvData.validation_client !== null) {
-              const validationStatus = pvData.validation_client ? 'pv_validated' : 'pv_rejected';
-              const validationText = pvData.validation_client 
+          if (interventionData.pv_interventions) {
+            if (interventionData.pv_interventions.validation_client !== null) {
+              const validationStatus = interventionData.pv_interventions.validation_client ? 'pv_validated' : 'pv_rejected';
+              const validationText = interventionData.pv_interventions.validation_client 
                 ? 'Procès-verbal validé par le client' 
                 : 'Procès-verbal refusé par le client';
               
-              if (pvData.commentaire) {
+              if (interventionData.pv_interventions.commentaire) {
                 history.push({
-                  date: pvData.date_validation,
+                  date: interventionData.pv_interventions.date_validation,
                   type: validationStatus,
-                  text: validationText + (pvData.commentaire ? ` avec commentaire` : ''),
+                  text: validationText + (interventionData.pv_interventions.commentaire ? ` avec commentaire` : ''),
                   status: interventionData.statut,
-                  commentaire: pvData.commentaire
+                  commentaire: interventionData.pv_interventions.commentaire
                 });
               } else {
                 history.push({
-                  date: pvData.date_validation,
+                  date: interventionData.pv_interventions.date_validation,
                   type: validationStatus,
                   text: validationText,
                   status: interventionData.statut
@@ -332,20 +235,11 @@ const AdminInterventionDetails = () => {
         history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
         setHistory(history);
         
-        const { data: teamsData2 } = await supabase
-          .from('equipes')
-          .select('*');
-        if (teamsData2) {
-          setAvailableTeams(teamsData2);
-        }
+        const teamsData = await interventionService.getAvailableTeams();
+        setAvailableTeams(teamsData);
         
-        const { data: equipmentData2 } = await supabase
-          .from('materiels')
-          .select('*')
-          .in('etat', ['disponible']);
-        if (equipmentData2) {
-          setAvailableEquipment(equipmentData2);
-        }
+        const equipmentData = await interventionService.getAvailableEquipment();
+        setAvailableEquipment(equipmentData);
         
       } catch (error) {
         console.error("Erreur lors du chargement de l'intervention:", error);
@@ -425,28 +319,7 @@ const AdminInterventionDetails = () => {
     setIsUpdating(true);
     
     try {
-      if (intervention.teams && intervention.teams.length > 0) {
-        await supabase
-          .from('intervention_equipes')
-          .delete()
-          .eq('intervention_id', intervention.id);
-      }
-      
-      const { error } = await supabase
-        .from('intervention_equipes')
-        .insert({
-          intervention_id: intervention.id,
-          equipe_id: selectedTeam
-        });
-      
-      if (error) throw error;
-      
-      if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
-        await supabase
-          .from('interventions')
-          .update({ statut: 'planifiée' })
-          .eq('id', intervention.id);
-      }
+      await interventionService.assignTeam(intervention.id, selectedTeam);
       
       toast({
         title: "Équipe assignée",
@@ -454,7 +327,25 @@ const AdminInterventionDetails = () => {
       });
       
       setIsTeamDialogOpen(false);
-      window.location.reload();
+      
+      const updatedIntervention = await interventionService.getById(intervention.id);
+      if (updatedIntervention) {
+        setIntervention(updatedIntervention);
+        
+        if (updatedIntervention.teams && updatedIntervention.teams.length > 0) {
+          const teamHistory = {
+            date: updatedIntervention.updated_at,
+            type: 'team',
+            text: `Équipe${updatedIntervention.teams.length > 1 ? 's' : ''} assignée${updatedIntervention.teams.length > 1 ? 's' : ''} : ${updatedIntervention.teams.map(t => t.nom).join(', ')}`,
+            status: updatedIntervention.statut
+          };
+          
+          setHistory(prev => {
+            const newHistory = [...prev.filter(h => h.type !== 'team'), teamHistory];
+            return newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          });
+        }
+      }
       
     } catch (error) {
       console.error("Erreur lors de l'assignation de l'équipe:", error);
@@ -474,37 +365,7 @@ const AdminInterventionDetails = () => {
     setIsUpdating(true);
     
     try {
-      if (intervention.equipment && intervention.equipment.length > 0) {
-        await supabase
-          .from('intervention_materiels')
-          .delete()
-          .eq('intervention_id', intervention.id);
-      }
-      
-      const insertData = selectedEquipment.map(equipId => ({
-        intervention_id: intervention.id,
-        materiel_id: equipId
-      }));
-      
-      const { error } = await supabase
-        .from('intervention_materiels')
-        .insert(insertData);
-      
-      if (error) throw error;
-      
-      for (const equipId of selectedEquipment) {
-        await supabase
-          .from('materiels')
-          .update({ etat: 'en utilisation' })
-          .eq('id', equipId);
-      }
-      
-      if (intervention.statut === 'en_attente' || intervention.statut === 'validée') {
-        await supabase
-          .from('interventions')
-          .update({ statut: 'planifiée' })
-          .eq('id', intervention.id);
-      }
+      await interventionService.assignEquipment(intervention.id, selectedEquipment);
       
       toast({
         title: "Matériel assigné",
@@ -512,7 +373,28 @@ const AdminInterventionDetails = () => {
       });
       
       setIsEquipmentDialogOpen(false);
-      window.location.reload();
+      
+      const updatedIntervention = await interventionService.getById(intervention.id);
+      if (updatedIntervention) {
+        setIntervention(updatedIntervention);
+        
+        if (updatedIntervention.equipment && updatedIntervention.equipment.length > 0) {
+          const equipmentHistory = {
+            date: updatedIntervention.updated_at,
+            type: 'equipment',
+            text: `Équipement${updatedIntervention.equipment.length > 1 ? 's' : ''} assigné${updatedIntervention.equipment.length > 1 ? 's' : ''} : ${updatedIntervention.equipment.map(e => e.reference).join(', ')}`,
+            status: updatedIntervention.statut
+          };
+          
+          setHistory(prev => {
+            const newHistory = [...prev.filter(h => h.type !== 'equipment'), equipmentHistory];
+            return newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+          });
+        }
+        
+        const equipmentData = await interventionService.getAvailableEquipment();
+        setAvailableEquipment(equipmentData);
+      }
       
     } catch (error) {
       console.error("Erreur lors de l'assignation du matériel:", error);
