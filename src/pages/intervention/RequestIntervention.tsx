@@ -12,6 +12,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { supabase } from "@/integrations/supabase/client";
+import { useAuth } from "@/hooks/useAuth";
 
 // Validation schema pour la première étape de la demande d'intervention
 const requestSchema = z.object({
@@ -33,8 +34,8 @@ type RequestValues = z.infer<typeof requestSchema>;
 
 const RequestIntervention = () => {
   const navigate = useNavigate();
-  const [session, setSession] = useState<Session | null>(null);
   const [isLoading, setIsLoading] = useState<boolean>(false);
+  const { session, userType, clientId } = useAuth();
 
   const form = useForm<RequestValues>({
     resolver: zodResolver(requestSchema),
@@ -46,34 +47,29 @@ const RequestIntervention = () => {
     },
   });
 
+  // Vérifier si nous avons déjà des données sauvegardées
   useEffect(() => {
-    // Vérifier si l'utilisateur est authentifié
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      setSession(session);
-    });
-
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      (_event, session) => {
-        setSession(session);
-      }
-    );
-
-    return () => subscription.unsubscribe();
-  }, []);
+    const savedData = sessionStorage.getItem("interventionStep1");
+    if (savedData) {
+      const parsedData = JSON.parse(savedData);
+      form.reset(parsedData);
+    }
+  }, [form]);
 
   const onSubmit = async (data: RequestValues) => {
     setIsLoading(true);
 
-    if (!session) {
-      // Stocker les données du formulaire dans localStorage pour après authentification
-      localStorage.setItem("interventionRequest", JSON.stringify(data));
-      navigate("/auth", { state: { returnTo: "/intervention/details" } });
-      return;
-    }
-
-    // Si l'utilisateur est authentifié, sauvegarder dans sessionStorage et passer à l'étape suivante
+    // On sauvegarde toujours les données du formulaire
     sessionStorage.setItem("interventionStep1", JSON.stringify(data));
-    navigate("/intervention/details");
+
+    // Si l'utilisateur est déjà connecté et est un client, on passe à l'étape suivante
+    if (session && userType === 'client' && clientId) {
+      navigate("/intervention/details");
+    } else {
+      // Sinon, on le redirige vers la page d'authentification
+      navigate("/auth", { state: { returnTo: "/intervention/details" } });
+    }
+    
     setIsLoading(false);
   };
 
@@ -278,7 +274,6 @@ const RequestIntervention = () => {
         </div>
       </div>
 
-      {/* Footer */}
       <footer className="bg-gray-800 text-gray-200">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center text-gray-400 text-sm">

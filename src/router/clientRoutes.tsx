@@ -10,6 +10,9 @@ import { ProtectedClientRoute } from "@/components/auth/ProtectedClientRoute";
 import ProcessVerbalClient from "@/pages/client/ProcessVerbalClient";
 import PVList from "@/pages/client/PVList";
 import NotFound from "@/pages/NotFound";
+import RequestIntervention from "@/pages/intervention/RequestIntervention";
+import InterventionDetails from "@/pages/intervention/InterventionDetails";
+import InterventionSchedule from "@/pages/intervention/InterventionSchedule";
 
 // Helper function to wrap client components with protection and layout
 const withClientProtection = (Component: React.ComponentType<any>) => (
@@ -49,6 +52,19 @@ export const clientRoutes: RouteObject[] = [
   {
     path: "/client/pvs",
     element: withClientProtection(PVList)
+  },
+  // Ajout des routes pour la demande d'intervention protégées
+  {
+    path: "/intervention/request",
+    element: withClientProtection(RequestIntervention)
+  },
+  {
+    path: "/intervention/details",
+    element: withClientProtection(InterventionDetails) 
+  },
+  {
+    path: "/intervention/schedule",
+    element: withClientProtection(InterventionSchedule)
   },
   // Add a catch-all for client routes to show a proper message
   {

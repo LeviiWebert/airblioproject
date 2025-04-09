@@ -3,7 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
-import { PlusCircle, Eye } from "lucide-react";
+import { PlusCircle, Eye, FileText, ClipboardCheck } from "lucide-react";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { format } from "date-fns";
@@ -107,9 +107,17 @@ export const InterventionTabs = ({
                 <div className="p-6 flex-1">
                   <div className="flex justify-between">
                     <div className="space-y-1">
-                      <h3 className="font-semibold">
-                        Intervention #{intervention.id.substring(0, 8).toUpperCase()}
-                      </h3>
+                      {intervention.intervention_id ? (
+                        <h3 className="font-semibold flex items-center">
+                          <ClipboardCheck className="h-5 w-5 mr-2 text-green-500" />
+                          Intervention #{intervention.id.substring(0, 8).toUpperCase()}
+                        </h3>
+                      ) : (
+                        <h3 className="font-semibold flex items-center">
+                          <FileText className="h-5 w-5 mr-2 text-blue-500" />
+                          Demande #{intervention.id.substring(0, 8).toUpperCase()}
+                        </h3>
+                      )}
                       <p className="text-sm text-muted-foreground">
                         {intervention.description.length > 100 
                           ? `${intervention.description.substring(0, 100)}...` 
@@ -117,7 +125,11 @@ export const InterventionTabs = ({
                       </p>
                     </div>
                     <div className="flex flex-col items-end space-y-2">
-                      <InterventionStatusBadge status={intervention.statut} />
+                      {intervention.intervention_id ? (
+                        <InterventionStatusBadge status={intervention.interventions?.statut || "en_attente"} />
+                      ) : (
+                        <InterventionStatusBadge status={intervention.statut} />
+                      )}
                       <PriorityBadge priority={intervention.urgence} />
                     </div>
                   </div>

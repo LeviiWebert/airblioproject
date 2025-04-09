@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
-import { PlusCircle, Eye } from "lucide-react";
+import { PlusCircle, Eye, FileText, ClipboardCheck } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
@@ -47,9 +47,21 @@ export const RecentInterventions = ({ loading, interventions }: RecentInterventi
                 <div className="flex justify-between items-start mb-2">
                   <div>
                     <div className="flex items-center gap-2">
-                      <h3 className="font-semibold">
-                        #{intervention.id.substring(0, 8).toUpperCase()}
-                      </h3>
+                      {intervention.intervention_id ? (
+                        <span className="flex items-center">
+                          <ClipboardCheck className="h-4 w-4 mr-1 text-green-500" />
+                          <h3 className="font-semibold">
+                            Intervention #{intervention.id.substring(0, 8).toUpperCase()}
+                          </h3>
+                        </span>
+                      ) : (
+                        <span className="flex items-center">
+                          <FileText className="h-4 w-4 mr-1 text-blue-500" />
+                          <h3 className="font-semibold">
+                            Demande #{intervention.id.substring(0, 8).toUpperCase()}
+                          </h3>
+                        </span>
+                      )}
                       {intervention.intervention_id ? (
                         <InterventionStatusBadge status={intervention.interventions?.statut || "en_attente"} />
                       ) : (
