@@ -1,4 +1,3 @@
-
 export interface Client {
   id: string;
   nomEntreprise: string;
@@ -115,10 +114,7 @@ export interface DashboardStats {
 export interface FilterOptions {
   status?: string;
   priority?: string;
-  dateRange?: {
-    from: Date | null;
-    to: Date | null;
-  };
+  dateRange?: DateRange;
   client?: string;
   team?: string;
 }

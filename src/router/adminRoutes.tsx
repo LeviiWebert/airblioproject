@@ -20,12 +20,14 @@ const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 
-const adminRoutes = (
+export const adminRoutes = (
   <Route 
     path="/admin" 
     element={
       <ProtectedAdminRoute>
-        <BackOfficeLayout />
+        <BackOfficeLayout>
+          {/* This ensures the children prop is provided */}
+        </BackOfficeLayout>
       </ProtectedAdminRoute>
     }
   >

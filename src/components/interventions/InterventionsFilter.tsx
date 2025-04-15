@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DateRangePicker } from "@/components/ui/date-range-picker";
 import { FilterOptions } from "@/types/models";
+import { DateRange } from "react-day-picker";
 
 interface InterventionsFilterProps {
   clients: any[];
@@ -19,10 +20,7 @@ export const InterventionsFilter = ({ clients, teams, onFilter }: InterventionsF
   const [status, setStatus] = useState<string>("");
   const [client, setClient] = useState<string>("");
   const [team, setTeam] = useState<string>("");
-  const [dateRange, setDateRange] = useState<{
-    from?: Date;
-    to?: Date;
-  } | undefined>(undefined);
+  const [dateRange, setDateRange] = useState<DateRange | undefined>(undefined);
 
   const handleFilter = () => {
     const filters: FilterOptions = {};

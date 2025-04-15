@@ -1,6 +1,6 @@
 
 import { createBrowserRouter } from "react-router-dom";
-import { adminRoutes } from "./adminRoutes";
+import adminRoutes from "./adminRoutes";
 import { clientRoutes } from "./clientRoutes";
 import { publicRoutes } from "./publicRoutes";
 import { authRoutes } from "./authRoutes";
@@ -10,7 +10,7 @@ import NotFound from "@/pages/NotFound";
 export const router = createBrowserRouter([
   ...publicRoutes,
   ...authRoutes,
-  ...adminRoutes,
+  adminRoutes,
   ...clientRoutes,
   // Add a catch-all route for any undefined routes
   {
