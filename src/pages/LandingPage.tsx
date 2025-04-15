@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { ArrowRight, Anchor, Shield, Clock, User, Ship, Tools, Submarine } from "lucide-react";
+import { ArrowRight, Anchor, Shield, Clock, User, Ship, Wrench, Waves } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { isAdminUser } from "@/utils/authUtils";
@@ -259,7 +259,7 @@ const LandingPage = () => {
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
                       <div className="text-white text-center p-4">
-                        <Tools className="w-8 h-8 mx-auto mb-2" />
+                        <Wrench className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-sm font-medium">Outils techniques</p>
                       </div>
                     </div>
@@ -274,7 +274,7 @@ const LandingPage = () => {
                     />
                     <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
                       <div className="text-white text-center p-4">
-                        <Submarine className="w-8 h-8 mx-auto mb-2" />
+                        <Waves className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-sm font-medium">Intervention sous-marine</p>
                       </div>
                     </div>
