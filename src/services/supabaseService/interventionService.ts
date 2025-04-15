@@ -291,7 +291,7 @@ const getByStatus = async (status) => {
 export const interventionService = {
   getAll,
   getById,
-  updateStatus,  // Make sure updateStatus is included here
+  updateStatus,
   assignTeam,
   assignEquipment,
   getAvailableEquipment,
