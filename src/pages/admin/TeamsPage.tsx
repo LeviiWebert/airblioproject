@@ -1,57 +1,59 @@
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Users, Pencil, Trash } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Equipe } from "@/types/models";
 import AddTeamDialog from "@/components/dialogs/AddTeamDialog";
 import EditTeamDialog from "@/components/dialogs/EditTeamDialog";
 import DeleteTeamDialog from "@/components/dialogs/DeleteTeamDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { equipeService } from "@/services/dataService";
 
 const TeamsPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [teams, setTeams] = useState<Equipe[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Equipe | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchTeams = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('equipes')
-        .select('*');
+  // Use React Query for data fetching
+  const {
+    data: teams = [],
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ["teams"],
+    queryFn: async () => {
+      try {
+        const data = await equipeService.getAll();
         
-      if (error) throw error;
-      
-      // Transform the data to match our Equipe type
-      const formattedData: Equipe[] = (data || []).map((team) => ({
-        id: team.id,
-        nom: team.nom,
-        specialisation: team.specialisation || '',
-        membres: []  // We'll need another query to get team members if needed
-      }));
-      
-      setTeams(formattedData);
-    } catch (error: any) {
-      console.error("Erreur lors du chargement des équipes:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les équipes.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+        // Transform the data to match our Equipe type
+        return data.map((team) => ({
+          id: team.id,
+          nom: team.nom,
+          specialisation: team.specialisation || '',
+          membres: []  // We'll need another query to get team members if needed
+        }));
+      } catch (error) {
+        console.error("Erreur lors du chargement des équipes:", error);
+        throw error;
+      }
+    },
+    staleTime: 60000 // 1 minute
+  });
 
-  useEffect(() => {
-    fetchTeams();
-  }, [toast]);
+  // Show errors with toast if necessary
+  if (error) {
+    console.error("Erreur de requête:", error);
+    toast({
+      variant: "destructive",
+      title: "Erreur de chargement",
+      description: "Impossible de charger les équipes.",
+    });
+  }
 
   const handleEdit = (team: Equipe) => {
     setSelectedTeam(team);
@@ -61,6 +63,10 @@ const TeamsPage = () => {
   const handleDelete = (team: Equipe) => {
     setSelectedTeam(team);
     setIsDeleteDialogOpen(true);
+  };
+
+  const refreshTeams = () => {
+    queryClient.invalidateQueries({ queryKey: ["teams"] });
   };
 
   return (
@@ -81,7 +87,7 @@ const TeamsPage = () => {
         </Button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
@@ -141,7 +147,7 @@ const TeamsPage = () => {
       <AddTeamDialog 
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onTeamAdded={fetchTeams}
+        onTeamAdded={refreshTeams}
       />
 
       {selectedTeam && (
@@ -149,14 +155,14 @@ const TeamsPage = () => {
           <EditTeamDialog
             open={isEditDialogOpen}
             onOpenChange={setIsEditDialogOpen}
-            onTeamUpdated={fetchTeams}
+            onTeamUpdated={refreshTeams}
             team={selectedTeam}
           />
 
           <DeleteTeamDialog
             open={isDeleteDialogOpen}
             onOpenChange={setIsDeleteDialogOpen}
-            onTeamDeleted={fetchTeams}
+            onTeamDeleted={refreshTeams}
             teamId={selectedTeam.id}
             teamName={selectedTeam.nom}
           />

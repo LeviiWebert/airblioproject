@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,7 +11,8 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { equipeService } from "@/services/dataService";
 
 interface DeleteTeamDialogProps {
   open: boolean;
@@ -28,44 +29,34 @@ const DeleteTeamDialog = ({
   teamId,
   teamName,
 }: DeleteTeamDialogProps) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const queryClient = useQueryClient();
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
-      // First, delete any related records in equipe_membres
-      const { error: membersError } = await supabase
-        .from("equipe_membres")
-        .delete()
-        .eq("equipe_id", teamId);
-
-      if (membersError) throw membersError;
-
-      // Then delete the team
-      const { error } = await supabase
-        .from("equipes")
-        .delete()
-        .eq("id", teamId);
-
-      if (error) throw error;
-
+  const deleteTeamMutation = useMutation({
+    mutationFn: async () => {
+      return await equipeService.deleteTeam(teamId);
+    },
+    onSuccess: () => {
       toast({
         title: "Équipe supprimée",
         description: "L'équipe a été supprimée avec succès.",
       });
       
       onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
       onTeamDeleted();
-    } catch (error: any) {
+    },
+    onError: (error: any) => {
       console.error("Erreur lors de la suppression de l'équipe:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
         description: `Impossible de supprimer l'équipe: ${error.message}`,
       });
-    } finally {
-      setIsDeleting(false);
     }
+  });
+
+  const handleDelete = async () => {
+    deleteTeamMutation.mutate();
   };
 
   return (
@@ -79,16 +70,16 @@ const DeleteTeamDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleteTeamMutation.isPending}>Annuler</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               handleDelete();
             }}
-            disabled={isDeleting}
+            disabled={deleteTeamMutation.isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Suppression..." : "Supprimer"}
+            {deleteTeamMutation.isPending ? "Suppression..." : "Supprimer"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
