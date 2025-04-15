@@ -1,6 +1,5 @@
-
 import { lazy } from "react";
-import { Route } from "react-router-dom";
+import { Route, Outlet } from "react-router-dom";
 import { BackOfficeLayout } from "@/components/layout/BackOfficeLayout";
 import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
 
@@ -26,7 +25,7 @@ const adminRoutes = (
     element={
       <ProtectedAdminRoute>
         <BackOfficeLayout>
-          {/* This ensures the children prop is provided */}
+          <Outlet />
         </BackOfficeLayout>
       </ProtectedAdminRoute>
     }

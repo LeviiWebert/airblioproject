@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useLocation, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -21,12 +20,11 @@ const Auth = () => {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [userTypeSelection, setUserTypeSelection] = useState<"admin" | "client">("client");
+  const [userTypeSelection, setUserTypeSelection] = useState<"client" | "internal">("client");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [localLoading, setLocalLoading] = useState(false);
   const [isRedirecting, setIsRedirecting] = useState(false);
 
-  // Rediriger si déjà authentifié
   useEffect(() => {
     console.log("Auth page effect - initialized:", initialized, "session:", !!session, "userType:", userType);
     
@@ -34,15 +32,12 @@ const Auth = () => {
       setIsRedirecting(true);
       console.log("Session active détectée, redirection en cours...");
       
-      // Petit délai pour éviter les problèmes de redirection
       setTimeout(() => {
         if (userType === "admin") {
           navigate("/admin");
         } else if (userType === "client") {
           navigate(returnTo === '/' ? "/client-dashboard" : returnTo);
         } else {
-          // Si le type d'utilisateur n'est pas encore déterminé mais qu'il y a une session
-          // On le redirige vers l'index qui saura gérer ce cas
           navigate("/index");
         }
       }, 100);
@@ -63,7 +58,6 @@ const Auth = () => {
       console.log("Tentative de connexion:", email);
       const resultUserType = await signIn(email, password);
       
-      // La redirection est gérée dans le useEffect qui observe session et userType
       console.log("Type d'utilisateur après connexion:", resultUserType);
     } catch (error: any) {
       console.error("Erreur lors de la connexion:", error);
@@ -84,19 +78,16 @@ const Auth = () => {
         throw new Error("Veuillez remplir tous les champs");
       }
 
-      // Vérification de la force du mot de passe
       if (password.length < 6) {
         throw new Error("Le mot de passe doit contenir au moins 6 caractères");
       }
 
       console.log("Tentative d'inscription:", email);
-      const resultUserType = await signUp(email, password, userTypeSelection);
+      const resultUserType = await signUp(email, password, "client");
       
       if (resultUserType) {
-        // Si l'inscription crée immédiatement une session (email confirmation désactivé)
         console.log("Inscription réussie avec session active:", resultUserType);
       } else {
-        // Si l'inscription nécessite une confirmation par email
         console.log("Inscription réussie, confirmation par email requise");
         setSuccessMessage("Inscription réussie! Vérifiez votre email pour confirmer votre compte.");
       }
@@ -108,7 +99,6 @@ const Auth = () => {
     }
   };
 
-  // Afficher le spinner pendant le chargement initial
   if (!initialized) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -117,7 +107,6 @@ const Auth = () => {
     );
   }
 
-  // Si on est en train de rediriger
   if (isRedirecting) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -129,7 +118,6 @@ const Auth = () => {
     );
   }
 
-  // Si l'utilisateur est déjà connecté mais qu'on n'a pas encore commencé la redirection
   if (session) {
     return (
       <div className="flex min-h-screen items-center justify-center">
@@ -178,7 +166,7 @@ const Auth = () => {
                     <Label htmlFor="userType">Se connecter en tant que</Label>
                     <RadioGroup 
                       value={userTypeSelection} 
-                      onValueChange={(value) => setUserTypeSelection(value as "admin" | "client")}
+                      onValueChange={(value) => setUserTypeSelection(value as "client" | "internal")}
                       className="flex space-x-4"
                     >
                       <div className="flex items-center space-x-2">
@@ -186,8 +174,8 @@ const Auth = () => {
                         <Label htmlFor="client">Client</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="admin" id="admin" />
-                        <Label htmlFor="admin">Administrateur</Label>
+                        <RadioGroupItem value="internal" id="internal" />
+                        <Label htmlFor="internal">Interne</Label>
                       </div>
                     </RadioGroup>
                   </div>
@@ -240,9 +228,9 @@ const Auth = () => {
           <TabsContent value="register">
             <Card>
               <CardHeader>
-                <CardTitle>Créer un compte</CardTitle>
+                <CardTitle>Créer un compte client</CardTitle>
                 <CardDescription>
-                  Inscrivez-vous pour accéder à la plateforme
+                  Inscrivez-vous pour accéder à la plateforme en tant que client
                 </CardDescription>
               </CardHeader>
               <form onSubmit={handleSignUp}>
@@ -264,7 +252,7 @@ const Auth = () => {
                     <Label htmlFor="userTypeRegister">S'inscrire en tant que</Label>
                     <RadioGroup 
                       value={userTypeSelection} 
-                      onValueChange={(value) => setUserTypeSelection(value as "admin" | "client")}
+                      onValueChange={(value) => setUserTypeSelection(value as "client" | "internal")}
                       className="flex space-x-4"
                     >
                       <div className="flex items-center space-x-2">
@@ -272,8 +260,8 @@ const Auth = () => {
                         <Label htmlFor="clientRegister">Client</Label>
                       </div>
                       <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="admin" id="adminRegister" />
-                        <Label htmlFor="adminRegister">Administrateur</Label>
+                        <RadioGroupItem value="internal" id="internalRegister" />
+                        <Label htmlFor="internalRegister">Interne</Label>
                       </div>
                     </RadioGroup>
                   </div>

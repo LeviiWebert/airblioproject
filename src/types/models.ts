@@ -1,4 +1,3 @@
-
 import { DateRange } from "react-day-picker";
 
 export interface Client {
@@ -13,11 +12,12 @@ export interface Client {
 export interface Utilisateur {
   id: string;
   nom: string;
-  role: "technicien" | "responsable" | "admin";
+  role: "technicien" | "responsable" | "internal" | "admin";
   email: string;
   disponibilite: boolean;
   identifiant: string;
   mdp: string;
+  user_type?: "client" | "internal" | "admin";
 }
 
 export interface Equipe {
