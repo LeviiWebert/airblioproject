@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 const getAll = async () => {
@@ -290,7 +291,7 @@ const getByStatus = async (status) => {
 export const interventionService = {
   getAll,
   getById,
-  updateStatus,
+  updateStatus,  // Make sure updateStatus is included here
   assignTeam,
   assignEquipment,
   getAvailableEquipment,
