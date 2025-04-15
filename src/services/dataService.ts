@@ -1,5 +1,5 @@
 
-// Importer tous les services de Supabase
+// Import all services from Supabase
 import {
   clientService,
   utilisateurService,
@@ -14,7 +14,7 @@ import {
   dashboardService
 } from "./supabaseService";
 
-// Re-exporter tous les services
+// Re-export all services
 export {
   clientService,
   utilisateurService,

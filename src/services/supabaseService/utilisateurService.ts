@@ -1,20 +1,20 @@
 
 import { supabase } from '@/integrations/supabase/client';
 
-// Function to get all invoices
+// Function to get all users
 const getAll = async () => {
   const { data, error } = await supabase
-    .from('facturations')
+    .from('utilisateurs')
     .select('*');
   
   if (error) throw error;
   return data;
 };
 
-// Function to get an invoice by ID
+// Function to get a user by ID
 const getById = async (id: string) => {
   const { data, error } = await supabase
-    .from('facturations')
+    .from('utilisateurs')
     .select('*')
     .eq('id', id)
     .single();
@@ -24,7 +24,7 @@ const getById = async (id: string) => {
 };
 
 // Export the service functions
-export const facturationService = {
+export const utilisateurService = {
   getAll,
   getById
 };
