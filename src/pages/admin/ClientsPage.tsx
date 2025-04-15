@@ -1,7 +1,6 @@
 
-import { useEffect, useState } from "react";
+import { useState, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
-import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Plus, Users, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -9,51 +8,55 @@ import { Client } from "@/types/models";
 import AddClientDialog from "@/components/dialogs/AddClientDialog";
 import EditClientDialog from "@/components/dialogs/EditClientDialog";
 import DeleteClientDialog from "@/components/dialogs/DeleteClientDialog";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { clientService } from "@/services/dataService";
+import { SmallLoading } from "@/components/ui/loading";
 
 const ClientsPage = () => {
-  const [loading, setLoading] = useState(true);
-  const [clients, setClients] = useState<Client[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  const fetchClients = async () => {
-    setLoading(true);
-    try {
-      const { data, error } = await supabase
-        .from('clients')
-        .select('*');
-          
-      if (error) throw error;
-      
-      // Transform the data to match our Client type
-      const formattedData: Client[] = (data || []).map((client) => ({
-        id: client.id,
-        nomEntreprise: client.nom_entreprise,
-        email: client.email || '',
-        tel: client.tel || '',
-        identifiant: client.identifiant || '',
-        mdp: client.mdp || ''
-      }));
-      
-      setClients(formattedData);
-    } catch (error: any) {
-      console.error("Erreur lors du chargement des clients:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les clients.",
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
+  // Utiliser React Query pour récupérer les données des clients
+  const {
+    data: clients = [],
+    isLoading,
+    error
+  } = useQuery({
+    queryKey: ["clients"],
+    queryFn: async () => {
+      try {
+        const data = await clientService.getAll();
+        
+        // Transformer les données pour correspondre à notre type Client
+        return data.map((client) => ({
+          id: client.id,
+          nomEntreprise: client.nom_entreprise,
+          email: client.email || '',
+          tel: client.tel || '',
+          identifiant: client.identifiant || '',
+          mdp: client.mdp || ''
+        }));
+      } catch (error) {
+        console.error("Erreur lors du chargement des clients:", error);
+        throw error;
+      }
+    },
+    staleTime: 60000 // 1 minute
+  });
 
-  useEffect(() => {
-    fetchClients();
-  }, [toast]);
+  // Afficher les erreurs avec toast si nécessaire
+  if (error) {
+    console.error("Erreur de requête:", error);
+    toast({
+      variant: "destructive",
+      title: "Erreur de chargement",
+      description: "Impossible de charger les clients.",
+    });
+  }
 
   const handleEdit = (client: Client) => {
     setSelectedClient(client);
@@ -63,6 +66,10 @@ const ClientsPage = () => {
   const handleDelete = (client: Client) => {
     setSelectedClient(client);
     setIsDeleteDialogOpen(true);
+  };
+
+  const refreshClients = () => {
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 
   return (
@@ -83,7 +90,7 @@ const ClientsPage = () => {
         </Button>
       </div>
 
-      {loading ? (
+      {isLoading ? (
         <div className="flex items-center justify-center h-64">
           <div className="text-center">
             <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
@@ -145,7 +152,7 @@ const ClientsPage = () => {
       <AddClientDialog 
         open={isAddDialogOpen}
         onOpenChange={setIsAddDialogOpen}
-        onClientAdded={fetchClients}
+        onClientAdded={refreshClients}
       />
 
       {selectedClient && (
@@ -153,14 +160,14 @@ const ClientsPage = () => {
           <EditClientDialog
             open={isEditDialogOpen}
             onOpenChange={setIsEditDialogOpen}
-            onClientUpdated={fetchClients}
+            onClientUpdated={refreshClients}
             client={selectedClient}
           />
 
           <DeleteClientDialog
             open={isDeleteDialogOpen}
             onOpenChange={setIsDeleteDialogOpen}
-            onClientDeleted={fetchClients}
+            onClientDeleted={refreshClients}
             clientId={selectedClient.id}
             clientName={selectedClient.nomEntreprise}
           />

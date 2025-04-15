@@ -2,7 +2,7 @@
 import { supabase } from '@/integrations/supabase/client';
 
 // Function to get all clients
-const getAll = async () => {
+export const getAll = async () => {
   const { data, error } = await supabase
     .from('clients')
     .select('*');
@@ -12,7 +12,7 @@ const getAll = async () => {
 };
 
 // Function to get a client by ID
-const getById = async (id: string) => {
+export const getById = async (id: string) => {
   const { data, error } = await supabase
     .from('clients')
     .select('*')
