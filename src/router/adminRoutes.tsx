@@ -1,5 +1,6 @@
+
 import { lazy } from "react";
-import { Route, Outlet } from "react-router-dom";
+import { Route, Outlet, RouteObject } from "react-router-dom";
 import { BackOfficeLayout } from "@/components/layout/BackOfficeLayout";
 import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
 
@@ -19,32 +20,32 @@ const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 
-const adminRoutes = (
-  <Route 
-    path="/admin" 
-    element={
-      <ProtectedAdminRoute>
-        <BackOfficeLayout>
-          <Outlet />
-        </BackOfficeLayout>
-      </ProtectedAdminRoute>
-    }
-  >
-    <Route index element={<Dashboard />} />
-    <Route path="interventions" element={<InterventionsPage />} />
-    <Route path="interventions/new" element={<NewInterventionPage />} />
-    <Route path="intervention/:id" element={<AdminInterventionDetails />} />
-    <Route path="intervention-requests" element={<InterventionRequests />} />
-    <Route path="teams" element={<TeamsPage />} />
-    <Route path="equipment" element={<EquipmentPage />} />
-    <Route path="clients" element={<ClientsPage />} />
-    <Route path="reports" element={<ReportsPage />} />
-    <Route path="logistics" element={<LogisticsPage />} />
-    <Route path="billing" element={<BillingPage />} />
-    <Route path="pv/:id" element={<ProcessVerbalPage />} />
-    <Route path="statistics" element={<StatisticsPage />} />
-    <Route path="settings" element={<SettingsPage />} />
-  </Route>
-);
+// Convert Route to RouteObject for proper typing
+const adminRoutes: RouteObject = {
+  path: "/admin",
+  element: (
+    <ProtectedAdminRoute>
+      <BackOfficeLayout>
+        <Outlet />
+      </BackOfficeLayout>
+    </ProtectedAdminRoute>
+  ),
+  children: [
+    { index: true, element: <Dashboard /> },
+    { path: "interventions", element: <InterventionsPage /> },
+    { path: "interventions/new", element: <NewInterventionPage /> },
+    { path: "intervention/:id", element: <AdminInterventionDetails /> },
+    { path: "intervention-requests", element: <InterventionRequests /> },
+    { path: "teams", element: <TeamsPage /> },
+    { path: "equipment", element: <EquipmentPage /> },
+    { path: "clients", element: <ClientsPage /> },
+    { path: "reports", element: <ReportsPage /> },
+    { path: "logistics", element: <LogisticsPage /> },
+    { path: "billing", element: <BillingPage /> },
+    { path: "pv/:id", element: <ProcessVerbalPage /> },
+    { path: "statistics", element: <StatisticsPage /> },
+    { path: "settings", element: <SettingsPage /> }
+  ]
+};
 
 export default adminRoutes;

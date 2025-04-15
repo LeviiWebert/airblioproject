@@ -6,12 +6,12 @@ import { publicRoutes } from "./publicRoutes";
 import { authRoutes } from "./authRoutes";
 import NotFound from "@/pages/NotFound";
 
-// Convert route elements to RouteObject type
+// Convert route elements to RouteObject type correctly
 const routeObjects: RouteObject[] = [
-  ...publicRoutes,
-  ...authRoutes,
-  adminRoutes,
-  ...clientRoutes,
+  ...publicRoutes as RouteObject[],
+  ...authRoutes as RouteObject[],
+  adminRoutes as RouteObject,
+  ...clientRoutes as RouteObject[],
   {
     path: "*",
     element: <NotFound />
