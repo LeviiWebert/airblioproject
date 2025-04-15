@@ -1,4 +1,3 @@
-
 import { Bell, ChevronDown, Menu, Search, User, LogOut } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -29,9 +28,8 @@ export const TopNav = ({ toggleSidebar, sidebarOpen, onLogout }: TopNavProps) =>
             <Menu className="h-5 w-5" />
           </Button>
           <div className="ml-4 mr-8">
-            <h1 className="text-lg font-semibold">GestInt - Sous-Marine</h1>
+            <h1 className="text-lg font-semibold">e-AIRBLIO - Solutions sous-marines</h1>
           </div>
-          
           <div className="hidden md:flex items-center relative max-w-md">
             <Search className="absolute left-3 h-4 w-4 text-gray-400" />
             <Input 
@@ -40,7 +38,6 @@ export const TopNav = ({ toggleSidebar, sidebarOpen, onLogout }: TopNavProps) =>
             />
           </div>
         </div>
-
         <div className="flex items-center space-x-4">
           <div className="relative">
             <Button variant="ghost" size="icon" className="relative">
@@ -48,7 +45,6 @@ export const TopNav = ({ toggleSidebar, sidebarOpen, onLogout }: TopNavProps) =>
               <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-red-500"></span>
             </Button>
           </div>
-          
           <div className="hidden sm:block">
             <DropdownMenu>
               <DropdownMenuTrigger asChild>

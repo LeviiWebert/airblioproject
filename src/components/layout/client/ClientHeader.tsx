@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -37,7 +36,7 @@ export const ClientHeader = ({
             <Menu className="h-5 w-5" />
           </Button>
           <Link to="/client-dashboard" className="ml-4 mr-8">
-            <h1 className="text-lg font-semibold">GestInt - Client</h1>
+            <h1 className="text-lg font-semibold">e-AIRBLIO - Espace Client</h1>
           </Link>
           
           <div className="hidden md:flex items-center relative max-w-md">

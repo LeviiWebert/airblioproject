@@ -1,7 +1,6 @@
-
 import { Button } from "@/components/ui/button";
 import { Link, useNavigate, Navigate } from "react-router-dom";
-import { ArrowRight, Anchor, Shield, Clock, User } from "lucide-react";
+import { ArrowRight, Anchor, Shield, Clock, User, Ship } from "lucide-react";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
@@ -166,8 +165,8 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-primary">GestInt</h1>
-              <span className="ml-2 text-sm font-medium text-muted-foreground">Sous-Marine</span>
+              <h1 className="text-2xl font-bold text-primary">e-AIRBLIO</h1>
+              <span className="ml-2 text-sm font-medium text-muted-foreground">Solutions sous-marines</span>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
               {/* Only show these links for authenticated clients */}
@@ -219,12 +218,35 @@ const LandingPage = () => {
               </div>
             </div>
             <div className="md:w-1/2">
-              <div className="bg-gray-200 rounded-lg overflow-hidden h-80 md:h-96">
-                {/* Image placeholder */}
-                <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-400 to-blue-700 text-white">
-                  <div className="text-center p-6">
-                    <Anchor size={60} className="mx-auto mb-4" />
-                    <p className="font-medium">Image d'illustration d'intervention sous-marine</p>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="bg-blue-100 rounded-lg overflow-hidden h-48">
+                  <div className="w-full h-full relative bg-gradient-to-br from-blue-400 to-blue-700">
+                    <img 
+                      src="/images/underwater-equipment-1.jpg" 
+                      alt="Équipement sous-marin professionnel"
+                      className="object-cover w-full h-full opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                      <div className="text-white text-center p-4">
+                        <Ship className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-sm font-medium">Équipements professionnels</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-blue-100 rounded-lg overflow-hidden h-48">
+                  <div className="w-full h-full relative bg-gradient-to-br from-blue-400 to-blue-700">
+                    <img 
+                      src="/images/underwater-equipment-2.jpg" 
+                      alt="Matériel d'intervention sous-marine"
+                      className="object-cover w-full h-full opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                      <div className="text-white text-center p-4">
+                        <Anchor className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-sm font-medium">Matériel spécialisé</p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
@@ -321,7 +343,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-bold mb-4">GestInt Sous-Marine</h3>
+              <h3 className="text-lg font-bold mb-4">e-AIRBLIO</h3>
               <p className="text-gray-400">
                 Solutions professionnelles d'intervention sous-marine pour tous vos projets industriels et maritimes.
               </p>
