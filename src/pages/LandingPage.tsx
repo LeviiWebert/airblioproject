@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
@@ -166,7 +165,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <h1 className="text-2xl font-bold text-primary">e-AIRBLIO</h1>
+              <h1 className="text-2xl font-bold text-primary">Airblio</h1>
               <span className="ml-2 text-sm font-medium text-muted-foreground">Solutions sous-marines</span>
             </div>
             <nav className="hidden md:flex items-center space-x-6">
@@ -374,7 +373,7 @@ const LandingPage = () => {
         <div className="container mx-auto px-4 py-12">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
             <div>
-              <h3 className="text-lg font-bold mb-4">e-AIRBLIO</h3>
+              <h3 className="text-lg font-bold mb-4">Airblio</h3>
               <p className="text-gray-400">
                 Solutions professionnelles d'intervention sous-marine pour tous vos projets industriels et maritimes.
               </p>
@@ -414,7 +413,7 @@ const LandingPage = () => {
             </div>
           </div>
           <div className="border-t border-gray-700 mt-8 pt-8 text-center text-gray-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} GestInt Sous-Marine. Tous droits réservés.</p>
+            <p>&copy; {new Date().getFullYear()} Airblio. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

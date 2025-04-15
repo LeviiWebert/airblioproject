@@ -119,7 +119,7 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
     >
       <div className="flex flex-col h-full">
         <div className="py-6 px-4 border-b border-sidebar-border">
-          <h2 className="text-xl font-bold">Back Office</h2>
+          <h2 className="text-xl font-bold">Airblio</h2>
           <p className="text-sm opacity-70">Gestion des interventions</p>
         </div>
 
