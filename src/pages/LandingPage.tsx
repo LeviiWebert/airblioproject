@@ -1,7 +1,8 @@
+
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate, Navigate } from 'react-router-dom';
 import { Button } from "@/components/ui/button";
-import { Link, useNavigate, Navigate } from "react-router-dom";
-import { ArrowRight, Anchor, Shield, Clock, User, Ship } from "lucide-react";
-import { useEffect, useState } from "react";
+import { ArrowRight, Anchor, Shield, Clock, User, Ship, Tools, Submarine } from "lucide-react";
 import { supabase } from "@/integrations/supabase/client";
 import { Session } from "@supabase/supabase-js";
 import { isAdminUser } from "@/utils/authUtils";
@@ -245,6 +246,36 @@ const LandingPage = () => {
                       <div className="text-white text-center p-4">
                         <Anchor className="w-8 h-8 mx-auto mb-2" />
                         <p className="text-sm font-medium">Matériel spécialisé</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-blue-100 rounded-lg overflow-hidden h-48">
+                  <div className="w-full h-full relative bg-gradient-to-br from-blue-400 to-blue-700">
+                    <img 
+                      src="/images/underwater-equipment-3.jpg" 
+                      alt="Outils techniques sous-marins"
+                      className="object-cover w-full h-full opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                      <div className="text-white text-center p-4">
+                        <Tools className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-sm font-medium">Outils techniques</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                <div className="bg-blue-100 rounded-lg overflow-hidden h-48">
+                  <div className="w-full h-full relative bg-gradient-to-br from-blue-400 to-blue-700">
+                    <img 
+                      src="/images/underwater-equipment-4.jpg" 
+                      alt="Équipement d'intervention sous-marine"
+                      className="object-cover w-full h-full opacity-80"
+                    />
+                    <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-20">
+                      <div className="text-white text-center p-4">
+                        <Submarine className="w-8 h-8 mx-auto mb-2" />
+                        <p className="text-sm font-medium">Intervention sous-marine</p>
                       </div>
                     </div>
                   </div>
