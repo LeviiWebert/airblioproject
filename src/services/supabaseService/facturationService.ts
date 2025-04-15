@@ -37,7 +37,7 @@ export interface FacturationWithDetails {
 }
 
 // Function to get all invoices with details
-const getFacturations = async (): Promise<FacturationWithDetails[]> => {
+export const getFacturations = async (): Promise<FacturationWithDetails[]> => {
   const { data, error } = await supabase
     .from('facturations')
     .select(`
@@ -76,11 +76,17 @@ const getFacturations = async (): Promise<FacturationWithDetails[]> => {
 
           return {
             ...facturation,
-            client: clientData
+            client: clientData,
+            // Ensuring statut_paiement is one of the allowed values
+            statut_paiement: (facturation.statut_paiement as "en_attente" | "payée" | "annulée") || "en_attente"
           };
         }
       }
-      return facturation;
+      return {
+        ...facturation,
+        // Ensuring statut_paiement is one of the allowed values
+        statut_paiement: (facturation.statut_paiement as "en_attente" | "payée" | "annulée") || "en_attente"
+      };
     })
   );
 
@@ -88,7 +94,7 @@ const getFacturations = async (): Promise<FacturationWithDetails[]> => {
 };
 
 // Function to get an invoice by ID
-const getById = async (id: string): Promise<FacturationWithDetails> => {
+export const getById = async (id: string): Promise<FacturationWithDetails> => {
   const { data, error } = await supabase
     .from('facturations')
     .select(`
@@ -127,21 +133,30 @@ const getById = async (id: string): Promise<FacturationWithDetails> => {
 
       return {
         ...data,
-        client: clientData
+        client: clientData,
+        // Ensuring statut_paiement is one of the allowed values
+        statut_paiement: (data.statut_paiement as "en_attente" | "payée" | "annulée") || "en_attente"
       };
     }
   }
 
-  return data as FacturationWithDetails;
+  return {
+    ...data,
+    // Ensuring statut_paiement is one of the allowed values
+    statut_paiement: (data.statut_paiement as "en_attente" | "payée" | "annulée") || "en_attente"
+  } as FacturationWithDetails;
 };
 
 // Function to create an invoice
-const createFacturation = async (formData: FacturationFormData): Promise<string> => {
+export const createFacturation = async (formData: FacturationFormData): Promise<string> => {
+  // Convert Date to ISO string for Supabase
+  const dateFacturation = formData.date_facturation.toISOString();
+  
   // 1. Insert the main facturation record
   const { data: facturationData, error: facturationError } = await supabase
     .from('facturations')
     .insert({
-      date_facturation: formData.date_facturation,
+      date_facturation: dateFacturation,
       montant_total: formData.montant_total || 0,
       intervention_id: formData.intervention_id,
       statut_paiement: formData.statut_paiement
@@ -177,12 +192,15 @@ const createFacturation = async (formData: FacturationFormData): Promise<string>
 };
 
 // Function to update an invoice
-const updateFacturation = async (id: string, formData: FacturationFormData): Promise<void> => {
+export const updateFacturation = async (id: string, formData: FacturationFormData): Promise<void> => {
+  // Convert Date to ISO string for Supabase
+  const dateFacturation = formData.date_facturation.toISOString();
+  
   // 1. Update the main facturation record
   const { error: facturationError } = await supabase
     .from('facturations')
     .update({
-      date_facturation: formData.date_facturation,
+      date_facturation: dateFacturation,
       montant_total: formData.montant_total || 0,
       statut_paiement: formData.statut_paiement
     })
@@ -214,7 +232,7 @@ const updateFacturation = async (id: string, formData: FacturationFormData): Pro
 };
 
 // Function to delete an invoice
-const deleteFacturation = async (id: string): Promise<void> => {
+export const deleteFacturation = async (id: string): Promise<void> => {
   // 1. First, delete all associated details
   const { error: detailsError } = await supabase
     .from('details_facturation')
@@ -241,7 +259,7 @@ const deleteFacturation = async (id: string): Promise<void> => {
 };
 
 // Function to get interventions for selection
-const getInterventionsForSelection = async (): Promise<Array<{ id: string; label: string }>> => {
+export const getInterventionsForSelection = async (): Promise<Array<{ id: string; label: string }>> => {
   // Get all completed interventions that don't have a facturation yet
   const { data, error } = await supabase
     .from('interventions')
@@ -292,9 +310,8 @@ const getInterventionsForSelection = async (): Promise<Array<{ id: string; label
 
 // Export the service functions
 export const facturationService = {
-  getAll,
-  getById,
   getFacturations,
+  getById,
   createFacturation,
   updateFacturation,
   deleteFacturation,

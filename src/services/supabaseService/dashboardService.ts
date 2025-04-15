@@ -8,8 +8,7 @@ const getStats = async (): Promise<DashboardStats> => {
   // Get count of interventions by status
   const { data: interventionStatusData, error: interventionError } = await supabase
     .from('interventions')
-    .select('statut')
-    .is('statut', 'not.null');
+    .select('statut');
   
   // Get count of teams
   const { data: equipesData, error: equipesError } = await supabase
