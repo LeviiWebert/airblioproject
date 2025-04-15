@@ -1,1020 +1,449 @@
-import { useEffect, useState } from "react";
+
+import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { 
-  ArrowLeft, 
-  Calendar, 
-  Clock, 
-  FileText, 
-  MapPin, 
-  MessageSquare, 
-  User, 
-  Wrench, 
-  Clipboard, 
-  CheckCircle,
-  AlertTriangle,
-  Info,
-  ExternalLink,
-  Printer,
-  Edit
-} from "lucide-react";
+import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ArrowLeft, Calendar, Users, Wrench, MapPin, Truck, FileText, Clipboard, AlertCircle, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { Separator } from "@/components/ui/separator";
-import { useToast } from "@/hooks/use-toast";
+import { interventionService } from "@/services/dataService";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
-import { SmallLoading } from "@/components/ui/loading";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { toast } from "sonner";
-import { 
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-  DialogFooter
-} from "@/components/ui/dialog";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import { Label } from "@/components/ui/label";
-import { Checkbox } from "@/components/ui/checkbox";
-import { interventionService } from "@/services/supabaseService/interventionService";
-import { supabase } from "@/integrations/supabase/client";
-
-interface Client {
-  id: string;
-  nom_entreprise: string;
-  email: string;
-  tel: string;
-}
-
-interface Team {
-  id: string;
-  nom: string;
-  specialisation: string | null;
-}
-
-interface Equipment {
-  id: string;
-  reference: string;
-  type_materiel: string;
-  etat: string;
-}
-
-interface PVIntervention {
-  id: string;
-  validation_client: boolean | null;
-  date_validation: string | null;
-  commentaire: string | null;
-}
-
-interface Intervention {
-  id: string;
-  date_debut: string | null;
-  date_fin: string | null;
-  rapport: string | null;
-  statut: string;
-  localisation: string;
-  demande_intervention_id: string;
-  pv_intervention_id: string | null;
-  teams?: Team[];
-  equipment?: Equipment[];
-  pv_interventions?: PVIntervention;
-  created_at: string;
-  updated_at: string;
-}
-
-interface DemandeIntervention {
-  id: string;
-  description: string;
-  date_demande: string;
-  urgence: string;
-  statut: string;
-  client_id: string;
-  client?: Client;
-  intervention?: Intervention;
-}
-
-interface HistoryItem {
-  date: string;
-  type: string;
-  text: string;
-  status: string;
-  commentaire?: string;
-}
+import { useToast } from "@/hooks/use-toast";
+import AssignEquipmentDialog from "@/components/dialogs/AssignEquipmentDialog";
 
 const AdminInterventionDetails = () => {
-  const { id } = useParams<{ id: string }>();
+  const { id } = useParams();
   const navigate = useNavigate();
   const { toast } = useToast();
-  const [demande, setDemande] = useState<DemandeIntervention | null>(null);
-  const [intervention, setIntervention] = useState<Intervention | null>(null);
+  const [intervention, setIntervention] = useState<any>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState("details");
-  const [history, setHistory] = useState<HistoryItem[]>([]);
-  
-  const [isTeamDialogOpen, setIsTeamDialogOpen] = useState(false);
-  const [isEquipmentDialogOpen, setIsEquipmentDialogOpen] = useState(false);
-  const [selectedTeam, setSelectedTeam] = useState<string | null>(null);
-  const [availableTeams, setAvailableTeams] = useState<Team[]>([]);
-  const [availableEquipment, setAvailableEquipment] = useState<Equipment[]>([]);
-  const [selectedEquipment, setSelectedEquipment] = useState<string[]>([]);
-  const [isUpdating, setIsUpdating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [isAssignEquipmentDialogOpen, setIsAssignEquipmentDialogOpen] = useState(false);
+
+  const fetchInterventionDetails = async () => {
+    if (!id) return;
+    
+    setLoading(true);
+    setError(null);
+    
+    try {
+      const data = await interventionService.getById(id);
+      setIntervention(data);
+      console.log("Intervention details:", data);
+    } catch (error: any) {
+      console.error("Erreur lors de la récupération des détails de l'intervention:", error);
+      setError("Impossible de charger les détails de l'intervention.");
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de charger les détails de l'intervention.",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    const fetchInterventionDetails = async () => {
-      try {
-        if (!id) return;
-        
-        setLoading(true);
-        
-        const interventionData = await interventionService.getById(id);
-        
-        if (!interventionData) {
-          setLoading(false);
-          return;
-        }
-        
-        setIntervention(interventionData);
-        
-        if (!interventionData.demande) {
-          console.warn("Demande d'intervention non trouvée pour l'ID:", interventionData.demande_intervention_id);
-        } else {
-          setDemande(interventionData.demande);
-        }
-        
-        const history: HistoryItem[] = [];
-        
-        if (interventionData.demande) {
-          history.push({
-            date: interventionData.demande.date_demande,
-            type: 'creation',
-            text: `Demande d'intervention créée par ${interventionData.demande.client?.nom_entreprise || 'Client'}`,
-            status: interventionData.demande.statut
-          });
-        }
-        
-        history.push({
-          date: interventionData.created_at,
-          type: 'intervention',
-          text: `Intervention planifiée${interventionData.date_debut ? ` pour le ${format(new Date(interventionData.date_debut), "dd MMMM yyyy", { locale: fr })}` : ''}`,
-          status: interventionData.statut
-        });
-        
-        if (interventionData.teams && interventionData.teams.length > 0) {
-          history.push({
-            date: interventionData.updated_at,
-            type: 'team',
-            text: `Équipe${interventionData.teams.length > 1 ? 's' : ''} assignée${interventionData.teams.length > 1 ? 's' : ''} : ${interventionData.teams.map(t => t.nom).join(', ')}`,
-            status: interventionData.statut
-          });
-        }
-        
-        if (interventionData.equipment && interventionData.equipment.length > 0) {
-          history.push({
-            date: interventionData.updated_at,
-            type: 'equipment',
-            text: `Équipement${interventionData.equipment.length > 1 ? 's' : ''} assigné${interventionData.equipment.length > 1 ? 's' : ''} : ${interventionData.equipment.map(e => e.reference).join(', ')}`,
-            status: interventionData.statut
-          });
-        }
-        
-        if (interventionData.pv_intervention_id) {
-          history.push({
-            date: interventionData.updated_at,
-            type: 'pv',
-            text: `Procès-verbal créé`,
-            status: interventionData.statut
-          });
-          
-          if (interventionData.pv_interventions) {
-            if (interventionData.pv_interventions.validation_client !== null) {
-              const validationStatus = interventionData.pv_interventions.validation_client ? 'pv_validated' : 'pv_rejected';
-              const validationText = interventionData.pv_interventions.validation_client 
-                ? 'Procès-verbal validé par le client' 
-                : 'Procès-verbal refusé par le client';
-              
-              if (interventionData.pv_interventions.commentaire) {
-                history.push({
-                  date: interventionData.pv_interventions.date_validation,
-                  type: validationStatus,
-                  text: validationText + (interventionData.pv_interventions.commentaire ? ` avec commentaire` : ''),
-                  status: interventionData.statut,
-                  commentaire: interventionData.pv_interventions.commentaire
-                });
-              } else {
-                history.push({
-                  date: interventionData.pv_interventions.date_validation,
-                  type: validationStatus,
-                  text: validationText,
-                  status: interventionData.statut
-                });
-              }
-            }
-          }
-        }
-        
-        if (interventionData.statut === 'terminée') {
-          history.push({
-            date: interventionData.date_fin || interventionData.updated_at,
-            type: 'completion',
-            text: `Intervention terminée`,
-            status: 'terminée'
-          });
-        }
-        
-        history.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-        setHistory(history);
-        
-        const teamsData = await interventionService.getAvailableTeams();
-        setAvailableTeams(teamsData);
-        
-        const equipmentData = await interventionService.getAvailableEquipment();
-        setAvailableEquipment(equipmentData);
-        
-      } catch (error) {
-        console.error("Erreur lors du chargement de l'intervention:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur",
-          description: "Impossible de charger les détails de l'intervention."
-        });
-        navigate('/admin/interventions');
-      } finally {
-        setLoading(false);
-      }
-    };
-
     fetchInterventionDetails();
-  }, [id, navigate, toast]);
+  }, [id]);
 
-  const handleCreatePV = async () => {
-    if (!intervention || !demande) return;
+  const handleStatusChange = async (newStatus: string) => {
+    if (!id) return;
     
     try {
-      const { data: pvData, error: pvError } = await supabase
-        .from('pv_interventions')
-        .insert({
-          intervention_id: intervention.id,
-          client_id: demande.client_id,
-          validation_client: null,
-          commentaire: null
-        })
-        .select('id')
-        .single();
+      await interventionService.updateStatus(id, newStatus);
       
-      if (pvError) throw pvError;
+      toast({
+        title: "Statut mis à jour",
+        description: `Le statut de l'intervention a été mis à jour avec succès.`,
+      });
       
-      const { error: updateError } = await supabase
-        .from('interventions')
-        .update({ pv_intervention_id: pvData.id })
-        .eq('id', intervention.id);
-      
-      if (updateError) throw updateError;
-      
-      toast({ title: "Succès", description: "Le PV a été créé avec succès." });
-      
-      window.location.reload();
-      
-    } catch (error) {
-      console.error("Erreur lors de la création du PV:", error);
+      fetchInterventionDetails();
+    } catch (error: any) {
+      console.error("Erreur lors de la mise à jour du statut:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: "Impossible de créer le PV."
+        description: "Impossible de mettre à jour le statut de l'intervention.",
       });
     }
   };
 
-  const handleViewPV = () => {
-    if (intervention?.pv_intervention_id) {
-      navigate(`/admin/pv/${intervention.pv_intervention_id}`);
-    }
-  };
-  
-  const handleEditIntervention = () => {
-    navigate(`/admin/interventions/new?edit=${id}`);
-  };
-  
-  const handlePrintIntervention = () => {
+  const handleEquipmentAssigned = () => {
     toast({
-      title: "Impression",
-      description: "Préparation du document PDF en cours...",
+      title: "Matériel assigné",
+      description: "Le matériel a été assigné avec succès à l'intervention.",
     });
-    // Logique d'impression à implémenter
-  };
-
-  const handleAssignTeam = async () => {
-    if (!intervention || !selectedTeam) return;
-    
-    setIsUpdating(true);
-    
-    try {
-      await interventionService.assignTeam(intervention.id, selectedTeam);
-      
-      toast({
-        title: "Équipe assignée",
-        description: "L'équipe a été assignée avec succès."
-      });
-      
-      setIsTeamDialogOpen(false);
-      
-      const updatedIntervention = await interventionService.getById(intervention.id);
-      if (updatedIntervention) {
-        setIntervention(updatedIntervention);
-        
-        if (updatedIntervention.teams && updatedIntervention.teams.length > 0) {
-          const teamHistory = {
-            date: updatedIntervention.updated_at,
-            type: 'team',
-            text: `Équipe${updatedIntervention.teams.length > 1 ? 's' : ''} assignée${updatedIntervention.teams.length > 1 ? 's' : ''} : ${updatedIntervention.teams.map(t => t.nom).join(', ')}`,
-            status: updatedIntervention.statut
-          };
-          
-          setHistory(prev => {
-            const newHistory = [...prev.filter(h => h.type !== 'team'), teamHistory];
-            return newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          });
-        }
-      }
-      
-    } catch (error) {
-      console.error("Erreur lors de l'assignation de l'équipe:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d'assigner l'équipe."
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-  
-  const handleAssignEquipment = async () => {
-    if (!intervention || selectedEquipment.length === 0) return;
-    
-    setIsUpdating(true);
-    
-    try {
-      await interventionService.assignEquipment(intervention.id, selectedEquipment);
-      
-      toast({
-        title: "Matériel assigné",
-        description: "Le matériel a été assigné avec succès."
-      });
-      
-      setIsEquipmentDialogOpen(false);
-      
-      const updatedIntervention = await interventionService.getById(intervention.id);
-      if (updatedIntervention) {
-        setIntervention(updatedIntervention);
-        
-        if (updatedIntervention.equipment && updatedIntervention.equipment.length > 0) {
-          const equipmentHistory = {
-            date: updatedIntervention.updated_at,
-            type: 'equipment',
-            text: `Équipement${updatedIntervention.equipment.length > 1 ? 's' : ''} assigné${updatedIntervention.equipment.length > 1 ? 's' : ''} : ${updatedIntervention.equipment.map(e => e.reference).join(', ')}`,
-            status: updatedIntervention.statut
-          };
-          
-          setHistory(prev => {
-            const newHistory = [...prev.filter(h => h.type !== 'equipment'), equipmentHistory];
-            return newHistory.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-          });
-        }
-        
-        const equipmentData = await interventionService.getAvailableEquipment();
-        setAvailableEquipment(equipmentData);
-      }
-      
-    } catch (error) {
-      console.error("Erreur lors de l'assignation du matériel:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur",
-        description: "Impossible d'assigner le matériel."
-      });
-    } finally {
-      setIsUpdating(false);
-    }
-  };
-
-  const formatDate = (dateString: string | null) => {
-    if (!dateString) return "Non définie";
-    return format(new Date(dateString), "dd MMMM yyyy à HH:mm", { locale: fr });
+    fetchInterventionDetails();
   };
 
   if (loading) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <div className="flex justify-center">
-          <SmallLoading />
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Chargement des détails de l'intervention...</p>
         </div>
       </div>
     );
   }
 
-  if (!intervention) {
+  if (error || !intervention) {
     return (
-      <div className="container mx-auto py-8 px-4">
-        <Card>
-          <CardContent className="p-8 text-center">
-            <Info className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
-            <h2 className="text-xl font-semibold mb-2">Intervention non trouvée</h2>
-            <p className="text-muted-foreground mb-4">
-              Désolé, l'intervention que vous recherchez n'existe pas ou a été supprimée.
-            </p>
-            <Button onClick={() => navigate('/admin/interventions')}>
-              Retour aux interventions
-            </Button>
-          </CardContent>
-        </Card>
+      <div className="rounded-md border p-8 text-center">
+        <AlertCircle className="h-10 w-10 text-red-500 mx-auto mb-4" />
+        <h3 className="text-lg font-medium mb-2">Erreur de chargement</h3>
+        <p className="text-muted-foreground mb-4">{error || "Intervention non trouvée"}</p>
+        <Button onClick={() => navigate(-1)}>
+          <ArrowLeft className="mr-2 h-4 w-4" />
+          Retour
+        </Button>
       </div>
     );
   }
 
-  const canModify = !intervention || intervention.statut !== 'terminée';
+  const formatDate = (date: string | null) => {
+    if (!date) return "Non définie";
+    return format(new Date(date), "dd MMMM yyyy à HH:mm", { locale: fr });
+  };
 
   return (
-    <div className="container mx-auto py-8 px-4">
-      <div className="mb-8 flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate('/admin/interventions')}>
-          <ArrowLeft className="mr-2 h-4 w-4" />
-          Retour aux interventions
-        </Button>
+    <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center space-x-4">
+          <Button variant="ghost" onClick={() => navigate(-1)}>
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Retour
+          </Button>
+          <div>
+            <h1 className="text-2xl font-bold tracking-tight">Détails de l'intervention</h1>
+            <p className="text-muted-foreground">
+              Référence: {intervention.id.substring(0, 8).toUpperCase()}
+            </p>
+          </div>
+        </div>
         
         <div className="flex gap-2">
-          <Button variant="outline" onClick={handlePrintIntervention}>
-            <Printer className="mr-2 h-4 w-4" />
-            Imprimer
+          <Button
+            variant="outline"
+            onClick={() => setIsAssignEquipmentDialogOpen(true)}
+          >
+            <Wrench className="mr-2 h-4 w-4" />
+            Assigner du matériel
           </Button>
           
-          {canModify && (
-            <Button onClick={handleEditIntervention}>
-              <Edit className="mr-2 h-4 w-4" />
-              Modifier
-            </Button>
-          )}
-          
-          {intervention && intervention.statut === 'terminée' && !intervention.pv_intervention_id && (
-            <Button onClick={handleCreatePV}>
-              <FileText className="mr-2 h-4 w-4" />
-              Créer un PV d'intervention
-            </Button>
-          )}
-          
-          {intervention && intervention.pv_intervention_id && (
-            <Button onClick={handleViewPV}>
-              <ExternalLink className="mr-2 h-4 w-4" />
-              Voir le PV d'intervention
-            </Button>
-          )}
+          <Button
+            onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}
+          >
+            Modifier
+          </Button>
         </div>
       </div>
-
-      <div className="grid gap-6 md:grid-cols-3">
+      
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle className="flex justify-between items-center">
-                <span>Intervention #{demande.id.substring(0, 8).toUpperCase()}</span>
-                <div className="flex space-x-2">
-                  <InterventionStatusBadge status={intervention ? intervention.statut : demande.statut} />
-                  <PriorityBadge priority={demande.urgence} />
-                </div>
+              <CardTitle className="flex items-center">
+                <Clipboard className="mr-2 h-5 w-5" />
+                Informations générales
               </CardTitle>
-              <CardDescription>
-                Demande du {format(new Date(demande.date_demande), "dd MMMM yyyy", { locale: fr })}
-              </CardDescription>
             </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Statut</h3>
+                  <div className="mt-1">
+                    <InterventionStatusBadge status={intervention.statut} />
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Client</h3>
+                  <p className="mt-1">{intervention.demande?.client?.nom_entreprise || "Non assigné"}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Date de début</h3>
+                  <p className="mt-1">{formatDate(intervention.date_debut)}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Date de fin</h3>
+                  <p className="mt-1">{formatDate(intervention.date_fin)}</p>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Niveau d'urgence</h3>
+                  <div className="mt-1">
+                    <PriorityBadge priority={intervention.demande?.urgence || "moyenne"} />
+                  </div>
+                </div>
+                
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">
+                    <span className="flex items-center">
+                      <MapPin className="mr-1 h-4 w-4" /> Localisation
+                    </span>
+                  </h3>
+                  <p className="mt-1">{intervention.localisation || "Non définie"}</p>
+                </div>
+              </div>
+              
+              <div>
+                <h3 className="text-sm font-medium text-muted-foreground">Description de la demande</h3>
+                <p className="mt-1 text-sm whitespace-pre-line">
+                  {intervention.demande?.description || "Aucune description disponible"}
+                </p>
+              </div>
+            </CardContent>
+          </Card>
+          
+          <Tabs defaultValue="teams">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="teams">Équipes</TabsTrigger>
+              <TabsTrigger value="equipment">Matériel</TabsTrigger>
+              <TabsTrigger value="report">Rapport</TabsTrigger>
+            </TabsList>
             
-            <CardContent>
-              <Tabs defaultValue="details" onValueChange={setActiveTab} value={activeTab}>
-                <TabsList className="mb-4 grid grid-cols-3">
-                  <TabsTrigger value="details">Détails</TabsTrigger>
-                  <TabsTrigger value="teams">Équipes & Matériel</TabsTrigger>
-                  <TabsTrigger value="history">Historique</TabsTrigger>
-                </TabsList>
-                
-                <TabsContent value="details">
-                  <div className="space-y-6">
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Informations client</h3>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        <div className="flex items-start">
-                          <User className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                          <div>
-                            <p className="font-medium">Client</p>
-                            <p className="text-muted-foreground">{demande.client?.nom_entreprise || "Non spécifié"}</p>
-                          </div>
-                        </div>
-                        <div className="flex items-start">
-                          <MessageSquare className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                          <div>
-                            <p className="font-medium">Contact</p>
-                            <p className="text-muted-foreground">{demande.client?.email || "Non spécifié"}</p>
-                            <p className="text-muted-foreground">{demande.client?.tel || "Non spécifié"}</p>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    <Separator />
-                    
-                    <div>
-                      <h3 className="text-lg font-semibold mb-3">Description de la demande</h3>
-                      <div className="bg-muted p-4 rounded-md">
-                        <p className="whitespace-pre-line">{demande.description}</p>
-                      </div>
-                    </div>
-                    
-                    {intervention && (
-                      <>
-                        <Separator />
-                        
-                        <div>
-                          <h3 className="text-lg font-semibold mb-3">Détails de l'intervention</h3>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                            <div className="flex items-start">
-                              <Clock className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                              <div>
-                                <p className="font-medium">Date de début</p>
-                                <p className="text-muted-foreground">{formatDate(intervention.date_debut)}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start">
-                              <Calendar className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                              <div>
-                                <p className="font-medium">Date de fin</p>
-                                <p className="text-muted-foreground">{formatDate(intervention.date_fin)}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start">
-                              <MapPin className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                              <div>
-                                <p className="font-medium">Localisation</p>
-                                <p className="text-muted-foreground">{intervention.localisation || "Non spécifiée"}</p>
-                              </div>
-                            </div>
-                            <div className="flex items-start">
-                              <FileText className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                              <div>
-                                <p className="font-medium">Statut de l'intervention</p>
-                                <div className="mt-1">
-                                  <InterventionStatusBadge status={intervention.statut} />
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                        
-                        {intervention.rapport && (
-                          <div>
-                            <h3 className="text-lg font-semibold mb-3">Rapport d'intervention</h3>
-                            <div className="bg-muted p-4 rounded-md">
-                              <p className="whitespace-pre-line">{intervention.rapport}</p>
-                            </div>
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="teams">
-                  <div className="space-y-6">
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold mb-3">Équipes assignées</h3>
-                      {canModify && (
-                        <Dialog open={isTeamDialogOpen} onOpenChange={setIsTeamDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button size="sm">
-                              <User className="mr-2 h-4 w-4" />
-                              Assigner une équipe
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent>
-                            <DialogHeader>
-                              <DialogTitle>Assigner une équipe</DialogTitle>
-                              <DialogDescription>
-                                Sélectionnez l'équipe à assigner à cette intervention.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4">
-                              <Label htmlFor="team-select">Équipe</Label>
-                              <Select onValueChange={setSelectedTeam} value={selectedTeam || undefined}>
-                                <SelectTrigger id="team-select">
-                                  <SelectValue placeholder="Sélectionner une équipe" />
-                                </SelectTrigger>
-                                <SelectContent>
-                                  {availableTeams.map((team) => (
-                                    <SelectItem key={team.id} value={team.id}>
-                                      {team.nom} {team.specialisation ? `(${team.specialisation})` : ''}
-                                    </SelectItem>
-                                  ))}
-                                </SelectContent>
-                              </Select>
-                            </div>
-                            <DialogFooter>
-                              <Button variant="outline" onClick={() => setIsTeamDialogOpen(false)}>
-                                Annuler
-                              </Button>
-                              <Button onClick={handleAssignTeam} disabled={!selectedTeam || isUpdating}>
-                                {isUpdating ? "Assignation..." : "Assigner l'équipe"}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                    
-                    {intervention?.teams && intervention.teams.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {intervention.teams.map((team) => (
-                          <Card key={team.id} className="bg-muted/50">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-base">{team.nom}</CardTitle>
-                              <CardDescription>{team.specialisation || "Équipe technique"}</CardDescription>
-                            </CardHeader>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <User className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                        <h3 className="text-lg font-medium mb-1">Aucune équipe assignée</h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">
-                          Cette intervention n'a pas encore d'équipe assignée ou est en attente de planification.
-                        </p>
-                      </div>
-                    )}
-                    
-                    <Separator />
-                    
-                    <div className="flex justify-between items-center">
-                      <h3 className="text-lg font-semibold mb-3">Matériel utilisé</h3>
-                      {canModify && (
-                        <Dialog open={isEquipmentDialogOpen} onOpenChange={setIsEquipmentDialogOpen}>
-                          <DialogTrigger asChild>
-                            <Button size="sm">
-                              <Wrench className="mr-2 h-4 w-4" />
-                              Assigner du matériel
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="sm:max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Assigner du matériel</DialogTitle>
-                              <DialogDescription>
-                                Sélectionnez le matériel à utiliser pour cette intervention.
-                              </DialogDescription>
-                            </DialogHeader>
-                            <ScrollArea className="h-72 mt-4">
-                              <div className="space-y-4">
-                                {availableEquipment.map((equip) => (
-                                  <div key={equip.id} className="flex items-center space-x-2">
-                                    <Checkbox 
-                                      id={`equip-${equip.id}`} 
-                                      checked={selectedEquipment.includes(equip.id)}
-                                      onCheckedChange={(checked) => {
-                                        if (checked) {
-                                          setSelectedEquipment([...selectedEquipment, equip.id]);
-                                        } else {
-                                          setSelectedEquipment(selectedEquipment.filter(id => id !== equip.id));
-                                        }
-                                      }}
-                                    />
-                                    <Label htmlFor={`equip-${equip.id}`} className="flex-1">
-                                      <div className="font-medium">{equip.reference}</div>
-                                      <div className="text-sm text-muted-foreground">{equip.type_materiel}</div>
-                                    </Label>
-                                  </div>
-                                ))}
-                                
-                                {availableEquipment.length === 0 && (
-                                  <div className="text-center py-4">
-                                    <p className="text-muted-foreground">Aucun matériel disponible</p>
-                                  </div>
-                                )}
-                              </div>
-                            </ScrollArea>
-                            <DialogFooter className="mt-4">
-                              <Button variant="outline" onClick={() => setIsEquipmentDialogOpen(false)}>
-                                Annuler
-                              </Button>
-                              <Button 
-                                onClick={handleAssignEquipment}
-                                disabled={selectedEquipment.length === 0 || isUpdating}
-                              >
-                                {isUpdating ? "Assignation..." : "Assigner le matériel"}
-                              </Button>
-                            </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
-                      )}
-                    </div>
-                    
-                    {intervention?.equipment && intervention.equipment.length > 0 ? (
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                        {intervention.equipment.map((item) => (
-                          <Card key={item.id} className="bg-muted/50">
-                            <CardHeader className="pb-2">
-                              <CardTitle className="text-base">{item.reference}</CardTitle>
-                              <CardDescription>Type: {item.type_materiel}</CardDescription>
-                            </CardHeader>
-                            <CardContent>
-                              <Badge variant={item.etat === "disponible" ? "default" : 
-                                item.etat === "en utilisation" ? "outline" : "destructive"}>
-                                {item.etat}
-                              </Badge>
-                            </CardContent>
-                          </Card>
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-6">
-                        <Wrench className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                        <h3 className="text-lg font-medium mb-1">Aucun matériel assigné</h3>
-                        <p className="text-muted-foreground max-w-md mx-auto">
-                          Cette intervention n'a pas encore de matériel assigné ou est en attente de planification.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                </TabsContent>
-                
-                <TabsContent value="history">
-                  <div className="space-y-4">
-                    <h3 className="text-lg font-semibold mb-3">Historique de l'intervention</h3>
+            <TabsContent value="teams" className="space-y-4 pt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center">
+                    <Users className="mr-2 h-5 w-5" />
+                    Équipes assignées
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {intervention.teams && intervention.teams.length > 0 ? (
                     <div className="space-y-4">
-                      {history.map((item: HistoryItem, index) => (
-                        <div key={index} className="flex">
-                          <div className="mr-4 mt-1">
-                            {item.type === 'creation' && <Info className="h-6 w-6 text-blue-500" />}
-                            {item.type === 'intervention' && <Calendar className="h-6 w-6 text-indigo-500" />}
-                            {item.type === 'team' && <User className="h-6 w-6 text-violet-500" />}
-                            {item.type === 'equipment' && <Wrench className="h-6 w-6 text-orange-500" />}
-                            {item.type === 'pv' && <FileText className="h-6 w-6 text-emerald-500" />}
-                            {item.type === 'pv_validated' && <CheckCircle className="h-6 w-6 text-green-500" />}
-                            {item.type === 'pv_rejected' && <AlertTriangle className="h-6 w-6 text-red-500" />}
-                            {item.type === 'completion' && <Clipboard className="h-6 w-6 text-teal-500" />}
-                          </div>
-                          <div className="flex-1 bg-muted/50 rounded-lg p-3">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start mb-1">
-                              <p className="font-medium">{item.text}</p>
-                              <p className="text-sm text-muted-foreground">
-                                {format(new Date(item.date), "dd/MM/yyyy à HH:mm", { locale: fr })}
-                              </p>
+                      {intervention.teams.map((team: any, index: number) => (
+                        <div key={index} className="border rounded-md p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{team.nom}</h4>
+                              {team.specialisation && (
+                                <Badge variant="outline" className="mt-1">{team.specialisation}</Badge>
+                              )}
                             </div>
-                            {item.status && (
-                              <div className="mt-1 mb-2">
-                                <InterventionStatusBadge status={item.status} />
-                              </div>
-                            )}
-                            {item.commentaire && (
-                              <div className="mt-2 bg-background p-2 rounded border">
-                                <p className="text-sm text-muted-foreground">"{item.commentaire}"</p>
-                              </div>
-                            )}
                           </div>
                         </div>
                       ))}
-                      
-                      {history.length === 0 && (
-                        <div className="text-center py-8">
-                          <Info className="h-12 w-12 text-muted-foreground mx-auto mb-3" />
-                          <h3 className="text-lg font-medium mb-1">Aucun historique</h3>
-                          <p className="text-muted-foreground max-w-md mx-auto">
-                            Aucune activité n'a été enregistrée pour cette intervention.
-                          </p>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                </TabsContent>
-              </Tabs>
-            </CardContent>
-          </Card>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Users className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-muted-foreground">Aucune équipe assignée à cette intervention</p>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t pt-4">
+                  <Button variant="outline" className="w-full" onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}>
+                    Gérer les équipes
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="equipment" className="space-y-4 pt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center">
+                    <Wrench className="mr-2 h-5 w-5" />
+                    Matériel utilisé
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {intervention.equipment && intervention.equipment.length > 0 ? (
+                    <div className="space-y-4">
+                      {intervention.equipment.map((item: any, index: number) => (
+                        <div key={index} className="border rounded-md p-4">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <h4 className="font-medium">{item.reference}</h4>
+                              <p className="text-sm text-gray-500">{item.type_materiel}</p>
+                            </div>
+                            <Badge variant="outline">{item.etat}</Badge>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <Wrench className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-muted-foreground">Aucun matériel assigné à cette intervention</p>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t pt-4">
+                  <Button 
+                    variant="outline" 
+                    className="w-full"
+                    onClick={() => setIsAssignEquipmentDialogOpen(true)}
+                  >
+                    Assigner du matériel
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+            
+            <TabsContent value="report" className="space-y-4 pt-4">
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-lg flex items-center">
+                    <FileText className="mr-2 h-5 w-5" />
+                    Rapport d'intervention
+                  </CardTitle>
+                </CardHeader>
+                <CardContent>
+                  {intervention.rapport ? (
+                    <div className="whitespace-pre-line">
+                      {intervention.rapport}
+                    </div>
+                  ) : (
+                    <div className="text-center py-6">
+                      <FileText className="h-12 w-12 text-gray-300 mx-auto mb-4" />
+                      <p className="text-muted-foreground">Aucun rapport disponible</p>
+                    </div>
+                  )}
+                </CardContent>
+                <CardFooter className="border-t pt-4">
+                  <Button variant="outline" className="w-full" onClick={() => navigate(`/admin/pv/${intervention.id}`)}>
+                    Éditer le PV d'intervention
+                  </Button>
+                </CardFooter>
+              </Card>
+            </TabsContent>
+          </Tabs>
         </div>
-
+        
         <div className="space-y-6">
           <Card>
             <CardHeader>
-              <CardTitle>Récapitulatif</CardTitle>
+              <CardTitle className="flex items-center">
+                <Calendar className="mr-2 h-5 w-5" />
+                Actions
+              </CardTitle>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">Numéro d'intervention</p>
-                <p className="text-lg">#{demande.id.substring(0, 8).toUpperCase()}</p>
+              <div className="space-y-2">
+                <h3 className="text-sm font-medium">Changer le statut</h3>
+                
+                {intervention.statut === "en_attente" && (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleStatusChange("validée")}
+                  >
+                    Valider la demande
+                  </Button>
+                )}
+                
+                {(intervention.statut === "validée" || intervention.statut === "en_attente") && (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleStatusChange("planifiée")}
+                  >
+                    Planifier l'intervention
+                  </Button>
+                )}
+                
+                {intervention.statut === "planifiée" && (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleStatusChange("en_cours")}
+                  >
+                    Démarrer l'intervention
+                  </Button>
+                )}
+                
+                {intervention.statut === "en_cours" && (
+                  <Button 
+                    className="w-full" 
+                    onClick={() => handleStatusChange("terminée")}
+                  >
+                    Terminer l'intervention
+                  </Button>
+                )}
+                
+                {(intervention.statut !== "terminée" && intervention.statut !== "annulée") && (
+                  <Button 
+                    variant="destructive" 
+                    className="w-full mt-2" 
+                    onClick={() => handleStatusChange("annulée")}
+                  >
+                    Annuler l'intervention
+                  </Button>
+                )}
               </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Date de la demande</p>
-                <p>{format(new Date(demande.date_demande), "dd/MM/yyyy", { locale: fr })}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Niveau d'urgence</p>
-                <div className="mt-1">
-                  <PriorityBadge priority={demande.urgence} />
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Statut actuel</p>
-                <div className="mt-1">
-                  {intervention ? (
-                    <InterventionStatusBadge status={intervention.statut} />
-                  ) : (
-                    <InterventionStatusBadge status={demande.statut} />
-                  )}
-                </div>
-              </div>
-              {intervention && intervention.date_debut && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm font-medium">Date programmée</p>
-                    <p>{format(new Date(intervention.date_debut), "dd/MM/yyyy", { locale: fr })}</p>
-                  </div>
-                </>
-              )}
-              {intervention && intervention.pv_intervention_id && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm font-medium">PV d'intervention</p>
-                    <div className="mt-2">
-                      {intervention.pv_interventions?.validation_client === null ? (
-                        <Badge variant="outline">En attente de validation</Badge>
-                      ) : intervention.pv_interventions?.validation_client ? (
-                        <Badge variant="default" className="bg-green-500">Validé par le client</Badge>
-                      ) : (
-                        <Badge variant="destructive">Refusé par le client</Badge>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-col gap-3">
-              {canModify && (
-                <>
-                  {!intervention?.teams?.length && (
-                    <Button 
-                      className="w-full" 
-                      onClick={() => setIsTeamDialogOpen(true)}
-                    >
-                      <User className="mr-2 h-4 w-4" />
-                      Assigner une équipe
-                    </Button>
-                  )}
-                  
-                  {intervention && !intervention.equipment?.length && (
-                    <Button 
-                      className="w-full" 
-                      onClick={() => setIsEquipmentDialogOpen(true)}
-                    >
-                      <Wrench className="mr-2 h-4 w-4" />
-                      Assigner du matériel
-                    </Button>
-                  )}
-                  
-                  {intervention && intervention.teams?.length && intervention.equipment?.length && (
-                    <Button 
-                      variant="default" 
-                      className="w-full"
-                      onClick={async () => {
-                        try {
-                          if (!intervention) return;
-                          
-                          await supabase
-                            .from('interventions')
-                            .update({ statut: 'planifiée' })
-                            .eq('id', intervention.id);
-                            
-                          toast({
-                            title: "Succès",
-                            description: "L'intervention est maintenant planifiée."
-                          });
-                          
-                          window.location.reload();
-                        } catch (error) {
-                          console.error(error);
-                          toast({
-                            variant: "destructive",
-                            title: "Erreur",
-                            description: "Impossible de mettre à jour le statut de l'intervention."
-                          });
-                        }
-                      }}
-                      disabled={intervention.statut === 'planifiée' || intervention.statut === 'en_cours' || intervention.statut === 'terminée'}
-                    >
-                      <CheckCircle className="mr-2 h-4 w-4" />
-                      Confirmer planification
-                    </Button>
-                  )}
-                </>
-              )}
               
-              <Button variant="outline" className="w-full" onClick={handleViewPV} disabled={!intervention || !intervention.pv_intervention_id}>
-                <FileText className="mr-2 h-4 w-4" />
-                Voir le PV d'intervention
+              <Separator />
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => setIsAssignEquipmentDialogOpen(true)}
+              >
+                <Wrench className="mr-2 h-4 w-4" />
+                Assigner du matériel
               </Button>
-            </CardFooter>
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}
+              >
+                <Users className="mr-2 h-4 w-4" />
+                Gérer les équipes
+              </Button>
+              
+              <Button 
+                variant="outline" 
+                className="w-full"
+                onClick={() => navigate(`/admin/pv/${intervention.id}`)}
+              >
+                <FileText className="mr-2 h-4 w-4" />
+                Éditer le PV
+              </Button>
+            </CardContent>
           </Card>
           
           <Card>
             <CardHeader>
-              <CardTitle>Actions</CardTitle>
+              <CardTitle className="flex items-center">
+                <Truck className="mr-2 h-5 w-5" />
+                Logistique
+              </CardTitle>
             </CardHeader>
-            <CardContent className="space-y-2">
-              {intervention && intervention.statut === 'terminée' && !intervention.pv_intervention_id && (
-                <Button className="w-full" onClick={handleCreatePV}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Créer un PV d'intervention
-                </Button>
-              )}
-              
-              {intervention && (intervention.statut === 'planifiée' || intervention.statut === 'en_cours') && (
+            <CardContent>
+              <div className="space-y-4">
+                <div>
+                  <h3 className="text-sm font-medium text-muted-foreground">Équipement assigné</h3>
+                  <p className="mt-1">{intervention.equipment?.length || 0} élément(s)</p>
+                </div>
+                
                 <Button 
-                  variant="default" 
+                  variant="outline" 
                   className="w-full"
-                  onClick={async () => {
-                    try {
-                      await supabase
-                        .from('interventions')
-                        .update({
-                          statut: 'terminée',
-                          date_fin: new Date().toISOString()
-                        })
-                        .eq('id', intervention.id);
-                        
-                      toast({
-                        title: "Succès",
-                        description: "L'intervention a été marquée comme terminée."
-                      });
-                      
-                      window.location.reload();
-                    } catch (error) {
-                      console.error(error);
-                      toast({
-                        variant: "destructive",
-                        title: "Erreur",
-                        description: "Impossible de terminer l'intervention."
-                      });
-                    }
-                  }}
+                  onClick={() => setIsAssignEquipmentDialogOpen(true)}
                 >
-                  <CheckCircle className="mr-2 h-4 w-4" />
-                  Marquer comme terminée
+                  Gérer l'équipement
                 </Button>
-              )}
-              
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => {
-                  toast({
-                    title: "Notification envoyée",
-                    description: "Un rappel a été envoyé au client."
-                  });
-                }}
-              >
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Envoyer un rappel
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={handlePrintIntervention}
-              >
-                <Printer className="mr-2 h-4 w-4" />
-                Imprimer le récapitulatif
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                className="w-full" 
-                onClick={() => navigate('/admin/reports')}
-              >
-                <FileText className="mr-2 h-4 w-4" />
-                Accéder aux rapports
-              </Button>
+              </div>
             </CardContent>
           </Card>
         </div>
       </div>
+      
+      <AssignEquipmentDialog
+        open={isAssignEquipmentDialogOpen}
+        onOpenChange={setIsAssignEquipmentDialogOpen}
+        interventionId={intervention.id}
+        onEquipmentAssigned={handleEquipmentAssigned}
+      />
     </div>
   );
 };

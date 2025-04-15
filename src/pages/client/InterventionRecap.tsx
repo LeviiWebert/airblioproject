@@ -1,5 +1,5 @@
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
@@ -13,6 +13,9 @@ import { InterventionStatusBadge } from "@/components/interventions/Intervention
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import html2canvas from "html2canvas";
+import jsPDF from "jspdf";
+import { toast as sonnerToast } from "sonner";
 
 const InterventionRecap = () => {
   const { id } = useParams();
@@ -21,6 +24,8 @@ const InterventionRecap = () => {
   const [intervention, setIntervention] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [equipe, setEquipe] = useState<any>(null);
+  const [isGeneratingPDF, setIsGeneratingPDF] = useState(false);
+  const contentRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchIntervention = async () => {
@@ -119,12 +124,40 @@ const InterventionRecap = () => {
     window.print();
   };
 
-  const handleDownloadPDF = () => {
-    // Simuler le téléchargement d'un PDF
-    toast({
-      title: "Téléchargement du récapitulatif",
-      description: "Le récapitulatif de l'intervention a été téléchargé.",
-    });
+  const handleDownloadPDF = async () => {
+    if (!contentRef.current) return;
+    
+    setIsGeneratingPDF(true);
+    sonnerToast("Génération du PDF en cours...");
+    
+    try {
+      const content = contentRef.current;
+      const canvas = await html2canvas(content, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+      });
+      
+      const imgData = canvas.toDataURL('image/png');
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const imgWidth = 210; // A4 width in mm
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+      pdf.save(`Récapitulatif_intervention_${id}.pdf`);
+      
+      sonnerToast.success("Le récapitulatif de l'intervention a été téléchargé.");
+    } catch (error) {
+      console.error("Erreur lors de la génération du PDF:", error);
+      sonnerToast.error("Erreur lors de la génération du PDF");
+    } finally {
+      setIsGeneratingPDF(false);
+    }
   };
 
   if (loading) {
@@ -151,8 +184,13 @@ const InterventionRecap = () => {
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="mr-2 h-4 w-4" /> Imprimer
             </Button>
-            <Button variant="outline" onClick={handleDownloadPDF}>
-              <Download className="mr-2 h-4 w-4" /> Télécharger PDF
+            <Button 
+              variant="outline" 
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPDF}
+            >
+              <Download className="mr-2 h-4 w-4" /> 
+              {isGeneratingPDF ? "Génération..." : "Télécharger PDF"}
             </Button>
           </div>
         </div>
@@ -161,7 +199,7 @@ const InterventionRecap = () => {
         <div className="print:block hidden mb-6">
           <div className="flex justify-between items-center">
             <div>
-              <h1 className="text-2xl font-bold">GestInt Sous-Marine</h1>
+              <h1 className="text-2xl font-bold">Airblio</h1>
               <p className="text-sm text-gray-500">123 Avenue de la Mer, 13000 Marseille</p>
             </div>
             <div className="text-right">
@@ -171,7 +209,7 @@ const InterventionRecap = () => {
         </div>
 
         {intervention ? (
-          <Card className="shadow-md print:shadow-none print:border-none">
+          <Card className="shadow-md print:shadow-none print:border-none" ref={contentRef}>
             <CardHeader>
               <div className="flex justify-between items-center">
                 <div>
@@ -300,8 +338,12 @@ const InterventionRecap = () => {
                   <Button variant="outline" onClick={handlePrint}>
                     <Printer className="mr-2 h-4 w-4" /> Imprimer
                   </Button>
-                  <Button onClick={handleDownloadPDF}>
-                    <Download className="mr-2 h-4 w-4" /> Télécharger PDF
+                  <Button 
+                    onClick={handleDownloadPDF}
+                    disabled={isGeneratingPDF}
+                  >
+                    <Download className="mr-2 h-4 w-4" /> 
+                    {isGeneratingPDF ? "Génération..." : "Télécharger PDF"}
                   </Button>
                 </div>
               </div>
