@@ -20,7 +20,7 @@ const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 
-export const adminRoutes = (
+const adminRoutes = (
   <Route 
     path="/admin" 
     element={

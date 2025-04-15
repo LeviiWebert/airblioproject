@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 const getAll = async () => {
@@ -31,7 +30,6 @@ const getAll = async () => {
     
   if (error) throw error;
   
-  // Transformer les données pour correspondre au format attendu
   return data.map(item => ({
     id: item.id,
     dateDebut: item.date_debut ? new Date(item.date_debut) : null,
@@ -75,7 +73,6 @@ const getById = async (id: string) => {
   
   if (!data) return null;
   
-  // Récupérer la demande associée
   const { data: demandeData, error: demandeError } = await supabase
     .from('demande_interventions')
     .select(`
@@ -97,7 +94,6 @@ const getById = async (id: string) => {
   
   if (demandeError) throw demandeError;
   
-  // Récupérer les équipes assignées
   const { data: teamsData, error: teamsError } = await supabase
     .from('intervention_equipes')
     .select(`
@@ -114,7 +110,6 @@ const getById = async (id: string) => {
   
   const teams = teamsData.map(item => item.equipes);
   
-  // Récupérer le matériel assigné
   const { data: equipmentData, error: equipmentError } = await supabase
     .from('intervention_materiels')
     .select(`
@@ -132,7 +127,6 @@ const getById = async (id: string) => {
   
   const equipment = equipmentData.map(item => item.materiels);
   
-  // Récupérer le PV d'intervention s'il existe
   let pv = null;
   if (data.pv_intervention_id) {
     const { data: pvData, error: pvError } = await supabase
@@ -179,13 +173,11 @@ const updateStatus = async (id: string, status: string) => {
 
 const assignTeam = async (interventionId: string, teamId: string) => {
   try {
-    // D'abord, supprimer toutes les équipes actuellement assignées
     await supabase
       .from('intervention_equipes')
       .delete()
       .eq('intervention_id', interventionId);
     
-    // Ensuite assigner la nouvelle équipe
     const { error } = await supabase
       .from('intervention_equipes')
       .insert({
@@ -195,7 +187,6 @@ const assignTeam = async (interventionId: string, teamId: string) => {
     
     if (error) throw error;
     
-    // Mettre à jour le statut si nécessaire
     const { data: interventionData } = await supabase
       .from('interventions')
       .select('statut')
@@ -217,26 +208,22 @@ const assignTeam = async (interventionId: string, teamId: string) => {
 
 const assignEquipment = async (interventionId: string, equipmentIds: string[]) => {
   try {
-    // D'abord, supprimer tout le matériel actuellement assigné
     await supabase
       .from('intervention_materiels')
       .delete()
       .eq('intervention_id', interventionId);
     
-    // Préparer les données pour insérer le nouveau matériel
     const insertData = equipmentIds.map(equipId => ({
       intervention_id: interventionId,
       materiel_id: equipId
     }));
     
-    // Insérer les nouvelles assignations de matériel
     const { error } = await supabase
       .from('intervention_materiels')
       .insert(insertData);
     
     if (error) throw error;
     
-    // Mettre à jour l'état du matériel à "en utilisation"
     for (const equipId of equipmentIds) {
       await supabase
         .from('materiels')
@@ -244,7 +231,6 @@ const assignEquipment = async (interventionId: string, equipmentIds: string[]) =
         .eq('id', equipId);
     }
     
-    // Mettre à jour le statut de l'intervention si nécessaire
     const { data: interventionData } = await supabase
       .from('interventions')
       .select('statut')
@@ -293,6 +279,14 @@ const getAvailableTeams = async () => {
   }
 };
 
+const getDetailedInterventions = async (options = {}) => {
+  return [];
+};
+
+const getByStatus = async (status) => {
+  return [];
+};
+
 export const interventionService = {
   getAll,
   getById,
@@ -301,4 +295,6 @@ export const interventionService = {
   assignEquipment,
   getAvailableEquipment,
   getAvailableTeams,
+  getDetailedInterventions,
+  getByStatus,
 };

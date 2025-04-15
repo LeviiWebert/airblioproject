@@ -1,3 +1,6 @@
+
+import { DateRange } from "react-day-picker";
+
 export interface Client {
   id: string;
   nomEntreprise: string;
