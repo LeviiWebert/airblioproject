@@ -1,4 +1,3 @@
-
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -44,6 +43,10 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { InterventionMainCard } from "./components/InterventionMainCard";
+import { InterventionTeamsAndEquipment } from "./components/InterventionTeamsAndEquipment";
+import { InterventionValidationCard } from "./components/InterventionValidationCard";
+import { InterventionRecapSidebar } from "./components/InterventionRecapSidebar";
 
 interface Intervention {
   id: string;
@@ -447,6 +450,36 @@ const InterventionDetails = () => {
     return cancelableStatuses.includes(demande.statut);
   };
 
+  const renderCancelButton = () => (
+    <AlertDialog>
+      <AlertDialogTrigger asChild>
+        <Button variant="destructive" className="w-full sm:w-auto">
+          <X className="mr-2 h-4 w-4" />
+          Annuler ma demande d'intervention
+        </Button>
+      </AlertDialogTrigger>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Annuler la demande d'intervention</AlertDialogTitle>
+          <AlertDialogDescription>
+            Êtes-vous sûr de vouloir annuler cette demande d'intervention ?
+            Cette action est irréversible.
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Retour</AlertDialogCancel>
+          <AlertDialogAction 
+            onClick={handleCancelDemande}
+            disabled={cancellingDemande}
+            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+          >
+            {cancellingDemande ? 'Annulation...' : 'Confirmer l\'annulation'}
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+  );
+
   if (!authChecked) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -492,344 +525,37 @@ const InterventionDetails = () => {
           Retour à la liste des interventions
         </Button>
       </div>
-
       <div className="grid gap-6 md:grid-cols-3">
         <div className="md:col-span-2 space-y-6">
-          <Card id="intervention-details" className="print:shadow-none">
-            <CardHeader className="print:pb-0">
-              <div className="flex flex-col md:flex-row md:items-center md:justify-between">
-                <div>
-                  <CardTitle>
-                    Récapitulatif d'intervention #{demande.id.substring(0, 8).toUpperCase()}
-                  </CardTitle>
-                  <CardDescription>
-                    Demande du {format(new Date(demande.date_demande), "dd MMMM yyyy", { locale: fr })}
-                  </CardDescription>
-                </div>
-                <div className="mt-4 md:mt-0 print:hidden">
-                  <Button variant="outline" size="sm" className="mr-2" onClick={handlePrint}>
-                    <Printer className="mr-2 h-4 w-4" />
-                    Imprimer
-                  </Button>
-                  <Button size="sm" onClick={handleDownloadPdf}>
-                    <Download className="mr-2 h-4 w-4" />
-                    Télécharger PDF
-                  </Button>
-                </div>
-              </div>
-            </CardHeader>
-            <CardContent>
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">Statut de la demande</h3>
-                <div className="flex flex-wrap gap-2">
-                  <InterventionStatusBadge status={demande.statut} className="text-base" />
-                  <PriorityBadge priority={demande.urgence} className="text-base" />
-                </div>
-              </div>
-              
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">Description de la demande</h3>
-                <div className="bg-muted p-4 rounded-md">
-                  <p>{demande.description}</p>
-                </div>
-              </div>
-              
-              {intervention && (
-                <>
-                  <Separator className="my-6" />
-                  
-                  <div className="mb-6">
-                    <h3 className="text-lg font-semibold mb-3">Informations générales</h3>
-                    
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                      <div className="flex items-start">
-                        <Clock className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p className="font-medium">Date de début</p>
-                          <p className="text-muted-foreground">
-                            {formatDate(intervention.date_debut)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <Calendar className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p className="font-medium">Date de fin</p>
-                          <p className="text-muted-foreground">
-                            {formatDate(intervention.date_fin)}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <MapPin className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p className="font-medium">Localisation</p>
-                          <p className="text-muted-foreground">
-                            {intervention.localisation || "Non spécifiée"}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="flex items-start">
-                        <FileText className="w-5 h-5 mr-2 text-muted-foreground mt-0.5" />
-                        <div>
-                          <p className="font-medium">Statut de l'intervention</p>
-                          <div className="mt-1">
-                            <InterventionStatusBadge status={intervention.statut} />
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                    
-                    {/* Section Équipe & Matériel */}
-                    <div className="mt-8">
-                      <h3 className="text-lg font-semibold mb-3">Équipe & Matériel</h3>
-                      
-                      {/* Équipes assignées */}
-                      {intervention.intervention_equipes && 
-                      intervention.intervention_equipes.length > 0 ? (
-                        <div className="mb-6">
-                          <h4 className="font-medium mb-2 flex items-center">
-                            <Users className="w-4 h-4 mr-2 text-muted-foreground" />
-                            Équipe(s) technique(s)
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {intervention.intervention_equipes.map((item) => (
-                              <div key={item.equipe_id} className="flex items-center border rounded-md p-3">
-                                <User className="w-8 h-8 text-primary mr-3" />
-                                <div>
-                                  <p className="font-medium">{item.equipes?.nom}</p>
-                                  <p className="text-xs text-muted-foreground">
-                                    {item.equipes?.specialisation || "Équipe technique"}
-                                  </p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mb-6 p-4 border border-dashed rounded-md text-center text-muted-foreground">
-                          <Users className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p>Aucune équipe n'a encore été assignée à cette intervention</p>
-                        </div>
-                      )}
-                      
-                      {/* Matériel utilisé */}
-                      {materiels && materiels.length > 0 ? (
-                        <div className="mt-6">
-                          <h4 className="font-medium mb-2 flex items-center">
-                            <Wrench className="w-4 h-4 mr-2 text-muted-foreground" />
-                            Matériel utilisé
-                          </h4>
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                            {materiels.map((item) => (
-                              <div key={item.materiel_id} className="flex items-center border rounded-md p-3">
-                                <Package className="w-8 h-8 text-primary mr-3" />
-                                <div>
-                                  <p className="font-medium">{item.materiels?.type_materiel}</p>
-                                  <p className="text-xs">Réf: {item.materiels?.reference}</p>
-                                  {item.materiels?.etat && (
-                                    <p className="text-xs text-muted-foreground">
-                                      État: {item.materiels.etat}
-                                    </p>
-                                  )}
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-                      ) : (
-                        <div className="mt-4 p-4 border border-dashed rounded-md text-center text-muted-foreground">
-                          <Wrench className="w-8 h-8 mx-auto mb-2 opacity-50" />
-                          <p>Aucun matériel n'a encore été assigné à cette intervention</p>
-                        </div>
-                      )}
-                    </div>
-                    
-                    {intervention.rapport && (
-                      <div className="mt-8">
-                        <h4 className="font-medium mb-2 flex items-center">
-                          <FileText className="w-4 h-4 mr-2 text-muted-foreground" />
-                          Rapport d'intervention
-                        </h4>
-                        <div className="bg-muted p-4 rounded-md">
-                          <p className="whitespace-pre-line">{intervention.rapport}</p>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                </>
-              )}
-              
-              {/* Bouton d'annulation de la demande */}
-              {canCancelDemande() && (
-                <div className="mt-8 print:hidden">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="w-full sm:w-auto">
-                        <X className="mr-2 h-4 w-4" />
-                        Annuler ma demande d'intervention
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Annuler la demande d'intervention</AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Êtes-vous sûr de vouloir annuler cette demande d'intervention ?
-                          Cette action est irréversible.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Retour</AlertDialogCancel>
-                        <AlertDialogAction 
-                          onClick={handleCancelDemande}
-                          disabled={cancellingDemande}
-                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
-                        >
-                          {cancellingDemande ? 'Annulation...' : 'Confirmer l\'annulation'}
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-          
-          {intervention && 
-           intervention.statut === "terminée" && (
-            <Card className="print:hidden">
-              <CardHeader>
-                <CardTitle>Validation de l'intervention</CardTitle>
-                <CardDescription>
-                  Veuillez valider l'intervention et apporter vos commentaires
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm mb-2">Votre retour sur l'intervention:</p>
-                    <Textarea 
-                      placeholder="Commentaires ou observations sur l'intervention..." 
-                      className="min-h-[120px]"
-                      value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                      disabled={intervention.pv_interventions?.validation_client !== null}
-                    />
-                  </div>
-                  
-                  {intervention.pv_interventions?.validation_client === null ? (
-                    <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                      <Button 
-                        onClick={() => handleValidateIntervention(true)} 
-                        disabled={submitting}
-                        className="flex-1"
-                      >
-                        <Check className="mr-2 h-4 w-4" />
-                        Valider l'intervention
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        onClick={() => handleValidateIntervention(false)} 
-                        disabled={submitting}
-                        className="flex-1"
-                      >
-                        <X className="mr-2 h-4 w-4" />
-                        Signaler un problème
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="flex items-center justify-between p-4 border rounded-md">
-                      <div className="flex items-center">
-                        {intervention.pv_interventions?.validation_client ? (
-                          <Check className="h-5 w-5 text-green-500 mr-2" />
-                        ) : (
-                          <X className="h-5 w-5 text-red-500 mr-2" />
-                        )}
-                        <div>
-                          <p className="font-medium">
-                            {intervention.pv_interventions?.validation_client 
-                              ? "Intervention validée" 
-                              : "Problème signalé"
-                            }
-                          </p>
-                          <p className="text-xs text-muted-foreground">
-                            Le {format(
-                              new Date(intervention.pv_interventions?.date_validation || ''),
-                              "dd/MM/yyyy à HH:mm",
-                              { locale: fr }
-                            )}
-                          </p>
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <InterventionMainCard
+            demande={demande}
+            intervention={intervention}
+            formatDate={formatDate}
+            onPrint={handlePrint}
+            onDownloadPdf={handleDownloadPdf}
+            canCancel={canCancelDemande()}
+            renderCancelButton={renderCancelButton}
+          >
+            {intervention && (
+              <InterventionTeamsAndEquipment intervention={intervention} materiels={materiels} />
+            )}
+          </InterventionMainCard>
+          <InterventionValidationCard
+            intervention={intervention}
+            feedback={feedback}
+            setFeedback={setFeedback}
+            submitting={submitting}
+            handleValidate={handleValidateIntervention}
+          />
         </div>
-
         <div className="space-y-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Récapitulatif</CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div>
-                <p className="text-sm font-medium">Numéro d'intervention</p>
-                <p className="text-lg">#{demande.id.substring(0, 8).toUpperCase()}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Date de la demande</p>
-                <p>{format(new Date(demande.date_demande), "dd/MM/yyyy", { locale: fr })}</p>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Niveau d'urgence</p>
-                <div className="mt-1">
-                  <PriorityBadge priority={demande.urgence} />
-                </div>
-              </div>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium">Statut actuel</p>
-                <div className="mt-1">
-                  {intervention ? (
-                    <InterventionStatusBadge status={intervention.statut} />
-                  ) : (
-                    <InterventionStatusBadge status={demande.statut} />
-                  )}
-                </div>
-              </div>
-              {intervention && intervention.date_debut && (
-                <>
-                  <Separator />
-                  <div>
-                    <p className="text-sm font-medium">Date programmée</p>
-                    <p>{format(new Date(intervention.date_debut), "dd/MM/yyyy", { locale: fr })}</p>
-                  </div>
-                </>
-              )}
-            </CardContent>
-            <CardFooter className="flex flex-col gap-3">
-              <Button variant="outline" className="w-full" asChild>
-                <a href={`mailto:support@gestint.com?subject=Question sur l'intervention #${demande.id.substring(0, 8).toUpperCase()}`}>
-                  <MessageSquare className="mr-2 h-4 w-4" />
-                  Contacter le support
-                </a>
-              </Button>
-              
-              {/* Bouton pour voir le PV si disponible */}
-              {intervention && intervention.pv_intervention_id && (
-                <Button className="w-full" onClick={() => navigate(`/client/pv/${intervention.pv_intervention_id}`)}>
-                  <FileText className="mr-2 h-4 w-4" />
-                  Voir le PV d'intervention
-                </Button>
-              )}
-            </CardFooter>
-          </Card>
-          
+          <InterventionRecapSidebar
+            demande={demande}
+            intervention={intervention}
+            handlePrint={handlePrint}
+            handleDownloadPdf={handleDownloadPdf}
+            navigate={navigate}
+          />
           <Card className="print:hidden">
             <CardHeader>
               <CardTitle>Actions</CardTitle>
@@ -843,8 +569,6 @@ const InterventionDetails = () => {
                 <Download className="mr-2 h-4 w-4" />
                 Télécharger PDF
               </Button>
-              
-              {/* Ajouter un lien vers la liste des PVs */}
               <Button variant="outline" className="w-full" onClick={() => navigate('/client/pvs')}>
                 <FileText className="mr-2 h-4 w-4" />
                 Voir tous mes PVs
