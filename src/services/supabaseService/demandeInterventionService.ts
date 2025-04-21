@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 
 // Function to get all intervention requests
@@ -120,7 +121,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
   const interventionData = {
     demande_intervention_id: demande.id,
     statut: 'planifiée',
-    localisation: demande.localisation || 'À déterminer',
+    localisation: 'À déterminer', // Fixed: Use a default value instead of accessing demande.localisation
     rapport: '',
     date_debut: null,
     date_fin: null,
