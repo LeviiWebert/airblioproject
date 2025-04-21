@@ -259,9 +259,9 @@ const Auth = () => {
                         <RadioGroupItem value="client" id="clientRegister" />
                         <Label htmlFor="clientRegister">Client</Label>
                       </div>
-                      <div className="flex items-center space-x-2">
-                        <RadioGroupItem value="internal" id="internalRegister" />
-                        <Label htmlFor="internalRegister">Interne</Label>
+                      <div className="flex items-center space-x-2 opacity-50 cursor-not-allowed">
+                        <RadioGroupItem value="internal" id="internalRegister" disabled />
+                        <Label htmlFor="internalRegister" className="text-gray-400 cursor-not-allowed">Interne</Label>
                       </div>
                     </RadioGroup>
                   </div>
