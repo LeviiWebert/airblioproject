@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useTransition } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +30,7 @@ const DeleteTeamDialog = ({
   teamName,
 }: DeleteTeamDialogProps) => {
   const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   const deleteTeamMutation = useMutation({
     mutationFn: async () => {
@@ -40,10 +41,12 @@ const DeleteTeamDialog = ({
         title: "Équipe supprimée",
         description: "L'équipe a été supprimée avec succès.",
       });
-      
-      onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamDeleted();
+
+      startTransition(() => {
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamDeleted();
+      });
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression de l'équipe:", error);
@@ -70,16 +73,16 @@ const DeleteTeamDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleteTeamMutation.isPending}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleteTeamMutation.isPending || isPending}>Annuler</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               handleDelete();
             }}
-            disabled={deleteTeamMutation.isPending}
+            disabled={deleteTeamMutation.isPending || isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deleteTeamMutation.isPending ? "Suppression..." : "Supprimer"}
+            {deleteTeamMutation.isPending || isPending ? "Suppression..." : "Supprimer"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Plus, Pencil, Trash } from "lucide-react";
@@ -18,6 +18,7 @@ const TeamsPage = () => {
   const [selectedTeam, setSelectedTeam] = useState<Equipe | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   // Use React Query for data fetching
   const {
@@ -56,17 +57,23 @@ const TeamsPage = () => {
   }
 
   const handleEdit = (team: Equipe) => {
-    setSelectedTeam(team);
-    setIsEditDialogOpen(true);
+    startTransition(() => {
+      setSelectedTeam(team);
+      setIsEditDialogOpen(true);
+    });
   };
 
   const handleDelete = (team: Equipe) => {
-    setSelectedTeam(team);
-    setIsDeleteDialogOpen(true);
+    startTransition(() => {
+      setSelectedTeam(team);
+      setIsDeleteDialogOpen(true);
+    });
   };
 
   const refreshTeams = () => {
-    queryClient.invalidateQueries({ queryKey: ["teams"] });
+    startTransition(() => {
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+    });
   };
 
   return (

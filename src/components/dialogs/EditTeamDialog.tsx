@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import TeamForm from "@/components/forms/TeamForm";
@@ -16,7 +16,8 @@ interface EditTeamDialogProps {
 
 const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDialogProps) => {
   const queryClient = useQueryClient();
-  
+  const [isPending, startTransition] = useTransition();
+
   const updateTeamMutation = useMutation({
     mutationFn: async (values: { nom: string; specialisation?: string }) => {
       return await equipeService.updateTeam(team.id, values);
@@ -26,10 +27,12 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         title: "Équipe mise à jour",
         description: "L'équipe a été mise à jour avec succès.",
       });
-      
-      onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamUpdated();
+
+      startTransition(() => {
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamUpdated();
+      });
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -54,7 +57,7 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         <TeamForm 
           onSubmit={handleSubmit} 
           initialData={team} 
-          isSubmitting={updateTeamMutation.isPending} 
+          isSubmitting={updateTeamMutation.isPending || isPending}
         />
       </DialogContent>
     </Dialog>

@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import TeamForm from "@/components/forms/TeamForm";
@@ -14,6 +14,7 @@ interface AddTeamDialogProps {
 
 const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) => {
   const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   const createTeamMutation = useMutation({
     mutationFn: async (values: { nom: string; specialisation?: string }) => {
@@ -24,10 +25,12 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         title: "Équipe créée",
         description: "L'équipe a été créée avec succès.",
       });
-      
-      onOpenChange(false);
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamAdded();
+
+      startTransition(() => {
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamAdded();
+      });
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création de l'équipe:", error);
@@ -51,7 +54,7 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         </DialogHeader>
         <TeamForm 
           onSubmit={handleSubmit} 
-          isSubmitting={createTeamMutation.isPending} 
+          isSubmitting={createTeamMutation.isPending || isPending} 
         />
       </DialogContent>
     </Dialog>
