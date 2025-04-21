@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
@@ -20,7 +19,6 @@ export const useInterventionRequests = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      // Utiliser le service plutôt que l'appel direct à Supabase
       const data = await demandeInterventionService.getPending();
       
       console.log("Demandes d'intervention récupérées:", data);
@@ -51,62 +49,22 @@ export const useInterventionRequests = () => {
     if (!selectedRequest || !actionType) return false;
     
     try {
-      // Déterminer le nouveau statut
-      const newStatus = actionType === "accept" ? "validée" : "rejetée";
-      
-      console.log(`Mise à jour du statut de la demande ${selectedRequest.id} à ${newStatus}`);
-      
-      // Utiliser le service pour la mise à jour
-      await demandeInterventionService.updateStatus(selectedRequest.id, newStatus);
-      
-      // Mettre à jour l'interface utilisateur en retirant immédiatement la demande de la liste
-      setRequests(requests.filter(req => req.id !== selectedRequest.id));
-      
-      // Si la demande est acceptée, créer une intervention
       if (actionType === "accept") {
-        console.log("Création d'une nouvelle intervention pour la demande:", selectedRequest.id);
-        
-        // S'assurer que toutes les données pertinentes sont transférées
-        const { data: intervention, error: interventionError } = await supabase
-          .from('interventions')
-          .insert([
-            { 
-              demande_intervention_id: selectedRequest.id,
-              statut: 'planifiée',
-              localisation: selectedRequest.localisation || 'À déterminer',
-              rapport: '',
-              // Garder toutes les données importantes de la demande
-              date_debut: null,
-              date_fin: null
-            }
-          ])
-          .select()
-          .single();
-        
-        if (interventionError) throw interventionError;
-        
-        console.log("Intervention créée avec succès:", intervention);
-        
-        // Mettre à jour la demande d'intervention avec l'ID de l'intervention
-        await demandeInterventionService.updateInterventionId(selectedRequest.id, intervention.id);
-        
-        console.log("Demande mise à jour avec l'ID de l'intervention:", intervention.id);
+        await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
+        await fetchRequests();
+        toast.success("Demande acceptée et intervention créée avec succès");
+      } else if (actionType === "reject") {
+        await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée");
+        setRequests(requests.filter(req => req.id !== selectedRequest.id));
+        toast.success("Demande refusée avec succès");
       }
-      
-      // Notification de succès
-      toast.success(
-        actionType === "accept" 
-          ? "Demande acceptée avec succès" 
-          : "Demande refusée avec succès"
-      );
-      
-      // Réinitialiser l'état
+
       setSelectedRequest(null);
       setActionType(null);
-      
+
       return true;
     } catch (error: any) {
-      console.error("Erreur lors de la mise à jour de la demande:", error);
+      console.error("Erreur lors de la gestion de la demande:", error);
       useToastHook({
         variant: "destructive",
         title: "Erreur",

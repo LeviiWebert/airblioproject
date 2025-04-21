@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 // Function to get all intervention requests
@@ -102,12 +101,63 @@ const updateInterventionId = async (id: string, interventionId: string) => {
   return data[0];
 };
 
-// Export the service functions
+// New function: create an intervention from a demande then delete the demande
+const createFromRequestAndDelete = async (demandeId: string) => {
+  // 1. Récupérer la demande complète
+  const { data: demande, error: demandeError } = await supabase
+    .from('demande_interventions')
+    .select('*')
+    .eq('id', demandeId)
+    .maybeSingle();
+
+  if (demandeError) {
+    console.error("Erreur lors de la récupération de la demande:", demandeError);
+    throw demandeError;
+  }
+  if (!demande) throw new Error("Demande non trouvée");
+
+  // 2. Créer l'intervention avec ces données
+  const interventionData = {
+    demande_intervention_id: demande.id,
+    statut: 'planifiée',
+    localisation: demande.localisation || 'À déterminer',
+    rapport: '',
+    date_debut: null,
+    date_fin: null,
+  };
+
+  const { data: intervention, error: interventionError } = await supabase
+    .from('interventions')
+    .insert([interventionData])
+    .select()
+    .maybeSingle();
+
+  if (interventionError) {
+    console.error("Erreur lors de la création de l'intervention:", interventionError);
+    throw interventionError;
+  }
+
+  // 3. Supprimer la demande
+  const { error: deleteError } = await supabase
+    .from('demande_interventions')
+    .delete()
+    .eq('id', demandeId);
+
+  if (deleteError) {
+    console.error("Erreur lors de la suppression de la demande:", deleteError);
+    throw deleteError;
+  }
+
+  return intervention;
+};
+
+// Export with the new method
 export const demandeInterventionService = {
   getAll,
   getPending,
   getById,
   create,
   updateStatus,
-  updateInterventionId
+  updateInterventionId,
+  createFromRequestAndDelete,
 };
