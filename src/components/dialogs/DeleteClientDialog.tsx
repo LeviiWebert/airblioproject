@@ -1,5 +1,5 @@
 
-import React, { useState } from "react";
+import React, { useTransition } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DeleteClientDialogProps {
@@ -28,11 +29,11 @@ const DeleteClientDialog = ({
   clientId,
   clientName,
 }: DeleteClientDialogProps) => {
-  const [isDeleting, setIsDeleting] = useState(false);
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
-  const handleDelete = async () => {
-    setIsDeleting(true);
-    try {
+  const deleteClientMutation = useMutation({
+    mutationFn: async () => {
       // Check if the client has any related interventions
       const { data: demandesData, error: demandesError } = await supabase
         .from("demande_interventions")
@@ -52,24 +53,31 @@ const DeleteClientDialog = ({
         .eq("id", clientId);
 
       if (error) throw error;
-
+    },
+    onSuccess: () => {
       toast({
         title: "Client supprimé",
         description: "Le client a été supprimé avec succès.",
       });
       
-      onOpenChange(false);
-      onClientDeleted();
-    } catch (error: any) {
+      startTransition(() => {
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        onClientDeleted();
+      });
+    },
+    onError: (error: any) => {
       console.error("Erreur lors de la suppression du client:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
         description: `Impossible de supprimer le client: ${error.message}`,
       });
-    } finally {
-      setIsDeleting(false);
     }
+  });
+
+  const handleDelete = async () => {
+    deleteClientMutation.mutate();
   };
 
   return (
@@ -83,16 +91,16 @@ const DeleteClientDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={deleteClientMutation.isPending || isPending}>Annuler</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               handleDelete();
             }}
-            disabled={isDeleting}
+            disabled={deleteClientMutation.isPending || isPending}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {isDeleting ? "Suppression..." : "Supprimer"}
+            {deleteClientMutation.isPending || isPending ? "Suppression..." : "Supprimer"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>

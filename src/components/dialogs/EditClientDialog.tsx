@@ -1,10 +1,11 @@
 
-import React, { useState } from "react";
+import React, { useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import ClientForm from "@/components/forms/ClientForm";
-import { supabase } from "@/integrations/supabase/client";
 import { Client } from "@/types/models";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { supabase } from "@/integrations/supabase/client";
 
 interface EditClientDialogProps {
   open: boolean;
@@ -14,17 +15,17 @@ interface EditClientDialogProps {
 }
 
 const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditClientDialogProps) => {
-  const [isSubmitting, setIsSubmitting] = useState(false);
+  const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
-  const handleSubmit = async (values: {
-    nomEntreprise: string;
-    email?: string;
-    tel?: string;
-    identifiant?: string;
-    mdp?: string;
-  }) => {
-    setIsSubmitting(true);
-    try {
+  const updateClientMutation = useMutation({
+    mutationFn: async (values: {
+      nomEntreprise: string;
+      email?: string;
+      tel?: string;
+      identifiant?: string;
+      mdp?: string;
+    }) => {
       const { error } = await supabase
         .from("clients")
         .update({
@@ -37,24 +38,37 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
         .eq("id", client.id);
 
       if (error) throw error;
-
+    },
+    onSuccess: () => {
       toast({
         title: "Client mis à jour",
         description: "Le client a été mis à jour avec succès.",
       });
       
-      onOpenChange(false);
-      onClientUpdated();
-    } catch (error: any) {
+      startTransition(() => {
+        onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        onClientUpdated();
+      });
+    },
+    onError: (error: any) => {
       console.error("Erreur lors de la mise à jour du client:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
         description: `Impossible de mettre à jour le client: ${error.message}`,
       });
-    } finally {
-      setIsSubmitting(false);
     }
+  });
+
+  const handleSubmit = async (values: {
+    nomEntreprise: string;
+    email?: string;
+    tel?: string;
+    identifiant?: string;
+    mdp?: string;
+  }) => {
+    updateClientMutation.mutate(values);
   };
 
   return (
@@ -63,7 +77,11 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
         <DialogHeader>
           <DialogTitle>Modifier le client</DialogTitle>
         </DialogHeader>
-        <ClientForm onSubmit={handleSubmit} initialData={client} isSubmitting={isSubmitting} />
+        <ClientForm 
+          onSubmit={handleSubmit} 
+          initialData={client} 
+          isSubmitting={updateClientMutation.isPending || isPending}
+        />
       </DialogContent>
     </Dialog>
   );

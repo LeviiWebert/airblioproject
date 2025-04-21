@@ -1,5 +1,5 @@
 
-import { useState, Suspense } from "react";
+import { useState, useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Loader2, Plus, Users, Pencil, Trash } from "lucide-react";
@@ -19,6 +19,7 @@ const ClientsPage = () => {
   const [selectedClient, setSelectedClient] = useState<Client | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [isPending, startTransition] = useTransition();
 
   // Utiliser React Query pour récupérer les données des clients
   const {
@@ -59,17 +60,23 @@ const ClientsPage = () => {
   }
 
   const handleEdit = (client: Client) => {
-    setSelectedClient(client);
-    setIsEditDialogOpen(true);
+    startTransition(() => {
+      setSelectedClient(client);
+      setIsEditDialogOpen(true);
+    });
   };
 
   const handleDelete = (client: Client) => {
-    setSelectedClient(client);
-    setIsDeleteDialogOpen(true);
+    startTransition(() => {
+      setSelectedClient(client);
+      setIsDeleteDialogOpen(true);
+    });
   };
 
   const refreshClients = () => {
-    queryClient.invalidateQueries({ queryKey: ["clients"] });
+    startTransition(() => {
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+    });
   };
 
   return (
@@ -83,7 +90,7 @@ const ClientsPage = () => {
         </div>
         <Button 
           className="flex items-center gap-2"
-          onClick={() => setIsAddDialogOpen(true)}
+          onClick={() => startTransition(() => setIsAddDialogOpen(true))}
         >
           <Plus className="h-4 w-4" />
           <span>Nouveau client</span>
