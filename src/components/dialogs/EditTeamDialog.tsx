@@ -49,7 +49,12 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (updateTeamMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Modifier l'équipe</DialogTitle>

@@ -12,6 +12,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { toast } from "@/hooks/use-toast";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { clientService } from "@/services/dataService";
 import { supabase } from "@/integrations/supabase/client";
 
 interface DeleteClientDialogProps {
@@ -47,12 +48,7 @@ const DeleteClientDialog = ({
       }
 
       // Delete the client
-      const { error } = await supabase
-        .from("clients")
-        .delete()
-        .eq("id", clientId);
-
-      if (error) throw error;
+      return await clientService.deleteClient(clientId);
     },
     onSuccess: () => {
       toast({
@@ -76,12 +72,17 @@ const DeleteClientDialog = ({
     }
   });
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     deleteClientMutation.mutate();
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={(newOpen) => {
+      if (deleteClientMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Êtes-vous sûr?</AlertDialogTitle>

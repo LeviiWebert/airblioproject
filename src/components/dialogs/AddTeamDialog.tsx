@@ -47,7 +47,12 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (createTeamMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Ajouter une équipe</DialogTitle>

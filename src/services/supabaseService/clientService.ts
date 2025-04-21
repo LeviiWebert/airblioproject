@@ -17,7 +17,7 @@ export const getById = async (id: string) => {
     .from('clients')
     .select('*')
     .eq('id', id)
-    .single();
+    .maybeSingle();
   
   if (error) throw error;
   return data;

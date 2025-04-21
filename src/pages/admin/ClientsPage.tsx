@@ -2,7 +2,7 @@
 import { useState, useTransition } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Users, Pencil, Trash } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Client } from "@/types/models";
 import AddClientDialog from "@/components/dialogs/AddClientDialog";
@@ -10,7 +10,6 @@ import EditClientDialog from "@/components/dialogs/EditClientDialog";
 import DeleteClientDialog from "@/components/dialogs/DeleteClientDialog";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { clientService } from "@/services/dataService";
-import { SmallLoading } from "@/components/ui/loading";
 
 const ClientsPage = () => {
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);

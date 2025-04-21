@@ -58,12 +58,17 @@ const DeleteTeamDialog = ({
     }
   });
 
-  const handleDelete = async () => {
+  const handleDelete = () => {
     deleteTeamMutation.mutate();
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={(newOpen) => {
+      if (deleteTeamMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Êtes-vous sûr?</AlertDialogTitle>

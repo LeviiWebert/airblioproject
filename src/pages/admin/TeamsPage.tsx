@@ -87,7 +87,7 @@ const TeamsPage = () => {
         </div>
         <Button 
           className="flex items-center gap-2"
-          onClick={() => setIsAddDialogOpen(true)}
+          onClick={() => startTransition(() => setIsAddDialogOpen(true))}
         >
           <Plus className="h-4 w-4" />
           <span>Nouvelle équipe</span>

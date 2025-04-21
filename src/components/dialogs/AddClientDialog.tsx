@@ -3,8 +3,8 @@ import React, { useState, useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import ClientForm from "@/components/forms/ClientForm";
-import { supabase } from "@/integrations/supabase/client";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { clientService } from "@/services/dataService";
 
 interface AddClientDialogProps {
   open: boolean;
@@ -24,21 +24,13 @@ const AddClientDialog = ({ open, onOpenChange, onClientAdded }: AddClientDialogP
       identifiant?: string;
       mdp?: string;
     }) => {
-      const { data, error } = await supabase
-        .from("clients")
-        .insert([
-          {
-            nom_entreprise: values.nomEntreprise,
-            email: values.email || null,
-            tel: values.tel || null,
-            identifiant: values.identifiant || null,
-            mdp: values.mdp || null,
-          },
-        ])
-        .select();
-
-      if (error) throw error;
-      return data;
+      return await clientService.createClient({
+        nom_entreprise: values.nomEntreprise,
+        email: values.email || null,
+        tel: values.tel || null,
+        identifiant: values.identifiant || null,
+        mdp: values.mdp || null,
+      });
     },
     onSuccess: () => {
       toast({
@@ -73,7 +65,12 @@ const AddClientDialog = ({ open, onOpenChange, onClientAdded }: AddClientDialogP
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (createClientMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Ajouter un client</DialogTitle>

@@ -5,7 +5,7 @@ import { toast } from "@/hooks/use-toast";
 import ClientForm from "@/components/forms/ClientForm";
 import { Client } from "@/types/models";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { supabase } from "@/integrations/supabase/client";
+import { clientService } from "@/services/dataService";
 
 interface EditClientDialogProps {
   open: boolean;
@@ -26,18 +26,13 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
       identifiant?: string;
       mdp?: string;
     }) => {
-      const { error } = await supabase
-        .from("clients")
-        .update({
-          nom_entreprise: values.nomEntreprise,
-          email: values.email || null,
-          tel: values.tel || null,
-          identifiant: values.identifiant || null,
-          mdp: values.mdp || null,
-        })
-        .eq("id", client.id);
-
-      if (error) throw error;
+      return await clientService.updateClient(client.id, {
+        nom_entreprise: values.nomEntreprise,
+        email: values.email || null,
+        tel: values.tel || null,
+        identifiant: values.identifiant || null,
+        mdp: values.mdp || null,
+      });
     },
     onSuccess: () => {
       toast({
@@ -72,7 +67,12 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
   };
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
+    <Dialog open={open} onOpenChange={(newOpen) => {
+      if (updateClientMutation.isPending || isPending) return;
+      startTransition(() => {
+        onOpenChange(newOpen);
+      });
+    }}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Modifier le client</DialogTitle>
