@@ -1,4 +1,3 @@
-
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -10,11 +9,10 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
+import { useInterventionStep1 } from "@/hooks/useInterventionStep1";
 
-// Validation schema pour la première étape de la demande d'intervention
 const requestSchema = z.object({
   description: z.string()
     .min(20, { message: "La description doit contenir au moins 20 caractères." })
@@ -36,6 +34,7 @@ const RequestIntervention = () => {
   const navigate = useNavigate();
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const { session, userType, clientId } = useAuth();
+  const { saveStep1, getStep1 } = useInterventionStep1();
 
   const form = useForm<RequestValues>({
     resolver: zodResolver(requestSchema),
@@ -47,37 +46,23 @@ const RequestIntervention = () => {
     },
   });
 
-  // Vérifier si nous avons déjà des données sauvegardées
   useEffect(() => {
-    const savedData = sessionStorage.getItem("interventionStep1");
-    if (savedData) {
-      try {
-        const parsedData = JSON.parse(savedData);
-        form.reset(parsedData);
-      } catch (error) {
-        console.error("Error parsing saved data:", error);
-        sessionStorage.removeItem("interventionStep1");
-      }
+    const loaded = getStep1();
+    if (loaded) {
+      form.reset(loaded);
     }
-  }, [form]);
+  }, [form, getStep1]);
 
   const onSubmit = async (data: RequestValues) => {
     setIsLoading(true);
-
     try {
-      // On sauvegarde toujours les données du formulaire
-      sessionStorage.setItem("interventionStep1", JSON.stringify(data));
-      console.log("Step 1 data saved:", data);
-
-      // Si l'utilisateur est déjà connecté et est un client, on passe à l'étape suivante
+      saveStep1(data);
       if (session && userType === 'client' && clientId) {
         navigate("/intervention/details");
       } else {
-        // Sinon, on le redirige vers la page d'authentification
         navigate("/auth", { state: { returnTo: "/intervention/details" } });
       }
-    } catch (error) {
-      console.error("Error saving data:", error);
+    } catch {
       toast("Erreur lors de l'enregistrement des données");
     } finally {
       setIsLoading(false);
@@ -86,7 +71,6 @@ const RequestIntervention = () => {
 
   return (
     <div className="min-h-screen flex flex-col">
-      {/* Navigation Bar - Version simple */}
       <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
