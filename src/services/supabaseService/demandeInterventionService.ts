@@ -25,9 +25,14 @@ const getById = async (id: string) => {
 
 // Function to create a new intervention request
 const create = async (demandeData: any) => {
+  // Remove any fields not in the demande_interventions table
+  const { localisation, ...validData } = demandeData;
+  
+  console.log("Sanitized data for demande_interventions:", validData);
+  
   const { data, error } = await supabase
     .from('demande_interventions')
-    .insert([demandeData])
+    .insert([validData])
     .select();
   
   if (error) throw error;
