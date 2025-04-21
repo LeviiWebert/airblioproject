@@ -74,7 +74,7 @@ const updatePVStatus = async (pvId: string, validationClient: boolean, commentai
 
 // Créer un PV
 const createPv = async (pvData: Partial<PVIntervention>) => {
-  // Map the client-side property names to the database column names
+  // Transformer les propriétés camelCase en snake_case pour la base de données
   const dbData = {
     intervention_id: pvData.interventionId,
     client_id: pvData.clientId,

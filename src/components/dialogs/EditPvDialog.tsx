@@ -70,7 +70,8 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       }
       if (onSaved) onSaved();
       onOpenChange(false);
-    } catch {
+    } catch (error) {
+      console.error("Erreur lors de la sauvegarde du PV:", error);
       toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le PV." });
     } finally {
       setLoading(false);
@@ -134,4 +135,3 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
     </Dialog>
   );
 }
-
