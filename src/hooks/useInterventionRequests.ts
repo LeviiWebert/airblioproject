@@ -65,6 +65,8 @@ export const useInterventionRequests = () => {
       // Déterminer le nouveau statut
       const newStatus = actionType === "accept" ? "validée" : "rejetée";
       
+      console.log(`Mise à jour du statut de la demande ${selectedRequest.id} à ${newStatus}`);
+      
       // Mettre à jour le statut de la demande dans Supabase
       const { error } = await supabase
         .from('demande_interventions')
@@ -78,6 +80,8 @@ export const useInterventionRequests = () => {
       
       // Si la demande est acceptée, créer une intervention
       if (actionType === "accept") {
+        console.log("Création d'une nouvelle intervention pour la demande:", selectedRequest.id);
+        
         const { data: intervention, error: interventionError } = await supabase
           .from('interventions')
           .insert([
@@ -93,6 +97,8 @@ export const useInterventionRequests = () => {
         
         if (interventionError) throw interventionError;
         
+        console.log("Intervention créée avec succès:", intervention);
+        
         // Mettre à jour la demande d'intervention avec l'ID de l'intervention
         const { error: updateError } = await supabase
           .from('demande_interventions')
@@ -101,7 +107,7 @@ export const useInterventionRequests = () => {
         
         if (updateError) throw updateError;
         
-        console.log("Intervention créée:", intervention);
+        console.log("Demande mise à jour avec l'ID de l'intervention:", intervention.id);
       }
       
       // Notification de succès

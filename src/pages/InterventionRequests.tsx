@@ -23,11 +23,13 @@ const InterventionRequests = () => {
   } = useInterventionRequests();
 
   const openAcceptDialog = (request: any) => {
+    console.log("Ouverture de la boîte de dialogue d'acceptation pour la demande:", request.id);
     setSelectedRequest(request);
     setShowAcceptDialog(true);
   };
 
   const openRejectDialog = (request: any) => {
+    console.log("Ouverture de la boîte de dialogue de refus pour la demande:", request.id);
     setSelectedRequest(request);
     setShowRejectDialog(true);
   };
@@ -36,6 +38,7 @@ const InterventionRequests = () => {
     if (!selectedRequest) return;
 
     try {
+      console.log("Acceptation de la demande:", selectedRequest.id);
       handleAccept(selectedRequest);
       await confirmAction();
       toast.success("Demande d'intervention acceptée avec succès");
@@ -52,6 +55,7 @@ const InterventionRequests = () => {
     if (!selectedRequest) return;
 
     try {
+      console.log("Rejet de la demande:", selectedRequest.id);
       handleReject(selectedRequest);
       await confirmAction();
       toast.success("Demande d'intervention refusée");

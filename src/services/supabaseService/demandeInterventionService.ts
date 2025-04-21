@@ -11,6 +11,25 @@ const getAll = async () => {
   return data;
 };
 
+// Function to get all pending intervention requests
+const getPending = async () => {
+  const { data, error } = await supabase
+    .from('demande_interventions')
+    .select(`
+      *,
+      client:client_id (
+        id,
+        nom_entreprise,
+        email,
+        tel
+      )
+    `)
+    .eq('statut', 'en_attente');
+  
+  if (error) throw error;
+  return data;
+};
+
 // Function to get an intervention request by ID
 const getById = async (id: string) => {
   const { data, error } = await supabase
@@ -41,6 +60,8 @@ const create = async (demandeData: any) => {
 
 // Function to update the status of an intervention request
 const updateStatus = async (id: string, status: string) => {
+  console.log(`Updating status for demande ${id} to ${status}`);
+  
   const { data, error } = await supabase
     .from('demande_interventions')
     .update({ statut: status })
@@ -51,10 +72,26 @@ const updateStatus = async (id: string, status: string) => {
   return data[0];
 };
 
+// Function to update intervention_id of a request
+const updateInterventionId = async (id: string, interventionId: string) => {
+  console.log(`Linking intervention ${interventionId} to demande ${id}`);
+  
+  const { data, error } = await supabase
+    .from('demande_interventions')
+    .update({ intervention_id: interventionId })
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
 // Export the service functions
 export const demandeInterventionService = {
   getAll,
+  getPending,
   getById,
   create,
-  updateStatus
+  updateStatus,
+  updateInterventionId
 };
