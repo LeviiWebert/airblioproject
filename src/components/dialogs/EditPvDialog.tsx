@@ -56,13 +56,13 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
     try {
       if (initialPvId) {
         // Mise à jour du PV existant
-        await pvInterventionService.updatePVStatus(initialPvId, validationClient, commentaire);
+        await pvInterventionService.updatePVStatus(initialPvId, validationClient ?? null, commentaire);
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
         // Création du PV si nécessaire
         await pvInterventionService.createPv({
-          clientId: clientId,
-          interventionId: interventionId,
+          client_id: clientId,
+          intervention_id: interventionId,
           validation_client: validationClient ?? null,
           commentaire,
         });

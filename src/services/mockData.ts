@@ -294,8 +294,8 @@ export const interventions: Intervention[] = [
 export const pvInterventions: PVIntervention[] = [
   {
     id: "pv1",
-    validationClient: true,
-    dateValidation: new Date(),
+    validation_client: true,
+    date_validation: new Date(),
     interventionId: "interv2",
     clientId: "client3"
   }
