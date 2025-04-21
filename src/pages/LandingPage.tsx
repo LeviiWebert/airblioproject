@@ -252,7 +252,7 @@ const LandingPage = () => {
                 <div className="bg-blue-100 rounded-lg overflow-hidden h-48">
                   <div className="w-full h-full relative bg-gradient-to-br from-blue-400 to-blue-700">
                     <img 
-                      src="/images/underwater-equipment-3.jpg" 
+                      src="/images/underwater-equipment-3.png" 
                       alt="Outils techniques sous-marins"
                       className="object-cover w-full h-full opacity-80"
                     />
@@ -333,8 +333,11 @@ const LandingPage = () => {
                 {/* Team image placeholder */}
                 <div className="w-full h-full flex items-center justify-center bg-gradient-to-br from-blue-500 to-blue-800 text-white">
                   <div className="text-center p-6">
-                    <User size={60} className="mx-auto mb-4" />
-                    <p className="font-medium">Image de l'équipe d'experts</p>
+                    <img 
+                      src="/images/underwater-equipment-4.jpg" 
+                      alt="Équipement d'intervention sous-marine"
+                      className="object-cover w-full h-full opacity-80"
+                    />
                   </div>
                 </div>
               </div>
