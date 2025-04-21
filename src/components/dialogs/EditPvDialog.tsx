@@ -76,6 +76,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
         // Création du PV
+        console.log("Création d'un nouveau PV avec client ID:", clientId);
         await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,

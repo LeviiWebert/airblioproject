@@ -93,10 +93,22 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
       throw new Error("L'ID du client et l'ID de l'intervention sont requis");
     }
 
+    // Vérifier si le client est un objet ou une chaîne
+    let clientId = pvData.clientId;
+    if (typeof clientId === 'object' && clientId !== null) {
+      console.log("ClientId est un objet, extraction de l'ID:", clientId);
+      // Si clientId est un objet (probablement un client complet), extraire uniquement l'ID
+      if ('id' in clientId) {
+        clientId = clientId.id as string;
+      } else {
+        throw new Error("Format d'ID client invalide");
+      }
+    }
+
     // Transformer les propriétés camelCase en snake_case pour la base de données
     const dbData = {
       intervention_id: pvData.interventionId,
-      client_id: pvData.clientId,
+      client_id: clientId,
       validation_client: pvData.validation_client,
       commentaire: pvData.commentaire
     };
