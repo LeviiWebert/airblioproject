@@ -8,7 +8,7 @@ import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
-import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User, RefreshCcw } from "lucide-react";
+import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User, RefreshCcw, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
@@ -302,13 +302,23 @@ const InterventionsList = () => {
                       </div>
                     </div>
 
-                    <div className="mt-4 md:mt-0">
+                    <div className="mt-4 md:mt-0 flex gap-2">
                       <Button variant="outline" size="sm" asChild>
                         <Link to={`/client/intervention/${item.id}`}>
                           <Eye className="w-4 h-4 mr-2" />
                           Voir les détails
                         </Link>
                       </Button>
+                      
+                      {/* Add the edit button with proper link to modification page */}
+                      {item.intervention_id && (
+                        <Button variant="default" size="sm" asChild>
+                          <Link to={`/admin/interventions/new?interventionId=${item.intervention_id}`}>
+                            <Edit className="w-4 h-4 mr-2" />
+                            Modifier
+                          </Link>
+                        </Button>
+                      )}
                     </div>
                   </div>
 
