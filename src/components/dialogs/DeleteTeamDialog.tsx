@@ -42,13 +42,13 @@ const DeleteTeamDialog = ({
         description: "L'équipe a été supprimée avec succès.",
       });
 
+      // Envelopper les changements d'interface dans startTransition
       startTransition(() => {
         onOpenChange(false);
+        // Important: Déplacer l'invalidation des requêtes dans la transition
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamDeleted();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamDeleted();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression de l'équipe:", error);
@@ -67,6 +67,7 @@ const DeleteTeamDialog = ({
   const handleOpenChange = (newOpen: boolean) => {
     if (deleteTeamMutation.isPending || isPending) return;
     
+    // Envelopper le changement d'état de la modale dans startTransition
     startTransition(() => {
       onOpenChange(newOpen);
     });

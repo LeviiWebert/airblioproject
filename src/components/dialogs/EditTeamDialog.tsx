@@ -28,13 +28,13 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         description: "L'équipe a été mise à jour avec succès.",
       });
 
+      // Envelopper les changements d'interface dans startTransition
       startTransition(() => {
         onOpenChange(false);
+        // Important: Déplacer l'invalidation des requêtes dans la transition
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamUpdated();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamUpdated();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -53,6 +53,7 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
   const handleOpenChange = (newOpen: boolean) => {
     if (updateTeamMutation.isPending || isPending) return;
     
+    // Envelopper le changement d'état de la modale dans startTransition
     startTransition(() => {
       onOpenChange(newOpen);
     });

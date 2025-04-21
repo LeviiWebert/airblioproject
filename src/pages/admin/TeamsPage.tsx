@@ -8,7 +8,7 @@ import { Equipe } from "@/types/models";
 import AddTeamDialog from "@/components/dialogs/AddTeamDialog";
 import EditTeamDialog from "@/components/dialogs/EditTeamDialog";
 import DeleteTeamDialog from "@/components/dialogs/DeleteTeamDialog";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import { equipeService } from "@/services/dataService";
 
 const TeamsPage = () => {
@@ -17,26 +17,26 @@ const TeamsPage = () => {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [selectedTeam, setSelectedTeam] = useState<Equipe | null>(null);
   const { toast } = useToast();
-  const queryClient = useQueryClient();
   const [isPending, startTransition] = useTransition();
 
-  // Use React Query for data fetching
+  // Utiliser React Query pour la récupération des données
   const {
     data: teams = [],
     isLoading,
-    error
+    error,
+    refetch
   } = useQuery({
     queryKey: ["teams"],
     queryFn: async () => {
       try {
         const data = await equipeService.getAll();
         
-        // Transform the data to match our Equipe type
+        // Transformer les données pour correspondre à notre type Equipe
         return data.map((team) => ({
           id: team.id,
           nom: team.nom,
           specialisation: team.specialisation || '',
-          membres: []  // We'll need another query to get team members if needed
+          membres: []  // Nous aurons besoin d'une autre requête pour obtenir les membres de l'équipe si nécessaire
         }));
       } catch (error) {
         console.error("Erreur lors du chargement des équipes:", error);
@@ -46,7 +46,7 @@ const TeamsPage = () => {
     staleTime: 60000 // 1 minute
   });
 
-  // Show errors with toast if necessary
+  // Afficher les erreurs avec toast si nécessaire
   if (error) {
     console.error("Erreur de requête:", error);
     toast({
@@ -57,12 +57,14 @@ const TeamsPage = () => {
   }
 
   const handleAddTeam = () => {
+    if (isPending) return;
     startTransition(() => {
       setIsAddDialogOpen(true);
     });
   };
 
   const handleEdit = (team: Equipe) => {
+    if (isPending) return;
     startTransition(() => {
       setSelectedTeam(team);
       setIsEditDialogOpen(true);
@@ -70,6 +72,7 @@ const TeamsPage = () => {
   };
 
   const handleDelete = (team: Equipe) => {
+    if (isPending) return;
     startTransition(() => {
       setSelectedTeam(team);
       setIsDeleteDialogOpen(true);
@@ -77,9 +80,9 @@ const TeamsPage = () => {
   };
 
   const refreshTeams = () => {
-    // Pas besoin de wrap cette fonction dans startTransition car elle est appelée
-    // depuis le callback onSuccess de la mutation, qui est déjà dans startTransition
-    queryClient.invalidateQueries({ queryKey: ["teams"] });
+    // Cette fonction est appelée après les mutations et est déjà encapsulée dans startTransition
+    // dans les composants de dialogue. Pas besoin de l'encapsuler à nouveau.
+    refetch();
   };
 
   return (

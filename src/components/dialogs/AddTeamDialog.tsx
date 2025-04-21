@@ -26,13 +26,13 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         description: "L'équipe a été créée avec succès.",
       });
 
+      // Envelopper les changements d'interface dans startTransition
       startTransition(() => {
         onOpenChange(false);
+        // Important: Déplacer l'invalidation des requêtes dans la transition
+        queryClient.invalidateQueries({ queryKey: ["teams"] });
+        onTeamAdded();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-      onTeamAdded();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création de l'équipe:", error);
@@ -51,6 +51,7 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
   const handleOpenChange = (newOpen: boolean) => {
     if (createTeamMutation.isPending || isPending) return;
     
+    // Envelopper le changement d'état de la modale dans startTransition
     startTransition(() => {
       onOpenChange(newOpen);
     });
