@@ -2,7 +2,6 @@ import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { useNavigate, Link } from "react-router-dom";
-import { Session } from "@supabase/supabase-js";
 import { supabase } from "@/integrations/supabase/client";
 import { Calendar } from "@/components/ui/calendar";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -18,6 +17,7 @@ import { cn } from "@/lib/utils";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
 import { useAuth } from "@/hooks/useAuth";
+import { demandeInterventionService } from "@/services/supabaseService/demandeInterventionService";
 
 const timeSlots = [
   "08:00", "09:00", "10:00", "11:00", "12:00", 
@@ -86,23 +86,19 @@ const InterventionSchedule = () => {
       }
       
       // Créer la demande d'intervention dans la base de données
-      const { data: insertedData, error } = await supabase
-        .from('demande_interventions')
-        .insert([
-          {
-            client_id: clientId,
-            description: finalData.description, 
-            urgence: finalData.urgence,
-            statut: "en_attente",
-            date_demande: new Date().toISOString()
-          }
-        ])
-        .select();
+      const demandData = {
+        client_id: clientId,
+        description: finalData.description, 
+        urgence: finalData.urgence,
+        statut: "en_attente",
+        date_demande: new Date().toISOString(),
+        localisation: finalData.localisation || finalData.contactDetails?.address
+      };
       
-      if (error) {
-        console.error("Erreur d'insertion:", error);
-        throw error;
-      }
+      console.log("Données à envoyer:", demandData);
+      
+      // Utiliser le service pour créer la demande
+      const insertedData = await demandeInterventionService.create(demandData);
       
       console.log("Demande créée avec succès:", insertedData);
       

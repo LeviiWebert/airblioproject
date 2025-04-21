@@ -23,8 +23,20 @@ const getById = async (id: string) => {
   return data;
 };
 
+// Function to create a new intervention request
+const create = async (demandeData: any) => {
+  const { data, error } = await supabase
+    .from('demande_interventions')
+    .insert([demandeData])
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
 // Export the service functions
 export const demandeInterventionService = {
   getAll,
-  getById
+  getById,
+  create
 };

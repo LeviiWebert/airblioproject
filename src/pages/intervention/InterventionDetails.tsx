@@ -1,3 +1,4 @@
+
 import React, { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -43,31 +44,22 @@ const InterventionDetails = () => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        if (session && userType === 'client' && clientId) {
-          toast("Vous êtes déjà connecté en tant que client. Redirection vers votre tableau de bord.");
-          navigate("/client-dashboard");
-          return;
-        }
-        
-        const { data } = await supabase.auth.getSession();
-        
-        if (!data.session) {
+        if (!session) {
           navigate("/auth", { state: { returnTo: "/intervention/request" } });
           return;
         }
         
-        if (data.session.user?.email) {
-          form.setValue("email", data.session.user.email);
+        if (session.user?.email) {
+          form.setValue("email", session.user.email);
         }
         
         const storedData = sessionStorage.getItem("interventionStep1");
-        if (storedData) {
-          setStep1Data(JSON.parse(storedData));
-        } else {
+        if (!storedData) {
           navigate("/intervention/request");
           return;
         }
         
+        setStep1Data(JSON.parse(storedData));
         setAuthChecked(true);
       } catch (error) {
         console.error("Erreur de vérification de l'authentification:", error);
@@ -78,6 +70,7 @@ const InterventionDetails = () => {
 
     checkAuth();
 
+    // Subscribe to auth changes
     const { data: { subscription } } = supabase.auth.onAuthStateChange(
       (event, sessionData) => {
         if (!sessionData) {
@@ -92,15 +85,23 @@ const InterventionDetails = () => {
   const onSubmit = (data: DetailsValues) => {
     setIsLoading(true);
     
-    const combinedData = {
-      ...step1Data,
-      contactDetails: data
-    };
-    
-    sessionStorage.setItem("interventionData", JSON.stringify(combinedData));
-    
-    navigate("/intervention/schedule");
-    setIsLoading(false);
+    try {
+      const combinedData = {
+        ...step1Data,
+        contactDetails: data
+      };
+      
+      // Store the combined data for the next step
+      sessionStorage.setItem("interventionData", JSON.stringify(combinedData));
+      
+      // Navigate to the next step
+      navigate("/intervention/schedule");
+    } catch (error) {
+      console.error("Error saving data:", error);
+      toast("Erreur lors de l'enregistrement des données");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   if (!authChecked) {
