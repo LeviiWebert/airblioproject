@@ -1,5 +1,6 @@
 
 import { supabase } from '@/integrations/supabase/client';
+import { FilterOptions } from '@/types/models';
 
 // Get all interventions
 const getAll = async () => {
@@ -15,7 +16,7 @@ const getAll = async () => {
 };
 
 // Get detailed interventions with filtering options
-const getDetailedInterventions = async (filterOptions = {}) => {
+const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
   try {
     console.log("Getting detailed interventions with filters:", filterOptions);
     
@@ -50,16 +51,16 @@ const getDetailedInterventions = async (filterOptions = {}) => {
       query = query.eq('statut', filterOptions.status);
     }
     
-    if (filterOptions.clientId) {
-      query = query.eq('demande_intervention_id.client_id', filterOptions.clientId);
+    if (filterOptions.client) {
+      query = query.eq('demande_intervention_id.client_id', filterOptions.client);
     }
     
-    if (filterOptions.teamId) {
+    if (filterOptions.team) {
       // For team filtering, we need a different approach since it's a nested relation
       const { data: teamInterventions } = await supabase
         .from('intervention_equipes')
         .select('intervention_id')
-        .eq('equipe_id', filterOptions.teamId);
+        .eq('equipe_id', filterOptions.team);
       
       if (teamInterventions && teamInterventions.length > 0) {
         const interventionIds = teamInterventions.map(ti => ti.intervention_id);
@@ -71,12 +72,12 @@ const getDetailedInterventions = async (filterOptions = {}) => {
     }
     
     // Apply date range filter if it exists
-    if (filterOptions.startDate) {
-      query = query.gte('date_debut', filterOptions.startDate);
+    if (filterOptions.dateRange?.from) {
+      query = query.gte('date_debut', filterOptions.dateRange.from);
     }
     
-    if (filterOptions.endDate) {
-      query = query.lte('date_debut', filterOptions.endDate);
+    if (filterOptions.dateRange?.to) {
+      query = query.lte('date_debut', filterOptions.dateRange.to);
     }
     
     const { data, error } = await query;
