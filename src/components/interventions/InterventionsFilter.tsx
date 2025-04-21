@@ -105,7 +105,7 @@ export const InterventionsFilter = ({ clients, teams, onFilter }: InterventionsF
                       <SelectValue placeholder="Tous les statuts" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous les statuts</SelectItem>
+                      <SelectItem value="all">Tous les statuts</SelectItem>
                       <SelectItem value="en_attente">En attente</SelectItem>
                       <SelectItem value="validée">Validée</SelectItem>
                       <SelectItem value="planifiée">Planifiée</SelectItem>
@@ -123,7 +123,7 @@ export const InterventionsFilter = ({ clients, teams, onFilter }: InterventionsF
                       <SelectValue placeholder="Tous les clients" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous les clients</SelectItem>
+                      <SelectItem value="all">Tous les clients</SelectItem>
                       {clients.map((c) => (
                         <SelectItem key={c.id} value={c.id}>
                           {c.nom_entreprise}
@@ -140,7 +140,7 @@ export const InterventionsFilter = ({ clients, teams, onFilter }: InterventionsF
                       <SelectValue placeholder="Toutes les équipes" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Toutes les équipes</SelectItem>
+                      <SelectItem value="all">Toutes les équipes</SelectItem>
                       {teams.map((t) => (
                         <SelectItem key={t.id} value={t.id}>
                           {t.nom}

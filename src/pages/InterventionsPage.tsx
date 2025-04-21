@@ -74,13 +74,13 @@ const InterventionsPage = () => {
         `);
       
       // Apply status filter
-      if (filterOptions.status) {
+      if (filterOptions.status && filterOptions.status !== 'all') {
         console.log("Applying status filter:", filterOptions.status);
         query = query.eq('statut', filterOptions.status);
       }
       
       // Apply client filter - this works by filtering on the related client ID
-      if (filterOptions.client) {
+      if (filterOptions.client && filterOptions.client !== 'all') {
         console.log("Applying client filter:", filterOptions.client);
         query = query.eq('demande_interventions.client_id', filterOptions.client);
       }
@@ -132,7 +132,7 @@ const InterventionsPage = () => {
       }));
       
       // Since team is a nested array relationship, we filter it in JavaScript
-      if (filterOptions.team) {
+      if (filterOptions.team && filterOptions.team !== 'all') {
         console.log("Applying team filter in JavaScript:", filterOptions.team);
         formattedInterventions = formattedInterventions.filter(intervention => 
           intervention.equipes.some(eq => eq.id === filterOptions.team)
