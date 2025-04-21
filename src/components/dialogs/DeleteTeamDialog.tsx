@@ -44,9 +44,11 @@ const DeleteTeamDialog = ({
 
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamDeleted();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamDeleted();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression de l'équipe:", error);
@@ -62,13 +64,16 @@ const DeleteTeamDialog = ({
     deleteTeamMutation.mutate();
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (deleteTeamMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={(newOpen) => {
-      if (deleteTeamMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Êtes-vous sûr?</AlertDialogTitle>

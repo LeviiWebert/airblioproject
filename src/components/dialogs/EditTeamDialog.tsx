@@ -30,9 +30,11 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
 
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamUpdated();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamUpdated();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -48,13 +50,16 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
     updateTeamMutation.mutate(values);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (updateTeamMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (updateTeamMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Modifier l'équipe</DialogTitle>

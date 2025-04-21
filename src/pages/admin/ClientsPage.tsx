@@ -58,6 +58,12 @@ const ClientsPage = () => {
     });
   }
 
+  const handleAddClient = () => {
+    startTransition(() => {
+      setIsAddDialogOpen(true);
+    });
+  };
+
   const handleEdit = (client: Client) => {
     startTransition(() => {
       setSelectedClient(client);
@@ -73,9 +79,9 @@ const ClientsPage = () => {
   };
 
   const refreshClients = () => {
-    startTransition(() => {
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-    });
+    // Pas besoin de wrap cette fonction dans startTransition car elle est appelée
+    // depuis le callback onSuccess de la mutation, qui est déjà dans startTransition
+    queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 
   return (
@@ -89,7 +95,8 @@ const ClientsPage = () => {
         </div>
         <Button 
           className="flex items-center gap-2"
-          onClick={() => startTransition(() => setIsAddDialogOpen(true))}
+          onClick={handleAddClient}
+          disabled={isPending}
         >
           <Plus className="h-4 w-4" />
           <span>Nouveau client</span>
@@ -127,6 +134,7 @@ const ClientsPage = () => {
                           variant="outline" 
                           size="sm"
                           onClick={() => handleEdit(client)}
+                          disabled={isPending}
                         >
                           <Pencil className="h-4 w-4 mr-1" />
                           Modifier
@@ -135,6 +143,7 @@ const ClientsPage = () => {
                           variant="destructive" 
                           size="sm"
                           onClick={() => handleDelete(client)}
+                          disabled={isPending}
                         >
                           <Trash className="h-4 w-4 mr-1" />
                           Supprimer

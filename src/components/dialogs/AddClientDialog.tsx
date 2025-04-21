@@ -1,5 +1,5 @@
 
-import React, { useState, useTransition } from "react";
+import React, { useTransition } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import ClientForm from "@/components/forms/ClientForm";
@@ -40,9 +40,11 @@ const AddClientDialog = ({ open, onOpenChange, onClientAdded }: AddClientDialogP
       
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["clients"] });
-        onClientAdded();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      onClientAdded();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création du client:", error);
@@ -64,13 +66,16 @@ const AddClientDialog = ({ open, onOpenChange, onClientAdded }: AddClientDialogP
     createClientMutation.mutate(values);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (createClientMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (createClientMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Ajouter un client</DialogTitle>

@@ -42,9 +42,11 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
       
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["clients"] });
-        onClientUpdated();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      onClientUpdated();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour du client:", error);
@@ -66,13 +68,16 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
     updateClientMutation.mutate(values);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (updateClientMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (updateClientMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[500px]">
         <DialogHeader>
           <DialogTitle>Modifier le client</DialogTitle>

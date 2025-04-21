@@ -58,9 +58,11 @@ const DeleteClientDialog = ({
       
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["clients"] });
-        onClientDeleted();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["clients"] });
+      onClientDeleted();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression du client:", error);
@@ -76,13 +78,16 @@ const DeleteClientDialog = ({
     deleteClientMutation.mutate();
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (deleteClientMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <AlertDialog open={open} onOpenChange={(newOpen) => {
-      if (deleteClientMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <AlertDialog open={open} onOpenChange={handleOpenChange}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>Êtes-vous sûr?</AlertDialogTitle>

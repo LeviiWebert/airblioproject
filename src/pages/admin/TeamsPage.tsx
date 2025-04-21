@@ -56,6 +56,12 @@ const TeamsPage = () => {
     });
   }
 
+  const handleAddTeam = () => {
+    startTransition(() => {
+      setIsAddDialogOpen(true);
+    });
+  };
+
   const handleEdit = (team: Equipe) => {
     startTransition(() => {
       setSelectedTeam(team);
@@ -71,9 +77,9 @@ const TeamsPage = () => {
   };
 
   const refreshTeams = () => {
-    startTransition(() => {
-      queryClient.invalidateQueries({ queryKey: ["teams"] });
-    });
+    // Pas besoin de wrap cette fonction dans startTransition car elle est appelée
+    // depuis le callback onSuccess de la mutation, qui est déjà dans startTransition
+    queryClient.invalidateQueries({ queryKey: ["teams"] });
   };
 
   return (
@@ -87,7 +93,8 @@ const TeamsPage = () => {
         </div>
         <Button 
           className="flex items-center gap-2"
-          onClick={() => startTransition(() => setIsAddDialogOpen(true))}
+          onClick={handleAddTeam}
+          disabled={isPending}
         >
           <Plus className="h-4 w-4" />
           <span>Nouvelle équipe</span>
@@ -123,6 +130,7 @@ const TeamsPage = () => {
                           variant="outline" 
                           size="sm"
                           onClick={() => handleEdit(team)}
+                          disabled={isPending}
                         >
                           <Pencil className="h-4 w-4 mr-1" />
                           Modifier
@@ -131,6 +139,7 @@ const TeamsPage = () => {
                           variant="destructive" 
                           size="sm"
                           onClick={() => handleDelete(team)}
+                          disabled={isPending}
                         >
                           <Trash className="h-4 w-4 mr-1" />
                           Supprimer

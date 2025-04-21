@@ -28,9 +28,11 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
 
       startTransition(() => {
         onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamAdded();
       });
+      
+      // Séparation de l'invalidation des requêtes du changement d'interface
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamAdded();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création de l'équipe:", error);
@@ -46,13 +48,16 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
     createTeamMutation.mutate(values);
   };
 
+  const handleOpenChange = (newOpen: boolean) => {
+    if (createTeamMutation.isPending || isPending) return;
+    
+    startTransition(() => {
+      onOpenChange(newOpen);
+    });
+  };
+
   return (
-    <Dialog open={open} onOpenChange={(newOpen) => {
-      if (createTeamMutation.isPending || isPending) return;
-      startTransition(() => {
-        onOpenChange(newOpen);
-      });
-    }}>
+    <Dialog open={open} onOpenChange={handleOpenChange}>
       <DialogContent className="sm:max-w-[425px]">
         <DialogHeader>
           <DialogTitle>Ajouter une équipe</DialogTitle>
