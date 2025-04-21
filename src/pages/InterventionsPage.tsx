@@ -137,6 +137,8 @@ const InterventionsPage = () => {
     setError(null);
     setCurrentFilters(filters);
     
+    console.log("Applying filters:", filters);
+    
     // Set a timeout to prevent infinite loading
     if (loadTimeoutRef.current) {
       clearTimeout(loadTimeoutRef.current);
@@ -149,7 +151,7 @@ const InterventionsPage = () => {
     }, 10000); // 10 seconds timeout
     
     try {
-      // Build Supabase query with filters
+      // Start with a base query
       let query = supabase
         .from('interventions')
         .select(`
@@ -177,26 +179,38 @@ const InterventionsPage = () => {
           )
         `);
       
-      // Apply filters
-      if (filters.status) {
+      // Apply status filter
+      if (filters.status && filters.status !== "") {
         query = query.eq('statut', filters.status);
       }
       
-      if (filters.client) {
-        query = query.eq('demande_interventions.client_id', filters.client);
+      // Apply client filter
+      if (filters.client && filters.client !== "") {
+        query = query.eq('demande_interventions.clients.id', filters.client);
       }
       
+      // Apply date range filter
       if (filters.dateRange?.from) {
-        query = query.gte('date_debut', filters.dateRange.from.toISOString());
+        const fromDate = new Date(filters.dateRange.from);
+        fromDate.setHours(0, 0, 0, 0);
+        query = query.gte('date_debut', fromDate.toISOString());
       }
       
       if (filters.dateRange?.to) {
-        query = query.lte('date_debut', filters.dateRange.to.toISOString());
+        const toDate = new Date(filters.dateRange.to);
+        toDate.setHours(23, 59, 59, 999);
+        query = query.lte('date_debut', toDate.toISOString());
       }
       
+      // Execute the query
       const { data, error } = await query;
       
-      if (error) throw error;
+      if (error) {
+        console.error("Filtering error:", error);
+        throw error;
+      }
+      
+      console.log("Filtered data from Supabase:", data);
       
       // Clear the timeout as data has been fetched
       if (loadTimeoutRef.current) {
@@ -205,7 +219,7 @@ const InterventionsPage = () => {
       }
       
       // Transform data into the expected format
-      const formattedInterventions = data.map(item => ({
+      let formattedInterventions = data.map(item => ({
         id: item.id,
         dateDebut: item.date_debut ? new Date(item.date_debut) : null,
         dateFin: item.date_fin ? new Date(item.date_fin) : null,
@@ -225,16 +239,15 @@ const InterventionsPage = () => {
         })) || []
       }));
       
-      // Post-filter for team (if needed)
-      let filteredInterventions = formattedInterventions;
-      if (filters.team) {
-        filteredInterventions = formattedInterventions.filter(intervention => 
+      // Apply team filter in JavaScript (as it's a nested array relationship)
+      if (filters.team && filters.team !== "") {
+        formattedInterventions = formattedInterventions.filter(intervention => 
           intervention.equipes.some(eq => eq.id === filters.team)
         );
       }
       
-      console.log("Interventions filtrées:", filteredInterventions);
-      setInterventions(filteredInterventions);
+      console.log("Filtered interventions:", formattedInterventions);
+      setInterventions(formattedInterventions);
     } catch (error: any) {
       console.error("Error filtering interventions:", error);
       setError("Impossible d'appliquer les filtres. " + error.message);
