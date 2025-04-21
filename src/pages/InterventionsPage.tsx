@@ -3,14 +3,15 @@ import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   clientService, 
-  equipeService 
+  equipeService,
+  interventionService 
 } from "@/services/dataService";
 import { FilterOptions } from "@/types/models";
 import { Button } from "@/components/ui/button";
 import { InterventionsFilter } from "@/components/interventions/InterventionsFilter";
 import { InterventionsList } from "@/components/interventions/InterventionsList";
 import { Plus, RefreshCcw, AlertCircle } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
@@ -22,8 +23,17 @@ const InterventionsPage = () => {
   const [filters, setFilters] = useState<FilterOptions>({});
   const [error, setError] = useState<string | null>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const location = useLocation();
   
   const { toast: useToastHook } = useToast();
+
+  // Vérifier s'il y a un paramètre de rafraîchissement dans l'URL
+  useEffect(() => {
+    const searchParams = new URLSearchParams(location.search);
+    if (searchParams.get('refresh') === 'true') {
+      fetchInterventions();
+    }
+  }, [location]);
 
   // Function to fetch data with or without filters
   const fetchInterventions = async (filterOptions: FilterOptions = {}) => {
@@ -45,100 +55,8 @@ const InterventionsPage = () => {
     }, 15000);
     
     try {
-      // Start building the query
-      let query = supabase
-        .from('interventions')
-        .select(`
-          id,
-          date_debut,
-          date_fin,
-          localisation,
-          statut,
-          demande_intervention_id,
-          demande_interventions:demande_intervention_id (
-            description,
-            urgence,
-            client_id,
-            clients:client_id (
-              id,
-              nom_entreprise
-            )
-          ),
-          intervention_equipes (
-            equipe_id,
-            equipes:equipe_id (
-              id,
-              nom
-            )
-          )
-        `);
-      
-      // Apply status filter
-      if (filterOptions.status && filterOptions.status !== 'all') {
-        console.log("Applying status filter:", filterOptions.status);
-        query = query.eq('statut', filterOptions.status);
-      }
-      
-      // Apply client filter - this works by filtering on the related client ID
-      if (filterOptions.client && filterOptions.client !== 'all') {
-        console.log("Applying client filter:", filterOptions.client);
-        query = query.eq('demande_interventions.client_id', filterOptions.client);
-      }
-      
-      // Apply date range filter
-      if (filterOptions.dateRange?.from) {
-        const fromDate = new Date(filterOptions.dateRange.from);
-        fromDate.setHours(0, 0, 0, 0);
-        console.log("Applying from date filter:", fromDate.toISOString());
-        query = query.gte('date_debut', fromDate.toISOString());
-      }
-      
-      if (filterOptions.dateRange?.to) {
-        const toDate = new Date(filterOptions.dateRange.to);
-        toDate.setHours(23, 59, 59, 999);
-        console.log("Applying to date filter:", toDate.toISOString());
-        query = query.lte('date_debut', toDate.toISOString());
-      }
-      
-      // Execute the query
-      const { data, error } = await query;
-      
-      if (error) {
-        console.error("Error fetching interventions:", error);
-        throw error;
-      }
-      
-      console.log("Raw data from Supabase:", data);
-      
-      // Transform data into the expected format
-      let formattedInterventions = data.map(item => ({
-        id: item.id,
-        dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-        dateFin: item.date_fin ? new Date(item.date_fin) : null,
-        localisation: item.localisation,
-        statut: item.statut,
-        client: {
-          id: item.demande_interventions?.clients?.id || '',
-          nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-        },
-        demande: {
-          description: item.demande_interventions?.description || '',
-          urgence: item.demande_interventions?.urgence || 'basse'
-        },
-        equipes: item.intervention_equipes?.map(eq => ({
-          id: eq.equipes?.id || '',
-          nom: eq.equipes?.nom || 'Équipe inconnue'
-        })) || []
-      }));
-      
-      // Since team is a nested array relationship, we filter it in JavaScript
-      if (filterOptions.team && filterOptions.team !== 'all') {
-        console.log("Applying team filter in JavaScript:", filterOptions.team);
-        formattedInterventions = formattedInterventions.filter(intervention => 
-          intervention.equipes.some(eq => eq.id === filterOptions.team)
-        );
-      }
-      
+      // Utiliser le service pour récupérer les interventions avec les filtres
+      const formattedInterventions = await interventionService.getDetailedInterventions(filterOptions);
       console.log("Formatted interventions after filtering:", formattedInterventions);
       setInterventions(formattedInterventions);
     } catch (error: any) {
@@ -186,11 +104,25 @@ const InterventionsPage = () => {
     
     loadData();
     
+    // Subscribe to events for real-time updates
+    const interventionChanges = supabase
+      .channel('public:interventions')
+      .on('postgres_changes', { 
+        event: '*', 
+        schema: 'public', 
+        table: 'interventions' 
+      }, () => {
+        console.log('Intervention changes detected, refreshing...');
+        fetchInterventions(filters);
+      })
+      .subscribe();
+    
     return () => {
-      // Clean up timeout on unmount
+      // Clean up timeout and subscription on unmount
       if (loadTimeoutRef.current) {
         clearTimeout(loadTimeoutRef.current);
       }
+      supabase.removeChannel(interventionChanges);
     };
   }, []);
 
@@ -219,17 +151,8 @@ const InterventionsPage = () => {
         })
       );
 
-      // Then update the database
-      const { error } = await supabase
-        .from('interventions')
-        .update({ 
-          statut: newStatus,
-          ...(newStatus === "en_cours" && { date_debut: new Date().toISOString() }),
-          ...(newStatus === "terminée" && { date_fin: new Date().toISOString() }),
-        })
-        .eq('id', id);
-      
-      if (error) throw error;
+      // Then update the database using the service
+      await interventionService.updateStatus(id, newStatus);
       
       toast.success(`Statut de l'intervention mis à jour : ${newStatus}`);
       

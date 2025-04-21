@@ -42,6 +42,9 @@ const InterventionRequests = () => {
       handleAccept(selectedRequest);
       await confirmAction();
       toast.success("Demande d'intervention acceptée avec succès");
+      
+      // Rediriger vers la liste des interventions avec un paramètre pour forcer le rafraîchissement
+      navigate("/admin/interventions?refresh=true");
     } catch (error) {
       console.error("Erreur lors de l'acceptation de la demande:", error);
       toast.error("Erreur lors de l'acceptation de la demande");

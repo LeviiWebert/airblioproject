@@ -3,6 +3,7 @@ import { useState, useEffect } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
+import { demandeInterventionService } from "@/services/supabaseService";
 
 export const useInterventionRequests = () => {
   const [loading, setLoading] = useState(true);
@@ -19,20 +20,8 @@ export const useInterventionRequests = () => {
   const fetchRequests = async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('demande_interventions')
-        .select(`
-          *,
-          client:client_id (
-            id,
-            nom_entreprise,
-            email,
-            tel
-          )
-        `)
-        .eq('statut', 'en_attente');
-        
-      if (error) throw error;
+      // Utiliser le service plutôt que l'appel direct à Supabase
+      const data = await demandeInterventionService.getPending();
       
       console.log("Demandes d'intervention récupérées:", data);
       setRequests(data || []);
@@ -67,13 +56,8 @@ export const useInterventionRequests = () => {
       
       console.log(`Mise à jour du statut de la demande ${selectedRequest.id} à ${newStatus}`);
       
-      // Mettre à jour le statut de la demande dans Supabase
-      const { error } = await supabase
-        .from('demande_interventions')
-        .update({ statut: newStatus })
-        .eq('id', selectedRequest.id);
-      
-      if (error) throw error;
+      // Utiliser le service pour la mise à jour
+      await demandeInterventionService.updateStatus(selectedRequest.id, newStatus);
       
       // Mettre à jour l'interface utilisateur
       setRequests(requests.filter(req => req.id !== selectedRequest.id));
@@ -82,6 +66,7 @@ export const useInterventionRequests = () => {
       if (actionType === "accept") {
         console.log("Création d'une nouvelle intervention pour la demande:", selectedRequest.id);
         
+        // S'assurer que toutes les données pertinentes sont transférées
         const { data: intervention, error: interventionError } = await supabase
           .from('interventions')
           .insert([
@@ -89,7 +74,10 @@ export const useInterventionRequests = () => {
               demande_intervention_id: selectedRequest.id,
               statut: 'planifiée',
               localisation: selectedRequest.localisation || 'À déterminer',
-              rapport: ''
+              rapport: '',
+              // Garder toutes les données importantes de la demande
+              date_debut: null,
+              date_fin: null
             }
           ])
           .select()
@@ -100,12 +88,7 @@ export const useInterventionRequests = () => {
         console.log("Intervention créée avec succès:", intervention);
         
         // Mettre à jour la demande d'intervention avec l'ID de l'intervention
-        const { error: updateError } = await supabase
-          .from('demande_interventions')
-          .update({ intervention_id: intervention.id })
-          .eq('id', selectedRequest.id);
-        
-        if (updateError) throw updateError;
+        await demandeInterventionService.updateInterventionId(selectedRequest.id, intervention.id);
         
         console.log("Demande mise à jour avec l'ID de l'intervention:", intervention.id);
       }

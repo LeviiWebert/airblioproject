@@ -34,7 +34,15 @@ const getPending = async () => {
 const getById = async (id: string) => {
   const { data, error } = await supabase
     .from('demande_interventions')
-    .select('*')
+    .select(`
+      *,
+      client:client_id (
+        id,
+        nom_entreprise,
+        email,
+        tel
+      )
+    `)
     .eq('id', id)
     .single();
   
