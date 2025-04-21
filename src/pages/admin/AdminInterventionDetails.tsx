@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -150,7 +151,7 @@ const AdminInterventionDetails = () => {
           </Button>
           
           <Button
-            onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}
+            onClick={() => navigate(`/admin/interventions/new?interventionId=${intervention.id}`)}
           >
             Modifier
           </Button>
@@ -477,7 +478,7 @@ const AdminInterventionDetails = () => {
         clientId={intervention.demande_intervention_id?.client_id ?? ""}
         initialPvId={intervention.pv_intervention_id || undefined}
         onSaved={() => {
-          // TODO : Optionnel - recharger l’intervention après édition du PV
+          // TODO : Optionnel - recharger l'intervention après édition du PV
         }}
       />
     </div>

@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -12,11 +12,11 @@ import { Input } from "@/components/ui/input";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { CalendarIcon } from "lucide-react";
+import { CalendarIcon, Loader2 } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { cn } from "@/lib/utils";
-import { clientService, equipeService } from "@/services/dataService";
+import { clientService, equipeService, interventionService } from "@/services/dataService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
 
@@ -36,9 +36,22 @@ const formSchema = z.object({
 const NewInterventionPage = () => {
   const { toast } = useToast();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const interventionId = searchParams.get('interventionId');
   const [loading, setLoading] = useState(false);
+  const [fetchLoading, setFetchLoading] = useState(false);
   const [clients, setClients] = useState<any[]>([]);
   const [equipes, setEquipes] = useState<any[]>([]);
+  const [isEditMode, setIsEditMode] = useState(false);
+  const [originalIntervention, setOriginalIntervention] = useState<any>(null);
+
+  const form = useForm<z.infer<typeof formSchema>>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      description: "",
+      localisation: "",
+    },
+  });
 
   // Charger les clients et équipes
   useEffect(() => {
@@ -63,97 +76,192 @@ const NewInterventionPage = () => {
     fetchData();
   }, [toast]);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      description: "",
-      localisation: "",
-    },
-  });
+  // Charger les données de l'intervention si on est en mode édition
+  useEffect(() => {
+    const fetchIntervention = async () => {
+      if (!interventionId) return;
+      
+      setFetchLoading(true);
+      try {
+        const data = await interventionService.getById(interventionId);
+        if (data) {
+          setOriginalIntervention(data);
+          setIsEditMode(true);
+          
+          // Récupérer l'ID de l'équipe principale
+          let equipeId = "";
+          if (data.teams && data.teams.length > 0) {
+            equipeId = data.teams[0].id;
+          }
+          
+          form.reset({
+            clientId: data.demande?.client_id || "",
+            localisation: data.localisation || "",
+            description: data.demande?.description || "",
+            urgence: (data.demande?.urgence as any) || "moyenne",
+            dateDebut: data.date_debut ? new Date(data.date_debut) : new Date(),
+            equipeId: equipeId,
+          });
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement de l'intervention:", error);
+        toast({
+          variant: "destructive",
+          title: "Erreur de chargement",
+          description: "Impossible de charger les détails de l'intervention.",
+        });
+      } finally {
+        setFetchLoading(false);
+      }
+    };
+    
+    fetchIntervention();
+  }, [interventionId, form, toast]);
 
   const onSubmit = async (values: z.infer<typeof formSchema>) => {
     setLoading(true);
     try {
       console.log("Valeurs du formulaire:", values);
       
-      // Créer d'abord une demande d'intervention
-      const { data: demandeData, error: demandeError } = await supabase
-        .from('demande_interventions')
-        .insert([
-          {
-            client_id: values.clientId,
-            description: values.description,
-            urgence: values.urgence,
-            statut: 'validée'
-          }
-        ])
-        .select()
-        .single();
-      
-      if (demandeError) throw demandeError;
-      
-      // Ensuite créer l'intervention
-      const { data: interventionData, error: interventionError } = await supabase
-        .from('interventions')
-        .insert([
-          {
-            demande_intervention_id: demandeData.id,
+      if (isEditMode && originalIntervention) {
+        // Mode édition - Mettre à jour l'intervention existante
+        // Mettre à jour l'intervention
+        await supabase
+          .from('interventions')
+          .update({
             date_debut: values.dateDebut.toISOString(),
             localisation: values.localisation,
-            statut: 'planifiée',
-            rapport: ''
-          }
-        ])
-        .select()
-        .single();
+          })
+          .eq('id', interventionId);
+        
+        // Mettre à jour la demande
+        await supabase
+          .from('demande_interventions')
+          .update({
+            client_id: values.clientId,
+            description: values.description,
+            urgence: values.urgence
+          })
+          .eq('id', originalIntervention.demande_intervention_id);
+        
+        // Mettre à jour l'équipe (supprimer puis recréer l'association)
+        await supabase
+          .from('intervention_equipes')
+          .delete()
+          .eq('intervention_id', interventionId);
+        
+        await supabase
+          .from('intervention_equipes')
+          .insert([
+            {
+              intervention_id: interventionId,
+              equipe_id: values.equipeId
+            }
+          ]);
+        
+        sonnerToast.success("Intervention mise à jour avec succès");
+        
+        toast({
+          title: "Intervention mise à jour",
+          description: "L'intervention a été mise à jour avec succès.",
+        });
+      } else {
+        // Mode création - Créer une nouvelle intervention
+        // Créer d'abord une demande d'intervention
+        const { data: demandeData, error: demandeError } = await supabase
+          .from('demande_interventions')
+          .insert([
+            {
+              client_id: values.clientId,
+              description: values.description,
+              urgence: values.urgence,
+              statut: 'validée'
+            }
+          ])
+          .select()
+          .single();
+        
+        if (demandeError) throw demandeError;
+        
+        // Ensuite créer l'intervention
+        const { data: interventionData, error: interventionError } = await supabase
+          .from('interventions')
+          .insert([
+            {
+              demande_intervention_id: demandeData.id,
+              date_debut: values.dateDebut.toISOString(),
+              localisation: values.localisation,
+              statut: 'planifiée',
+              rapport: ''
+            }
+          ])
+          .select()
+          .single();
+        
+        if (interventionError) throw interventionError;
+        
+        // Mettre à jour la demande avec l'ID de l'intervention
+        const { error: updateDemandeError } = await supabase
+          .from('demande_interventions')
+          .update({ intervention_id: interventionData.id })
+          .eq('id', demandeData.id);
+        
+        if (updateDemandeError) throw updateDemandeError;
+        
+        // Créer l'association avec l'équipe
+        const { error: equipeError } = await supabase
+          .from('intervention_equipes')
+          .insert([
+            {
+              intervention_id: interventionData.id,
+              equipe_id: values.equipeId
+            }
+          ]);
+        
+        if (equipeError) throw equipeError;
+        
+        sonnerToast.success("Intervention créée avec succès");
+        
+        toast({
+          title: "Intervention créée",
+          description: "L'intervention a été créée avec succès.",
+        });
+      }
       
-      if (interventionError) throw interventionError;
-      
-      // Mettre à jour la demande avec l'ID de l'intervention
-      const { error: updateDemandeError } = await supabase
-        .from('demande_interventions')
-        .update({ intervention_id: interventionData.id })
-        .eq('id', demandeData.id);
-      
-      if (updateDemandeError) throw updateDemandeError;
-      
-      // Créer l'association avec l'équipe
-      const { error: equipeError } = await supabase
-        .from('intervention_equipes')
-        .insert([
-          {
-            intervention_id: interventionData.id,
-            equipe_id: values.equipeId
-          }
-        ]);
-      
-      if (equipeError) throw equipeError;
-      
-      sonnerToast.success("Intervention créée avec succès");
-      
-      toast({
-        title: "Intervention créée",
-        description: "L'intervention a été créée avec succès.",
-      });
       navigate("/admin/interventions");
     } catch (error: any) {
-      console.error("Erreur lors de la création de l'intervention:", error);
+      console.error("Erreur lors de l'opération sur l'intervention:", error);
       toast({
         variant: "destructive",
         title: "Erreur",
-        description: `Impossible de créer l'intervention: ${error.message}`,
+        description: `Impossible de ${isEditMode ? 'modifier' : 'créer'} l'intervention: ${error.message}`,
       });
     } finally {
       setLoading(false);
     }
   };
 
+  if (fetchLoading) {
+    return (
+      <div className="flex items-center justify-center h-64">
+        <div className="text-center">
+          <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+          <p className="mt-4 text-muted-foreground">Chargement des données de l'intervention...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold tracking-tight">Créer une nouvelle intervention</h1>
+        <h1 className="text-2xl font-bold tracking-tight">
+          {isEditMode ? "Modifier l'intervention" : "Créer une nouvelle intervention"}
+        </h1>
         <p className="text-muted-foreground">
-          Remplissez le formulaire ci-dessous pour créer une nouvelle intervention.
+          {isEditMode 
+            ? "Modifiez les informations de l'intervention ci-dessous." 
+            : "Remplissez le formulaire ci-dessous pour créer une nouvelle intervention."}
         </p>
       </div>
 
@@ -279,7 +387,7 @@ const NewInterventionPage = () => {
                         selected={field.value}
                         onSelect={field.onChange}
                         disabled={(date) =>
-                          date < new Date(new Date().setHours(0, 0, 0, 0))
+                          !isEditMode && date < new Date(new Date().setHours(0, 0, 0, 0))
                         }
                         initialFocus
                       />
@@ -318,7 +426,7 @@ const NewInterventionPage = () => {
               Annuler
             </Button>
             <Button type="submit" disabled={loading}>
-              {loading ? "Création en cours..." : "Créer l'intervention"}
+              {loading ? (isEditMode ? "Mise à jour en cours..." : "Création en cours...") : (isEditMode ? "Mettre à jour" : "Créer l'intervention")}
             </Button>
           </div>
         </form>
