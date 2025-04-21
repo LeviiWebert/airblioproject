@@ -1,60 +1,18 @@
 
 import React, { useEffect, useState } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
 import { toast } from "sonner";
 import { Loading } from "@/components/ui/loading";
 import { useAuth } from "@/hooks/useAuth";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export const ProtectedClientRoute = ({ children }: { children: React.ReactNode }) => {
   const { session, userType, loading, initialized, clientId } = useAuth();
   const [isCheckingAuth, setIsCheckingAuth] = useState(true);
-  const [authTimeout, setAuthTimeout] = useState<NodeJS.Timeout | null>(null);
-  const navigate = useNavigate();
 
-  // Set a timeout to prevent infinite loading
   useEffect(() => {
-    if (isCheckingAuth) {
-      console.log("Starting auth check timeout in ProtectedClientRoute");
-      const timeout = setTimeout(() => {
-        console.log("Auth checking timeout reached in ProtectedClientRoute");
-        setIsCheckingAuth(false);
-        toast.error("Vérification d'authentification trop longue. Veuillez vous reconnecter.");
-        navigate('/auth', { replace: true });
-      }, 2000); // Reduced to 2 seconds for faster feedback
-      
-      setAuthTimeout(timeout);
-      
-      return () => {
-        if (authTimeout) clearTimeout(authTimeout);
-        clearTimeout(timeout);
-      };
-    }
-  }, [isCheckingAuth, authTimeout, navigate]);
+    if (initialized) setIsCheckingAuth(false);
+  }, [initialized]);
 
-  // Process auth state once initialized
-  useEffect(() => {
-    // Only proceed with auth checking when initialized state is known
-    if (initialized) {
-      console.log("Auth initialized in ProtectedClientRoute, processing auth state");
-      
-      // Check if we have metadata and can quickly determine the auth state
-      if (!session) {
-        console.log("No session in ProtectedClientRoute");
-        toast.error("Veuillez vous connecter pour accéder à cette page");
-      } else if (userType !== "client") {
-        console.log("Non-client user type in ProtectedClientRoute:", userType);
-        toast.error("Cette section est réservée aux clients");
-      } else if (!clientId) {
-        console.log("No client ID in ProtectedClientRoute");
-        toast.error("Votre profil client n'est pas correctement configuré");
-      }
-      
-      // Always set checking to false once initialized to prevent hanging
-      setIsCheckingAuth(false);
-    }
-  }, [session, userType, initialized, clientId]);
-
-  // Show loading state
   if (loading || (isCheckingAuth && !initialized)) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -63,22 +21,49 @@ export const ProtectedClientRoute = ({ children }: { children: React.ReactNode }
     );
   }
 
-  // Handle redirect cases
   if (!session) {
-    console.log("Redirecting to /auth: No session");
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card>
+          <CardHeader>
+            <CardTitle>Accès refusé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Vous devez être connecté pour accéder à cette page client.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
-  
   if (userType !== "client") {
-    console.log("Redirecting to /auth: Not a client user");
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card>
+          <CardHeader>
+            <CardTitle>Accès interdit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Cette section est réservée aux clients. Accès refusé.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
-  
   if (!clientId) {
-    console.log("Redirecting to /auth: No client ID");
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card>
+          <CardHeader>
+            <CardTitle>Profil incomplet</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Votre compte client n’est pas correctement configuré.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
-  // Allow access to the protected route
   return <>{children}</>;
 };
+

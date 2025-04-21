@@ -1,9 +1,9 @@
 
 import { ReactNode, useEffect } from "react";
-import { Navigate, useNavigate } from "react-router-dom";
+import { Loading } from "@/components/ui/loading";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { Loading } from "@/components/ui/loading";
+import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 
 type ProtectedAdminRouteProps = {
   children: ReactNode;
@@ -11,17 +11,7 @@ type ProtectedAdminRouteProps = {
 
 export const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
   const { session, userType, loading, initialized } = useAuth();
-  const navigate = useNavigate();
 
-  useEffect(() => {
-    // Vérification supplémentaire de sécurité
-    if (initialized && !loading && session && userType !== "admin") {
-      toast.error("Accès non autorisé. Vous n'avez pas les droits administrateur.");
-      navigate("/auth", { replace: true });
-    }
-  }, [session, userType, loading, initialized, navigate]);
-
-  // Affichage pendant le chargement
   if (loading || !initialized) {
     return (
       <div className="flex items-center justify-center h-screen">
@@ -30,14 +20,33 @@ export const ProtectedAdminRoute = ({ children }: ProtectedAdminRouteProps) => {
     );
   }
 
-  // Redirection si pas de session ou pas admin
   if (!session) {
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card>
+          <CardHeader>
+            <CardTitle>Accès refusé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Vous devez être connecté pour accéder à cette section administrateur.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
-
   if (userType !== "admin") {
-    toast.error("Accès non autorisé. Vous n'avez pas les droits administrateur.");
-    return <Navigate to="/auth" replace />;
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <Card>
+          <CardHeader>
+            <CardTitle>Accès non autorisé</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p>Vous n’avez pas les droits administrateur requis.</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   // Si l'utilisateur est authentifié et est un admin, afficher le contenu protégé
