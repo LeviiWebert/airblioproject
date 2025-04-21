@@ -48,6 +48,7 @@ const NewInterventionPage = () => {
           clientService.getAll(),
           equipeService.getAll()
         ]);
+        console.log("Clients chargés:", clientsData);
         setClients(clientsData);
         setEquipes(equipesData);
       } catch (error) {
@@ -174,7 +175,7 @@ const NewInterventionPage = () => {
                     <SelectContent>
                       {clients.map((client) => (
                         <SelectItem key={client.id} value={client.id}>
-                          {client.nomEntreprise}
+                          {client.nom_entreprise}
                         </SelectItem>
                       ))}
                     </SelectContent>

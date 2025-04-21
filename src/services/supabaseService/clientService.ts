@@ -7,7 +7,12 @@ export const getAll = async () => {
     .from('clients')
     .select('*');
   
-  if (error) throw error;
+  if (error) {
+    console.error("Erreur lors de la récupération des clients:", error);
+    throw error;
+  }
+  
+  console.log("Clients récupérés:", data);
   return data;
 };
 
