@@ -1,5 +1,5 @@
 
-import React, { useTransition } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import TeamForm from "@/components/forms/TeamForm";
@@ -16,7 +16,7 @@ interface EditTeamDialogProps {
 
 const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDialogProps) => {
   const queryClient = useQueryClient();
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const updateTeamMutation = useMutation({
     mutationFn: async (values: { nom: string; specialisation?: string }) => {
@@ -28,12 +28,10 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         description: "L'équipe a été mise à jour avec succès.",
       });
 
-      startTransition(() => {
-        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
-        onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamUpdated();
-      });
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamUpdated();
+      setIsSubmitting(false);
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour de l'équipe:", error);
@@ -42,19 +40,19 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         title: "Erreur",
         description: `Impossible de mettre à jour l'équipe: ${error.message}`,
       });
+      setIsSubmitting(false);
     }
   });
 
   const handleSubmit = async (values: { nom: string; specialisation?: string }) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     updateTeamMutation.mutate(values);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (updateTeamMutation.isPending || isPending) return;
-    
-    startTransition(() => {
-      onOpenChange(newOpen);
-    });
+    if (isSubmitting) return;
+    onOpenChange(newOpen);
   };
 
   return (
@@ -66,7 +64,7 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         <TeamForm 
           onSubmit={handleSubmit} 
           initialData={team} 
-          isSubmitting={updateTeamMutation.isPending || isPending}
+          isSubmitting={isSubmitting || updateTeamMutation.isPending}
         />
       </DialogContent>
     </Dialog>

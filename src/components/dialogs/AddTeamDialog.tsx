@@ -1,5 +1,5 @@
 
-import React, { useTransition } from "react";
+import React, { useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { toast } from "@/hooks/use-toast";
 import TeamForm from "@/components/forms/TeamForm";
@@ -14,7 +14,7 @@ interface AddTeamDialogProps {
 
 const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) => {
   const queryClient = useQueryClient();
-  const [isPending, startTransition] = useTransition();
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createTeamMutation = useMutation({
     mutationFn: async (values: { nom: string; specialisation?: string }) => {
@@ -25,13 +25,11 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         title: "Équipe créée",
         description: "L'équipe a été créée avec succès.",
       });
-
-      startTransition(() => {
-        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
-        onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamAdded();
-      });
+      
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamAdded();
+      setIsSubmitting(false);
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création de l'équipe:", error);
@@ -40,19 +38,19 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         title: "Erreur",
         description: `Impossible de créer l'équipe: ${error.message}`,
       });
+      setIsSubmitting(false);
     }
   });
 
   const handleSubmit = async (values: { nom: string; specialisation?: string }) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
     createTeamMutation.mutate(values);
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (createTeamMutation.isPending || isPending) return;
-    
-    startTransition(() => {
-      onOpenChange(newOpen);
-    });
+    if (isSubmitting) return;
+    onOpenChange(newOpen);
   };
 
   return (
@@ -63,7 +61,7 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
         </DialogHeader>
         <TeamForm 
           onSubmit={handleSubmit} 
-          isSubmitting={createTeamMutation.isPending || isPending} 
+          isSubmitting={isSubmitting || createTeamMutation.isPending} 
         />
       </DialogContent>
     </Dialog>

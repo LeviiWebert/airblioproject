@@ -1,8 +1,20 @@
 
-import { lazy } from "react";
+import { lazy, Suspense } from "react";
 import { Route, Outlet, RouteObject } from "react-router-dom";
 import { BackOfficeLayout } from "@/components/layout/BackOfficeLayout";
 import { ProtectedAdminRoute } from "@/components/auth/ProtectedAdminRoute";
+import ErrorBoundary from "@/components/error/ErrorBoundary";
+import { Loader2 } from "lucide-react";
+
+// Composant de chargement
+const LoadingFallback = () => (
+  <div className="flex items-center justify-center h-[calc(100vh-200px)]">
+    <div className="text-center">
+      <Loader2 className="h-10 w-10 animate-spin mx-auto text-primary" />
+      <p className="mt-4 text-muted-foreground">Chargement de la page...</p>
+    </div>
+  </div>
+);
 
 // Pages avec chargement différé
 const Dashboard = lazy(() => import("@/pages/Dashboard"));
@@ -20,31 +32,42 @@ const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
 const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
 
+// Envelopper chaque page dans un ErrorBoundary et Suspense
+const withErrorAndSuspense = (Component: React.ComponentType) => (
+  <ErrorBoundary>
+    <Suspense fallback={<LoadingFallback />}>
+      <Component />
+    </Suspense>
+  </ErrorBoundary>
+);
+
 // Convert Route to RouteObject for proper typing
 const adminRoutes: RouteObject = {
   path: "/admin",
   element: (
     <ProtectedAdminRoute>
       <BackOfficeLayout>
-        <Outlet />
+        <ErrorBoundary>
+          <Outlet />
+        </ErrorBoundary>
       </BackOfficeLayout>
     </ProtectedAdminRoute>
   ),
   children: [
-    { index: true, element: <Dashboard /> },
-    { path: "interventions", element: <InterventionsPage /> },
-    { path: "interventions/new", element: <NewInterventionPage /> },
-    { path: "intervention/:id", element: <AdminInterventionDetails /> },
-    { path: "intervention-requests", element: <InterventionRequests /> },
-    { path: "teams", element: <TeamsPage /> },
-    { path: "equipment", element: <EquipmentPage /> },
-    { path: "clients", element: <ClientsPage /> },
-    { path: "reports", element: <ReportsPage /> },
-    { path: "logistics", element: <LogisticsPage /> },
-    { path: "billing", element: <BillingPage /> },
-    { path: "pv/:id", element: <ProcessVerbalPage /> },
-    { path: "statistics", element: <StatisticsPage /> },
-    { path: "settings", element: <SettingsPage /> }
+    { index: true, element: withErrorAndSuspense(Dashboard) },
+    { path: "interventions", element: withErrorAndSuspense(InterventionsPage) },
+    { path: "interventions/new", element: withErrorAndSuspense(NewInterventionPage) },
+    { path: "intervention/:id", element: withErrorAndSuspense(AdminInterventionDetails) },
+    { path: "intervention-requests", element: withErrorAndSuspense(InterventionRequests) },
+    { path: "teams", element: withErrorAndSuspense(TeamsPage) },
+    { path: "equipment", element: withErrorAndSuspense(EquipmentPage) },
+    { path: "clients", element: withErrorAndSuspense(ClientsPage) },
+    { path: "reports", element: withErrorAndSuspense(ReportsPage) },
+    { path: "logistics", element: withErrorAndSuspense(LogisticsPage) },
+    { path: "billing", element: withErrorAndSuspense(BillingPage) },
+    { path: "pv/:id", element: withErrorAndSuspense(ProcessVerbalPage) },
+    { path: "statistics", element: withErrorAndSuspense(StatisticsPage) },
+    { path: "settings", element: withErrorAndSuspense(SettingsPage) }
   ]
 };
 

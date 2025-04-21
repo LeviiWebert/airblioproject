@@ -1,5 +1,5 @@
 
-import React, { useTransition } from "react";
+import React, { useState } from "react";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,7 +30,7 @@ const DeleteTeamDialog = ({
   teamName,
 }: DeleteTeamDialogProps) => {
   const queryClient = useQueryClient();
-  const [isPending, startTransition] = useTransition();
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const deleteTeamMutation = useMutation({
     mutationFn: async () => {
@@ -42,12 +42,10 @@ const DeleteTeamDialog = ({
         description: "L'équipe a été supprimée avec succès.",
       });
 
-      startTransition(() => {
-        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
-        onOpenChange(false);
-        queryClient.invalidateQueries({ queryKey: ["teams"] });
-        onTeamDeleted();
-      });
+      onOpenChange(false);
+      queryClient.invalidateQueries({ queryKey: ["teams"] });
+      onTeamDeleted();
+      setIsDeleting(false);
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression de l'équipe:", error);
@@ -56,19 +54,19 @@ const DeleteTeamDialog = ({
         title: "Erreur",
         description: `Impossible de supprimer l'équipe: ${error.message}`,
       });
+      setIsDeleting(false);
     }
   });
 
   const handleDelete = () => {
+    if (isDeleting) return;
+    setIsDeleting(true);
     deleteTeamMutation.mutate();
   };
 
   const handleOpenChange = (newOpen: boolean) => {
-    if (deleteTeamMutation.isPending || isPending) return;
-    
-    startTransition(() => {
-      onOpenChange(newOpen);
-    });
+    if (isDeleting) return;
+    onOpenChange(newOpen);
   };
 
   return (
@@ -82,16 +80,16 @@ const DeleteTeamDialog = ({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter>
-          <AlertDialogCancel disabled={deleteTeamMutation.isPending || isPending}>Annuler</AlertDialogCancel>
+          <AlertDialogCancel disabled={isDeleting}>Annuler</AlertDialogCancel>
           <AlertDialogAction
             onClick={(e) => {
               e.preventDefault();
               handleDelete();
             }}
-            disabled={deleteTeamMutation.isPending || isPending}
+            disabled={isDeleting}
             className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
           >
-            {deleteTeamMutation.isPending || isPending ? "Suppression..." : "Supprimer"}
+            {isDeleting ? "Suppression..." : "Supprimer"}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
