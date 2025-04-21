@@ -1,4 +1,5 @@
 import { supabase } from '@/integrations/supabase/client';
+import { FilterOptions } from '@/types/models';
 
 const getAll = async () => {
   const { data, error } = await supabase
@@ -279,7 +280,7 @@ const getAvailableTeams = async () => {
   }
 };
 
-const getDetailedInterventions = async (filterOptions = {}) => {
+const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
   let query = supabase
     .from('interventions')
     .select(`
