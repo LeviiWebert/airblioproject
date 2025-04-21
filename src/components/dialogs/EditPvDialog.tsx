@@ -61,8 +61,8 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       } else {
         // Création du PV si nécessaire
         await pvInterventionService.createPv({
-          client_id: clientId,
-          intervention_id: interventionId,
+          clientId: clientId,
+          interventionId: interventionId,
           validation_client: validationClient ?? null,
           commentaire,
         });
@@ -134,3 +134,4 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
     </Dialog>
   );
 }
+
