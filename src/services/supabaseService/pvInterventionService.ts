@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PVIntervention } from "@/types/models";
 
@@ -85,44 +84,53 @@ const updatePVStatus = async (pvId: string, validationClient: boolean | null, co
   }
 };
 
-// Extraire l'ID client quel que soit le format
-const extractClientId = (clientIdInput: string | { id: string } | null | undefined): string => {
+// Fonction utilitaire pour extraire l'ID client sous forme string (sécurisée et stricte)
+const extractClientId = (
+  clientIdInput: string | { id: string } | null | undefined
+): string => {
   if (!clientIdInput) {
-    throw new Error("L'ID du client est requis");
+    throw new Error("L'ID du client est requis pour la création de PV.");
   }
-  
-  if (typeof clientIdInput === 'object' && 'id' in clientIdInput) {
-    return clientIdInput.id;
-  } else if (typeof clientIdInput === 'string') {
+
+  if (typeof clientIdInput === "string") {
+    if (!clientIdInput) throw new Error("Le champ clientId ne peut pas être vide.");
     return clientIdInput;
   }
-  
-  throw new Error(`Format d'ID client invalide: ${JSON.stringify(clientIdInput)}`);
+  if (typeof clientIdInput === "object" && clientIdInput !== null && "id" in clientIdInput) {
+    if (typeof clientIdInput.id === "string" && clientIdInput.id)
+      return clientIdInput.id;
+    throw new Error("L'objet clientId doit posséder un champ 'id' non vide.");
+  }
+  throw new Error(
+    `Format d'ID client invalide: ${JSON.stringify(clientIdInput)}`
+  );
 };
 
-// Créer un PV
+// Créer un PV avec sécurisation stricte sur les ids
 const createPv = async (pvData: Partial<PVIntervention>) => {
   try {
-    // S'assurer que les IDs sont bien formatés
+    // Vérification stricte sur interventionId et clientId
     if (!pvData.interventionId) {
       throw new Error("L'ID de l'intervention est requis");
     }
-    
-    // Extraire l'ID client en utilisant notre fonction d'extraction sécurisée
+    if (!pvData.clientId) {
+      throw new Error("L'ID du client est requis");
+    }
+
     const clientIdValue = extractClientId(pvData.clientId);
-    
+
     // Transformer les propriétés camelCase en snake_case pour la base de données
     const dbData = {
       intervention_id: pvData.interventionId,
       client_id: clientIdValue,
       validation_client: pvData.validation_client,
-      commentaire: pvData.commentaire
+      commentaire: pvData.commentaire,
     };
 
-    console.log("Données envoyées pour création de PV:", dbData);
+    console.log("Données de création PV envoyées :", dbData);
 
     const { data, error } = await supabase
-      .from('pv_interventions')
+      .from("pv_interventions")
       .insert([dbData])
       .select()
       .maybeSingle();
@@ -131,7 +139,7 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
       console.error("Erreur lors de la création du PV:", error);
       throw error;
     }
-    
+
     return data;
   } catch (error) {
     console.error("Exception lors de la création du PV:", error);
@@ -165,5 +173,5 @@ export const pvInterventionService = {
   updatePVStatus,
   createPv,
   updateInterventionReport,
-  extractClientId
+  extractClientId,
 };
