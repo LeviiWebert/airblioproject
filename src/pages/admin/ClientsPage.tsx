@@ -59,12 +59,14 @@ const ClientsPage = () => {
   }
 
   const handleAddClient = () => {
+    if (isPending) return;
     startTransition(() => {
       setIsAddDialogOpen(true);
     });
   };
 
   const handleEdit = (client: Client) => {
+    if (isPending) return;
     startTransition(() => {
       setSelectedClient(client);
       setIsEditDialogOpen(true);
@@ -72,6 +74,7 @@ const ClientsPage = () => {
   };
 
   const handleDelete = (client: Client) => {
+    if (isPending) return;
     startTransition(() => {
       setSelectedClient(client);
       setIsDeleteDialogOpen(true);
@@ -79,8 +82,8 @@ const ClientsPage = () => {
   };
 
   const refreshClients = () => {
-    // Pas besoin de wrap cette fonction dans startTransition car elle est appelée
-    // depuis le callback onSuccess de la mutation, qui est déjà dans startTransition
+    // Cette fonction doit rester simple et légère car elle est déjà encapsulée dans startTransition
+    // dans les composants de dialogue
     queryClient.invalidateQueries({ queryKey: ["clients"] });
   };
 

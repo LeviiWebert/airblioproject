@@ -39,12 +39,11 @@ const AddClientDialog = ({ open, onOpenChange, onClientAdded }: AddClientDialogP
       });
       
       startTransition(() => {
+        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
         onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        onClientAdded();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      onClientAdded();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la création du client:", error);

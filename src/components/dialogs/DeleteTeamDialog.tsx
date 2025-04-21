@@ -42,10 +42,9 @@ const DeleteTeamDialog = ({
         description: "L'équipe a été supprimée avec succès.",
       });
 
-      // Envelopper les changements d'interface dans startTransition
       startTransition(() => {
+        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
         onOpenChange(false);
-        // Important: Déplacer l'invalidation des requêtes dans la transition
         queryClient.invalidateQueries({ queryKey: ["teams"] });
         onTeamDeleted();
       });
@@ -67,7 +66,6 @@ const DeleteTeamDialog = ({
   const handleOpenChange = (newOpen: boolean) => {
     if (deleteTeamMutation.isPending || isPending) return;
     
-    // Envelopper le changement d'état de la modale dans startTransition
     startTransition(() => {
       onOpenChange(newOpen);
     });

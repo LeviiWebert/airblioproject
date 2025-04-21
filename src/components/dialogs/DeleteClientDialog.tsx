@@ -57,12 +57,11 @@ const DeleteClientDialog = ({
       });
       
       startTransition(() => {
+        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
         onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        onClientDeleted();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      onClientDeleted();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la suppression du client:", error);

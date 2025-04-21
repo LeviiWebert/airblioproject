@@ -80,8 +80,8 @@ const TeamsPage = () => {
   };
 
   const refreshTeams = () => {
-    // Cette fonction est appelée après les mutations et est déjà encapsulée dans startTransition
-    // dans les composants de dialogue. Pas besoin de l'encapsuler à nouveau.
+    // Cette fonction doit rester simple et légère car elle est déjà encapsulée dans startTransition
+    // dans les composants de dialogue
     refetch();
   };
 

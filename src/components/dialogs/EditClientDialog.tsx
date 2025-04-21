@@ -41,12 +41,11 @@ const EditClientDialog = ({ open, onOpenChange, onClientUpdated, client }: EditC
       });
       
       startTransition(() => {
+        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
         onOpenChange(false);
+        queryClient.invalidateQueries({ queryKey: ["clients"] });
+        onClientUpdated();
       });
-      
-      // Séparation de l'invalidation des requêtes du changement d'interface
-      queryClient.invalidateQueries({ queryKey: ["clients"] });
-      onClientUpdated();
     },
     onError: (error: any) => {
       console.error("Erreur lors de la mise à jour du client:", error);

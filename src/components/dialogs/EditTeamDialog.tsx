@@ -28,10 +28,9 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
         description: "L'équipe a été mise à jour avec succès.",
       });
 
-      // Envelopper les changements d'interface dans startTransition
       startTransition(() => {
+        // Combiner les mises à jour d'UI et l'invalidation dans la même transition
         onOpenChange(false);
-        // Important: Déplacer l'invalidation des requêtes dans la transition
         queryClient.invalidateQueries({ queryKey: ["teams"] });
         onTeamUpdated();
       });
@@ -53,7 +52,6 @@ const EditTeamDialog = ({ open, onOpenChange, onTeamUpdated, team }: EditTeamDia
   const handleOpenChange = (newOpen: boolean) => {
     if (updateTeamMutation.isPending || isPending) return;
     
-    // Envelopper le changement d'état de la modale dans startTransition
     startTransition(() => {
       onOpenChange(newOpen);
     });
