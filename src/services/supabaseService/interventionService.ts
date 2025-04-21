@@ -1,4 +1,3 @@
-
 import { supabase } from '@/integrations/supabase/client';
 
 const getAll = async () => {
@@ -280,12 +279,137 @@ const getAvailableTeams = async () => {
   }
 };
 
-const getDetailedInterventions = async (options = {}) => {
-  return [];
+const getDetailedInterventions = async (filterOptions = {}) => {
+  let query = supabase
+    .from('interventions')
+    .select(`
+      id,
+      date_debut,
+      date_fin,
+      localisation,
+      statut,
+      demande_intervention_id,
+      demande_interventions:demande_intervention_id (
+        description,
+        urgence,
+        client_id,
+        clients:client_id (
+          id,
+          nom_entreprise
+        )
+      ),
+      intervention_equipes (
+        equipe_id,
+        equipes:equipe_id (
+          id,
+          nom
+        )
+      )
+    `);
+  
+  if (filterOptions.status) {
+    query = query.eq('statut', filterOptions.status);
+  }
+  
+  if (filterOptions.client) {
+    query = query.eq('demande_interventions.clients.id', filterOptions.client);
+  }
+  
+  if (filterOptions.dateRange?.from) {
+    const fromDate = new Date(filterOptions.dateRange.from);
+    fromDate.setHours(0, 0, 0, 0);
+    query = query.gte('date_debut', fromDate.toISOString());
+  }
+  
+  if (filterOptions.dateRange?.to) {
+    const toDate = new Date(filterOptions.dateRange.to);
+    toDate.setHours(23, 59, 59, 999);
+    query = query.lte('date_debut', toDate.toISOString());
+  }
+  
+  const { data, error } = await query;
+  
+  if (error) throw error;
+  
+  let formattedData = data.map(item => ({
+    id: item.id,
+    dateDebut: item.date_debut ? new Date(item.date_debut) : null,
+    dateFin: item.date_fin ? new Date(item.date_fin) : null,
+    localisation: item.localisation,
+    statut: item.statut,
+    client: {
+      id: item.demande_interventions?.clients?.id || '',
+      nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
+    },
+    demande: {
+      description: item.demande_interventions?.description || '',
+      urgence: item.demande_interventions?.urgence || 'basse'
+    },
+    equipes: item.intervention_equipes?.map(eq => ({
+      id: eq.equipes?.id || '',
+      nom: eq.equipes?.nom || 'Équipe inconnue'
+    })) || []
+  }));
+  
+  if (filterOptions.team) {
+    formattedData = formattedData.filter(item => 
+      item.equipes.some(eq => eq.id === filterOptions.team)
+    );
+  }
+  
+  return formattedData;
 };
 
 const getByStatus = async (status) => {
-  return [];
+  const { data, error } = await supabase
+    .from('interventions')
+    .select(`
+      id,
+      date_debut,
+      date_fin,
+      localisation,
+      statut,
+      demande_intervention_id,
+      demande_interventions:demande_intervention_id (
+        description,
+        urgence,
+        client_id,
+        clients:client_id (
+          id,
+          nom_entreprise
+        )
+      ),
+      intervention_equipes (
+        equipe_id,
+        equipes:equipe_id (
+          id,
+          nom
+        )
+      )
+    `)
+    .eq('statut', status);
+  
+  if (error) throw error;
+  
+  return data.map(item => ({
+    id: item.id,
+    dateDebut: item.date_debut ? new Date(item.date_debut) : null,
+    dateFin: item.date_fin ? new Date(item.date_fin) : null,
+    localisation: item.localisation,
+    statut: item.statut,
+    client: {
+      id: item.demande_interventions?.clients?.id || '',
+      nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
+    },
+    demande: {
+      description: item.demande_interventions?.description || '',
+      urgence: item.demande_interventions?.urgence || 'basse'
+    },
+    equipes: item.intervention_equipes?.map(eq => ({
+      id: eq.equipes?.id || '',
+      nom: eq.equipes?.nom || 'Équipe inconnue'
+    })) || []
+  }));
 };
 
 export const interventionService = {

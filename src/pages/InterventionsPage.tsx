@@ -3,8 +3,7 @@ import { useEffect, useState, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { 
   clientService, 
-  equipeService, 
-  interventionService 
+  equipeService 
 } from "@/services/dataService";
 import { FilterOptions } from "@/types/models";
 import { Button } from "@/components/ui/button";
@@ -20,138 +19,33 @@ const InterventionsPage = () => {
   const [interventions, setInterventions] = useState<any[]>([]);
   const [clients, setClients] = useState<any[]>([]);
   const [teams, setTeams] = useState<any[]>([]);
-  const [currentFilters, setCurrentFilters] = useState<FilterOptions>({});
+  const [filters, setFilters] = useState<FilterOptions>({});
   const [error, setError] = useState<string | null>(null);
   const loadTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   const { toast: useToastHook } = useToast();
 
-  const fetchData = async () => {
+  // Function to fetch data with or without filters
+  const fetchInterventions = async (filterOptions: FilterOptions = {}) => {
     setLoading(true);
     setError(null);
     
-    // Set a timeout to prevent infinite loading
+    console.log("Fetching interventions with filters:", filterOptions);
+    
+    // Clear any existing timeout
     if (loadTimeoutRef.current) {
       clearTimeout(loadTimeoutRef.current);
     }
     
+    // Set timeout for loading
     loadTimeoutRef.current = setTimeout(() => {
       setLoading(false);
       setError("Le chargement a pris trop de temps. Veuillez réessayer.");
       toast.error("Délai de chargement dépassé. Veuillez rafraîchir la page.");
-    }, 15000); // 15 seconds timeout
+    }, 15000);
     
     try {
-      // Get clients and teams
-      const [clientsData, teamsData] = await Promise.all([
-        clientService.getAll(),
-        equipeService.getAll()
-      ]);
-      
-      setClients(clientsData);
-      setTeams(teamsData);
-      
-      // Directly fetch interventions from Supabase
-      const { data: interventionsData, error } = await supabase
-        .from('interventions')
-        .select(`
-          id,
-          date_debut,
-          date_fin,
-          localisation,
-          statut,
-          demande_intervention_id,
-          demande_interventions:demande_intervention_id (
-            description,
-            urgence,
-            client_id,
-            clients:client_id (
-              id,
-              nom_entreprise
-            )
-          ),
-          intervention_equipes (
-            equipe_id,
-            equipes:equipe_id (
-              id,
-              nom
-            )
-          )
-        `);
-        
-      if (error) throw error;
-      
-      // Transform data into the expected format
-      const formattedInterventions = interventionsData.map(item => ({
-        id: item.id,
-        dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-        dateFin: item.date_fin ? new Date(item.date_fin) : null,
-        localisation: item.localisation,
-        statut: item.statut,
-        client: {
-          id: item.demande_interventions?.clients?.id || '',
-          nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-        },
-        demande: {
-          description: item.demande_interventions?.description || '',
-          urgence: item.demande_interventions?.urgence || 'basse'
-        },
-        equipes: item.intervention_equipes?.map(eq => ({
-          id: eq.equipes?.id || '',
-          nom: eq.equipes?.nom || 'Équipe inconnue'
-        })) || []
-      }));
-      
-      console.log("Interventions récupérées:", formattedInterventions);
-      setInterventions(formattedInterventions);
-    } catch (error: any) {
-      console.error("Error fetching interventions data:", error);
-      setError("Impossible de charger les données des interventions. " + error.message);
-      useToastHook({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les données des interventions.",
-      });
-    } finally {
-      setLoading(false);
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-        loadTimeoutRef.current = null;
-      }
-    }
-  };
-
-  useEffect(() => {
-    fetchData();
-    
-    return () => {
-      // Clean up timeout on unmount
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-      }
-    };
-  }, []);
-
-  const handleFilter = async (filters: FilterOptions) => {
-    setLoading(true);
-    setError(null);
-    setCurrentFilters(filters);
-    
-    console.log("Applying filters:", filters);
-    
-    // Set a timeout to prevent infinite loading
-    if (loadTimeoutRef.current) {
-      clearTimeout(loadTimeoutRef.current);
-    }
-    
-    loadTimeoutRef.current = setTimeout(() => {
-      setLoading(false);
-      setError("Le filtrage a pris trop de temps. Veuillez réessayer.");
-      toast.error("Délai de filtrage dépassé. Veuillez rafraîchir la page.");
-    }, 10000); // 10 seconds timeout
-    
-    try {
-      // Start with a base query
+      // Start building the query
       let query = supabase
         .from('interventions')
         .select(`
@@ -180,25 +74,29 @@ const InterventionsPage = () => {
         `);
       
       // Apply status filter
-      if (filters.status && filters.status !== "") {
-        query = query.eq('statut', filters.status);
+      if (filterOptions.status) {
+        console.log("Applying status filter:", filterOptions.status);
+        query = query.eq('statut', filterOptions.status);
       }
       
-      // Apply client filter
-      if (filters.client && filters.client !== "") {
-        query = query.eq('demande_interventions.clients.id', filters.client);
+      // Apply client filter - this works by filtering on the related client ID
+      if (filterOptions.client) {
+        console.log("Applying client filter:", filterOptions.client);
+        query = query.eq('demande_interventions.client_id', filterOptions.client);
       }
       
       // Apply date range filter
-      if (filters.dateRange?.from) {
-        const fromDate = new Date(filters.dateRange.from);
+      if (filterOptions.dateRange?.from) {
+        const fromDate = new Date(filterOptions.dateRange.from);
         fromDate.setHours(0, 0, 0, 0);
+        console.log("Applying from date filter:", fromDate.toISOString());
         query = query.gte('date_debut', fromDate.toISOString());
       }
       
-      if (filters.dateRange?.to) {
-        const toDate = new Date(filters.dateRange.to);
+      if (filterOptions.dateRange?.to) {
+        const toDate = new Date(filterOptions.dateRange.to);
         toDate.setHours(23, 59, 59, 999);
+        console.log("Applying to date filter:", toDate.toISOString());
         query = query.lte('date_debut', toDate.toISOString());
       }
       
@@ -206,17 +104,11 @@ const InterventionsPage = () => {
       const { data, error } = await query;
       
       if (error) {
-        console.error("Filtering error:", error);
+        console.error("Error fetching interventions:", error);
         throw error;
       }
       
-      console.log("Filtered data from Supabase:", data);
-      
-      // Clear the timeout as data has been fetched
-      if (loadTimeoutRef.current) {
-        clearTimeout(loadTimeoutRef.current);
-        loadTimeoutRef.current = null;
-      }
+      console.log("Raw data from Supabase:", data);
       
       // Transform data into the expected format
       let formattedInterventions = data.map(item => ({
@@ -239,22 +131,23 @@ const InterventionsPage = () => {
         })) || []
       }));
       
-      // Apply team filter in JavaScript (as it's a nested array relationship)
-      if (filters.team && filters.team !== "") {
+      // Since team is a nested array relationship, we filter it in JavaScript
+      if (filterOptions.team) {
+        console.log("Applying team filter in JavaScript:", filterOptions.team);
         formattedInterventions = formattedInterventions.filter(intervention => 
-          intervention.equipes.some(eq => eq.id === filters.team)
+          intervention.equipes.some(eq => eq.id === filterOptions.team)
         );
       }
       
-      console.log("Filtered interventions:", formattedInterventions);
+      console.log("Formatted interventions after filtering:", formattedInterventions);
       setInterventions(formattedInterventions);
     } catch (error: any) {
-      console.error("Error filtering interventions:", error);
-      setError("Impossible d'appliquer les filtres. " + error.message);
+      console.error("Error fetching interventions:", error);
+      setError("Impossible de charger les données. " + error.message);
       useToastHook({
         variant: "destructive",
-        title: "Erreur de filtrage",
-        description: "Impossible d'appliquer les filtres.",
+        title: "Erreur de chargement",
+        description: "Impossible de charger les données des interventions.",
       });
     } finally {
       setLoading(false);
@@ -265,6 +158,50 @@ const InterventionsPage = () => {
     }
   };
 
+  // Initial data load
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        // Get clients and teams in parallel
+        const [clientsData, teamsData] = await Promise.all([
+          clientService.getAll(),
+          equipeService.getAll()
+        ]);
+        
+        setClients(clientsData);
+        setTeams(teamsData);
+        
+        // Fetch interventions with no filters initially
+        await fetchInterventions();
+      } catch (error: any) {
+        console.error("Error loading initial data:", error);
+        setError("Impossible de charger les données initiales.");
+        useToastHook({
+          variant: "destructive",
+          title: "Erreur de chargement",
+          description: "Impossible de charger les données initiales.",
+        });
+      }
+    };
+    
+    loadData();
+    
+    return () => {
+      // Clean up timeout on unmount
+      if (loadTimeoutRef.current) {
+        clearTimeout(loadTimeoutRef.current);
+      }
+    };
+  }, []);
+
+  // Handle filter changes
+  const handleFilter = (newFilters: FilterOptions) => {
+    console.log("Filter applied:", newFilters);
+    setFilters(newFilters);
+    fetchInterventions(newFilters);
+  };
+
+  // Handle status change for an intervention
   const handleStatusChange = async (id: string, newStatus: string) => {
     try {
       // First update the UI optimistically
@@ -302,8 +239,8 @@ const InterventionsPage = () => {
       });
     } catch (error: any) {
       console.error("Error updating intervention status:", error);
-      // Revert the optimistic update
-      fetchData();
+      // Revert the optimistic update by refetching current data
+      fetchInterventions(filters);
       useToastHook({
         variant: "destructive",
         title: "Erreur de mise à jour",
@@ -312,8 +249,9 @@ const InterventionsPage = () => {
     }
   };
 
+  // Handle refresh button click
   const handleRefresh = () => {
-    fetchData();
+    fetchInterventions(filters);
   };
 
   return (
