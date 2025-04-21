@@ -22,13 +22,13 @@ const NewInterventionPage = lazy(() => import("@/pages/admin/NewInterventionPage
 const AdminInterventionDetails = lazy(() => import("@/pages/admin/AdminInterventionDetails"));
 const TeamsPage = lazy(() => import("@/pages/admin/TeamsPage"));
 const EquipmentPage = lazy(() => import("@/pages/admin/EquipmentPage"));
-const ClientsPage = lazy(() => import("@/pages/admin/ClientsPage"));
+// const ClientsPage = lazy(() => import("@/pages/admin/ClientsPage")); // SUPPRIMÉ
 const ReportsPage = lazy(() => import("@/pages/admin/ReportsPage"));
 const LogisticsPage = lazy(() => import("@/pages/admin/LogisticsPage"));
 const BillingPage = lazy(() => import("@/pages/admin/BillingPage"));
 const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
-const SettingsPage = lazy(() => import("@/pages/SettingsPage"));
+// const SettingsPage = lazy(() => import("@/pages/SettingsPage")); // SUPPRIMÉ
 
 // Helper simple pour chaque page : ErrorBoundary + Suspense court
 function withBoundary(element: React.ReactNode) {
@@ -58,15 +58,14 @@ const adminRoutes: RouteObject = {
     { path: "intervention-requests", element: withBoundary(<InterventionRequests />) },
     { path: "teams", element: withBoundary(<TeamsPage />) },
     { path: "equipment", element: withBoundary(<EquipmentPage />) },
-    { path: "clients", element: withBoundary(<ClientsPage />) },
+    // { path: "clients", element: withBoundary(<ClientsPage />) }, // SUPPRIMÉ
     { path: "reports", element: withBoundary(<ReportsPage />) },
     { path: "logistics", element: withBoundary(<LogisticsPage />) },
     { path: "billing", element: withBoundary(<BillingPage />) },
     { path: "pv/:id", element: withBoundary(<ProcessVerbalPage />) },
     { path: "statistics", element: withBoundary(<StatisticsPage />) },
-    { path: "settings", element: withBoundary(<SettingsPage />) },
+    // { path: "settings", element: withBoundary(<SettingsPage />) }, // SUPPRIMÉ
   ]
 };
 
 export default adminRoutes;
-

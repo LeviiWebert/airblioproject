@@ -10,7 +10,7 @@ import {
   Truck,
   Receipt,
   BarChart3,
-  Settings,
+  // Settings, // SUPPRIMÉ
   ChevronRight,
   ChevronDown,
 } from "lucide-react";
@@ -71,11 +71,11 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       href: "/admin/equipment",
       icon: Wrench,
     },
-    {
-      title: "Clients",
-      href: "/admin/clients",
-      icon: Users,
-    },
+    // {
+    //   title: "Clients",
+    //   href: "/admin/clients",
+    //   icon: Users,
+    // },
     {
       title: "PV d'interventions",
       href: "/admin/reports",
@@ -96,11 +96,11 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       href: "/admin/statistics",
       icon: BarChart3,
     },
-    {
-      title: "Paramètres",
-      href: "/admin/settings",
-      icon: Settings,
-    },
+    // {
+    //   title: "Paramètres",
+    //   href: "/admin/settings",
+    //   icon: Settings,
+    // },
   ];
 
   const isActive = (href: string) => {
