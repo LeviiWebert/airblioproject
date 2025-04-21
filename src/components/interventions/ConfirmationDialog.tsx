@@ -1,21 +1,26 @@
 
 import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { Button } from "@/components/ui/button";
-import { PriorityBadge } from "@/components/interventions/PriorityBadge";
+import { format } from "date-fns";
+import { fr } from "date-fns/locale";
+import { Loader2 } from "lucide-react";
 
 interface ConfirmationDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  selectedRequest: any | null;
-  actionType: "accept" | "reject" | null;
+  selectedRequest: any;
+  actionType: "accept" | "reject";
   onConfirm: () => void;
+  isLoading?: boolean;
 }
 
 export const ConfirmationDialog = ({
@@ -24,44 +29,69 @@ export const ConfirmationDialog = ({
   selectedRequest,
   actionType,
   onConfirm,
+  isLoading = false
 }: ConfirmationDialogProps) => {
+  if (!selectedRequest) return null;
+
+  const formatDate = (dateString: string) => {
+    try {
+      return format(new Date(dateString), "dd MMMM yyyy", { locale: fr });
+    } catch (error) {
+      return "Date inconnue";
+    }
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {actionType === "accept" ? "Accepter la demande" : "Refuser la demande"}
-          </DialogTitle>
-          <DialogDescription>
+    <AlertDialog open={open} onOpenChange={onOpenChange}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>
             {actionType === "accept"
-              ? "Cette action créera une nouvelle intervention basée sur cette demande. Voulez-vous continuer ?"
-              : "Cette action refusera définitivement la demande. Voulez-vous continuer ?"}
-          </DialogDescription>
-        </DialogHeader>
-        
-        {selectedRequest && (
-          <div className="py-4">
-            <p className="font-medium">{selectedRequest.client?.nom_entreprise || 'Client'}</p>
-            <p className="text-sm text-muted-foreground mt-1">{selectedRequest.description}</p>
-            <div className="mt-2 flex items-center">
-              <span className="text-sm text-muted-foreground mr-2">Urgence:</span>
-              <PriorityBadge priority={selectedRequest.urgence} />
-            </div>
-          </div>
-        )}
-        
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Annuler
-          </Button>
-          <Button 
-            variant={actionType === "accept" ? "default" : "destructive"} 
+              ? "Accepter cette demande d'intervention ?"
+              : "Refuser cette demande d'intervention ?"}
+          </AlertDialogTitle>
+          <AlertDialogDescription>
+            {actionType === "accept" ? (
+              <div className="space-y-2">
+                <p>
+                  Vous êtes sur le point d'accepter la demande d'intervention de{" "}
+                  <span className="font-medium">
+                    {selectedRequest.client?.nom_entreprise || "Client Inconnu"}
+                  </span>{" "}
+                  du {formatDate(selectedRequest.date_demande)}.
+                </p>
+                <p>
+                  Une nouvelle intervention sera créée et la demande sera supprimée. Cette action est irréversible.
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                <p>
+                  Vous êtes sur le point de refuser la demande d'intervention de{" "}
+                  <span className="font-medium">
+                    {selectedRequest.client?.nom_entreprise || "Client Inconnu"}
+                  </span>{" "}
+                  du {formatDate(selectedRequest.date_demande)}.
+                </p>
+                <p>
+                  La demande sera marquée comme rejetée et n'apparaîtra plus dans la liste. Cette action est irréversible.
+                </p>
+              </div>
+            )}
+          </AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel disabled={isLoading}>Annuler</AlertDialogCancel>
+          <Button
             onClick={onConfirm}
+            variant={actionType === "accept" ? "default" : "destructive"}
+            disabled={isLoading}
           >
+            {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {actionType === "accept" ? "Accepter" : "Refuser"}
           </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
   );
 };

@@ -16,6 +16,7 @@ const InterventionRequests = () => {
   // Utiliser le hook personnalisé pour gérer les requêtes
   const {
     loading,
+    processing,
     requests,
     handleAccept,
     handleReject,
@@ -40,16 +41,22 @@ const InterventionRequests = () => {
     try {
       console.log("Acceptation de la demande:", selectedRequest.id);
       handleAccept(selectedRequest);
-      await confirmAction();
-      toast.success("Demande d'intervention acceptée avec succès");
+      const success = await confirmAction();
       
-      // Rediriger vers la liste des interventions avec un paramètre pour forcer le rafraîchissement
-      navigate("/admin/interventions?refresh=true");
+      if (success) {
+        toast.success("Demande d'intervention acceptée et intervention créée avec succès");
+        setShowAcceptDialog(false);
+        
+        // Attendre un court instant avant de rediriger pour permettre à l'UI de se mettre à jour
+        setTimeout(() => {
+          navigate("/admin/interventions?refresh=true");
+        }, 500);
+      }
     } catch (error) {
       console.error("Erreur lors de l'acceptation de la demande:", error);
       toast.error("Erreur lors de l'acceptation de la demande");
-    } finally {
       setShowAcceptDialog(false);
+    } finally {
       setSelectedRequest(null);
     }
   };
@@ -60,13 +67,17 @@ const InterventionRequests = () => {
     try {
       console.log("Rejet de la demande:", selectedRequest.id);
       handleReject(selectedRequest);
-      await confirmAction();
-      toast.success("Demande d'intervention refusée");
+      const success = await confirmAction();
+      
+      if (success) {
+        toast.success("Demande d'intervention refusée");
+        setShowRejectDialog(false);
+      }
     } catch (error) {
       console.error("Erreur lors du refus de la demande:", error);
       toast.error("Erreur lors du refus de la demande");
-    } finally {
       setShowRejectDialog(false);
+    } finally {
       setSelectedRequest(null);
     }
   };
@@ -92,6 +103,7 @@ const InterventionRequests = () => {
           requests={requests}
           onAccept={openAcceptDialog}
           onReject={openRejectDialog}
+          disabled={processing}
         />
       )}
 
@@ -102,6 +114,7 @@ const InterventionRequests = () => {
         selectedRequest={selectedRequest}
         actionType="accept"
         onConfirm={handleAcceptRequest}
+        isLoading={processing}
       />
 
       <ConfirmationDialog
@@ -110,6 +123,7 @@ const InterventionRequests = () => {
         selectedRequest={selectedRequest}
         actionType="reject"
         onConfirm={handleRejectRequest}
+        isLoading={processing}
       />
     </div>
   );

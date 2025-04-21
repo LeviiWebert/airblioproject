@@ -102,54 +102,86 @@ const updateInterventionId = async (id: string, interventionId: string) => {
   return data[0];
 };
 
-// New function: create an intervention from a demande then delete the demande
+// Create an intervention from a demande then delete the demande
 const createFromRequestAndDelete = async (demandeId: string) => {
-  // 1. Récupérer la demande complète
-  const { data: demande, error: demandeError } = await supabase
-    .from('demande_interventions')
-    .select('*')
-    .eq('id', demandeId)
-    .maybeSingle();
+  try {
+    console.log(`Starting process for demande ${demandeId}: create intervention and delete demande`);
+    
+    // 1. Récupérer la demande complète avec les informations du client
+    const { data: demande, error: demandeError } = await supabase
+      .from('demande_interventions')
+      .select(`
+        *,
+        client:client_id (
+          id,
+          nom_entreprise,
+          email,
+          tel
+        )
+      `)
+      .eq('id', demandeId)
+      .maybeSingle();
 
-  if (demandeError) {
-    console.error("Erreur lors de la récupération de la demande:", demandeError);
-    throw demandeError;
+    if (demandeError) {
+      console.error("Erreur lors de la récupération de la demande:", demandeError);
+      throw demandeError;
+    }
+    if (!demande) {
+      console.error("Demande non trouvée avec l'ID:", demandeId);
+      throw new Error("Demande non trouvée");
+    }
+
+    console.log("Demande récupérée avec succès:", demande);
+
+    // 2. Créer l'intervention avec ces données
+    const interventionData = {
+      demande_intervention_id: demande.id,
+      client_id: demande.client_id, // Add client_id to the new intervention
+      statut: 'planifiée',
+      localisation: 'À déterminer',
+      rapport: '',
+      date_debut: null,
+      date_fin: null,
+      urgence: demande.urgence, // Transfer urgency level
+      description: demande.description // Transfer description
+    };
+
+    console.log("Données pour la nouvelle intervention:", interventionData);
+    
+    const { data: intervention, error: interventionError } = await supabase
+      .from('interventions')
+      .insert([interventionData])
+      .select();
+
+    if (interventionError) {
+      console.error("Erreur lors de la création de l'intervention:", interventionError);
+      throw interventionError;
+    }
+    
+    if (!intervention || intervention.length === 0) {
+      console.error("Intervention non créée, résultat vide");
+      throw new Error("Erreur lors de la création de l'intervention");
+    }
+
+    console.log("Intervention créée avec succès:", intervention[0]);
+
+    // 3. Supprimer la demande
+    const { error: deleteError } = await supabase
+      .from('demande_interventions')
+      .delete()
+      .eq('id', demandeId);
+
+    if (deleteError) {
+      console.error("Erreur lors de la suppression de la demande:", deleteError);
+      throw deleteError;
+    }
+
+    console.log("Demande supprimée avec succès, processus terminé");
+    return intervention[0];
+  } catch (error) {
+    console.error("Erreur globale dans createFromRequestAndDelete:", error);
+    throw error;
   }
-  if (!demande) throw new Error("Demande non trouvée");
-
-  // 2. Créer l'intervention avec ces données
-  const interventionData = {
-    demande_intervention_id: demande.id,
-    statut: 'planifiée',
-    localisation: 'À déterminer', // Fixed: Use a default value instead of accessing demande.localisation
-    rapport: '',
-    date_debut: null,
-    date_fin: null,
-  };
-
-  const { data: intervention, error: interventionError } = await supabase
-    .from('interventions')
-    .insert([interventionData])
-    .select()
-    .maybeSingle();
-
-  if (interventionError) {
-    console.error("Erreur lors de la création de l'intervention:", interventionError);
-    throw interventionError;
-  }
-
-  // 3. Supprimer la demande
-  const { error: deleteError } = await supabase
-    .from('demande_interventions')
-    .delete()
-    .eq('id', demandeId);
-
-  if (deleteError) {
-    console.error("Erreur lors de la suppression de la demande:", deleteError);
-    throw deleteError;
-  }
-
-  return intervention;
 };
 
 // Export with the new method
