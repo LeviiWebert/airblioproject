@@ -85,34 +85,32 @@ const updatePVStatus = async (pvId: string, validationClient: boolean | null, co
   }
 };
 
+// Extraire l'ID client quel que soit le format
+const extractClientId = (clientIdInput: string | { id: string } | null | undefined): string => {
+  if (!clientIdInput) {
+    throw new Error("L'ID du client est requis");
+  }
+  
+  if (typeof clientIdInput === 'object' && 'id' in clientIdInput) {
+    return clientIdInput.id;
+  } else if (typeof clientIdInput === 'string') {
+    return clientIdInput;
+  }
+  
+  throw new Error(`Format d'ID client invalide: ${JSON.stringify(clientIdInput)}`);
+};
+
 // Créer un PV
 const createPv = async (pvData: Partial<PVIntervention>) => {
   try {
     // S'assurer que les IDs sont bien formatés
-    if (!pvData.clientId || !pvData.interventionId) {
-      throw new Error("L'ID du client et l'ID de l'intervention sont requis");
+    if (!pvData.interventionId) {
+      throw new Error("L'ID de l'intervention est requis");
     }
-
-    // Gérer le cas où clientId est un objet ou une chaîne
-    let clientIdValue: string;
     
-    if (typeof pvData.clientId === 'object' && pvData.clientId !== null) {
-      console.log("ClientId est un objet, extraction de l'ID:", pvData.clientId);
-      // Si clientId est un objet, vérifier s'il a une propriété 'id'
-      if ('id' in pvData.clientId && typeof pvData.clientId.id === 'string') {
-        clientIdValue = pvData.clientId.id;
-      } else {
-        console.error("Format d'ID client invalide:", pvData.clientId);
-        throw new Error("Format d'ID client invalide");
-      }
-    } else if (typeof pvData.clientId === 'string') {
-      // Si c'est déjà une chaîne, l'utiliser directement
-      clientIdValue = pvData.clientId;
-    } else {
-      console.error("Type de clientId non pris en charge:", typeof pvData.clientId, pvData.clientId);
-      throw new Error("Type de clientId non pris en charge");
-    }
-
+    // Extraire l'ID client en utilisant notre fonction d'extraction sécurisée
+    const clientIdValue = extractClientId(pvData.clientId);
+    
     // Transformer les propriétés camelCase en snake_case pour la base de données
     const dbData = {
       intervention_id: pvData.interventionId,
@@ -166,5 +164,6 @@ export const pvInterventionService = {
   getPVById,
   updatePVStatus,
   createPv,
-  updateInterventionReport
+  updateInterventionReport,
+  extractClientId
 };

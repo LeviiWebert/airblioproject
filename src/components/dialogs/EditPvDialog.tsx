@@ -11,7 +11,7 @@ interface EditPvDialogProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   interventionId: string;
-  clientId: string;
+  clientId: string | { id: string };
   initialPvId?: string;
   onSaved?: () => void;
 }
@@ -63,7 +63,8 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
   const handleSave = async () => {
     setLoading(true);
     try {
-      console.log("Sauvegarde du PV avec l'intervention ID:", interventionId, "client ID:", clientId);
+      console.log("Sauvegarde du PV avec l'intervention ID:", interventionId);
+      console.log("Type de clientId:", typeof clientId, clientId);
       
       // Mise à jour du rapport d'intervention
       if (rapport) {
@@ -76,19 +77,6 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
         // Création du PV
-        console.log("Création d'un nouveau PV avec client ID:", clientId, "Type:", typeof clientId);
-        
-        // Assurons-nous que clientId est bien une chaîne
-        if (typeof clientId !== 'string') {
-          console.error("Le clientId n'est pas une chaîne:", clientId);
-          toast({
-            variant: "destructive",
-            title: "Erreur",
-            description: "Format d'ID client invalide."
-          });
-          return;
-        }
-        
         await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,
