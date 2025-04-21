@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
@@ -10,6 +11,7 @@ import { InterventionStatusBadge } from "@/components/interventions/Intervention
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
+import { demandeInterventionService } from "@/services/supabaseService/demandeInterventionService";
 import { 
   AlertTriangle,
   ArrowLeft, 

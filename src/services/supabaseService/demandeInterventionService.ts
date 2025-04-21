@@ -39,9 +39,22 @@ const create = async (demandeData: any) => {
   return data[0];
 };
 
+// Function to update the status of an intervention request
+const updateStatus = async (id: string, status: string) => {
+  const { data, error } = await supabase
+    .from('demande_interventions')
+    .update({ statut: status })
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
 // Export the service functions
 export const demandeInterventionService = {
   getAll,
   getById,
-  create
+  create,
+  updateStatus
 };
