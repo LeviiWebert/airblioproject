@@ -30,11 +30,20 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       pvInterventionService
         .getPVById(initialPvId)
         .then((data: any) => {
-          setRapport(data.intervention?.rapport || "");
-          setValidationClient(data.validation_client);
-          setCommentaire(data.commentaire || "");
+          if (data) {
+            setRapport(data.intervention?.rapport || "");
+            setValidationClient(data.validation_client);
+            setCommentaire(data.commentaire || "");
+          } else {
+            toast({
+              variant: "destructive",
+              title: "Erreur",
+              description: "PV non trouvé"
+            });
+          }
         })
-        .catch(() => {
+        .catch((error) => {
+          console.error("Erreur lors du chargement du PV:", error);
           toast({
             variant: "destructive",
             title: "Erreur",
@@ -63,7 +72,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,
-          validation_client: validationClient ?? null,
+          validation_client: validationClient,
           commentaire,
         });
         toast({ title: "PV créé", description: "Le PV a été créé avec succès." });

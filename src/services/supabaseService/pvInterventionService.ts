@@ -31,29 +31,34 @@ const getPVsByClientId = async (clientId: string) => {
 
 // Récupérer un PV par son ID
 const getPVById = async (pvId: string) => {
-  const { data, error } = await supabase
-    .from('pv_interventions')
-    .select(`
-      id,
-      validation_client,
-      date_validation,
-      commentaire,
-      client_id,
-      intervention_id,
-      created_at,
-      intervention:interventions (
+  try {
+    const { data, error } = await supabase
+      .from('pv_interventions')
+      .select(`
         id,
-        date_fin,
-        rapport,
-        localisation,
-        statut
-      )
-    `)
-    .eq('id', pvId)
-    .single();
+        validation_client,
+        date_validation,
+        commentaire,
+        client_id,
+        intervention_id,
+        created_at,
+        intervention:interventions (
+          id,
+          date_fin,
+          rapport,
+          localisation,
+          statut
+        )
+      `)
+      .eq('id', pvId)
+      .maybeSingle();
 
-  if (error) throw error;
-  return data;
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Erreur lors de la récupération du PV:", error);
+    throw error;
+  }
 };
 
 // Mettre à jour un PV (validation par le client)
@@ -86,7 +91,7 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
     .from('pv_interventions')
     .insert([dbData])
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) throw error;
   return data;

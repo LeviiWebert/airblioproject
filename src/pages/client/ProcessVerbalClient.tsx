@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -70,9 +71,19 @@ const ProcessVerbalClient = () => {
             client_id
           `)
           .eq('id', id)
-          .single();
+          .maybeSingle();
         
         if (pvError) throw pvError;
+        
+        if (!pvData) {
+          navigate('/client-dashboard');
+          toast({
+            variant: "destructive",
+            title: "PV non trouvé",
+            description: "Ce PV d'intervention n'existe pas."
+          });
+          return;
+        }
         
         if (pvData.client_id !== clientId) {
           navigate('/client-dashboard');
@@ -96,7 +107,7 @@ const ProcessVerbalClient = () => {
               localisation
             `)
             .eq('id', pvData.intervention_id)
-            .single();
+            .maybeSingle();
           
           if (!interventionError && interventionData) {
             setPv({

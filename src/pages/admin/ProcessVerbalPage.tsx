@@ -1,3 +1,4 @@
+
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ArrowLeft, Clock, Calendar, FileText, User, Building, CheckCircle, XCircle, Download, Printer } from "lucide-react";
@@ -76,7 +77,7 @@ const ProcessVerbalPage = () => {
             )
           `)
           .eq('id', id)
-          .single();
+          .maybeSingle();
           
         if (pvError) throw pvError;
         
@@ -146,7 +147,7 @@ const ProcessVerbalPage = () => {
   return (
     <div className="container mx-auto py-8 px-4">
       <div className="mb-8 flex items-center justify-between">
-        <Button variant="outline" onClick={() => navigate(`/admin/intervention/${pv.intervention_id}`)}>
+        <Button variant="outline" onClick={() => navigate(`/admin/intervention/${pv?.intervention_id}`)}>
           <ArrowLeft className="mr-2 h-4 w-4" />
           Retour à l'intervention
         </Button>
@@ -171,16 +172,16 @@ const ProcessVerbalPage = () => {
                 Procès-Verbal d'Intervention
               </CardTitle>
               <CardDescription>
-                {pv.intervention?.date_fin && (
+                {pv?.intervention?.date_fin && (
                   <span>Intervention réalisée le {formatDate(pv.intervention.date_fin)}</span>
                 )}
               </CardDescription>
             </div>
             
             <div>
-              {pv.validation_client === null ? (
+              {pv?.validation_client === null ? (
                 <Badge variant="outline">En attente de validation</Badge>
-              ) : pv.validation_client ? (
+              ) : pv?.validation_client ? (
                 <Badge variant="default" className="bg-green-500">Validé</Badge>
               ) : (
                 <Badge variant="destructive">Refusé</Badge>
@@ -199,12 +200,12 @@ const ProcessVerbalPage = () => {
               <div className="bg-slate-50 p-4 rounded-md space-y-3">
                 <div>
                   <p className="text-sm font-medium text-gray-500">Client</p>
-                  <p className="font-medium">{pv.client?.nom_entreprise}</p>
+                  <p className="font-medium">{pv?.client?.nom_entreprise}</p>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Contact</p>
-                  <p>{pv.client?.email}</p>
-                  <p>{pv.client?.tel}</p>
+                  <p>{pv?.client?.email}</p>
+                  <p>{pv?.client?.tel}</p>
                 </div>
               </div>
             </div>
@@ -218,16 +219,16 @@ const ProcessVerbalPage = () => {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <p className="text-sm font-medium text-gray-500">Date de début</p>
-                    <p>{formatDate(pv.intervention?.date_debut)}</p>
+                    <p>{formatDate(pv?.intervention?.date_debut)}</p>
                   </div>
                   <div>
                     <p className="text-sm font-medium text-gray-500">Date de fin</p>
-                    <p>{formatDate(pv.intervention?.date_fin)}</p>
+                    <p>{formatDate(pv?.intervention?.date_fin)}</p>
                   </div>
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-500">Localisation</p>
-                  <p>{pv.intervention?.localisation}</p>
+                  <p>{pv?.intervention?.localisation}</p>
                 </div>
               </div>
             </div>
@@ -238,7 +239,7 @@ const ProcessVerbalPage = () => {
           <div>
             <h3 className="text-lg font-semibold mb-3">Rapport d'Intervention</h3>
             <div className="bg-slate-50 p-4 rounded-md">
-              {pv.intervention?.rapport ? (
+              {pv?.intervention?.rapport ? (
                 <p className="whitespace-pre-line">{pv.intervention.rapport}</p>
               ) : (
                 <p className="text-muted-foreground italic">Aucun rapport disponible</p>
@@ -251,12 +252,12 @@ const ProcessVerbalPage = () => {
           <div>
             <h3 className="text-lg font-semibold mb-3">Validation Client</h3>
             <div className="bg-slate-50 p-4 rounded-md">
-              {pv.validation_client === null ? (
+              {pv?.validation_client === null ? (
                 <div className="flex items-center">
                   <Clock className="h-5 w-5 text-yellow-500 mr-2" />
                   <p>En attente de validation du client</p>
                 </div>
-              ) : pv.validation_client ? (
+              ) : pv?.validation_client ? (
                 <div>
                   <div className="flex items-center">
                     <CheckCircle className="h-5 w-5 text-green-500 mr-2" />
@@ -294,7 +295,7 @@ const ProcessVerbalPage = () => {
         </CardContent>
         
         <CardFooter className="flex justify-between border-t pt-6 print:hidden">
-          <Button variant="outline" onClick={() => navigate(`/admin/intervention/${pv.intervention_id}`)}>
+          <Button variant="outline" onClick={() => navigate(`/admin/intervention/${pv?.intervention_id}`)}>
             <ArrowLeft className="mr-2 h-4 w-4" />
             Retour à l'intervention
           </Button>
