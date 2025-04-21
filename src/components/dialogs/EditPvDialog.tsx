@@ -76,7 +76,19 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
         // Création du PV
-        console.log("Création d'un nouveau PV avec client ID:", clientId);
+        console.log("Création d'un nouveau PV avec client ID:", clientId, "Type:", typeof clientId);
+        
+        // Assurons-nous que clientId est bien une chaîne
+        if (typeof clientId !== 'string') {
+          console.error("Le clientId n'est pas une chaîne:", clientId);
+          toast({
+            variant: "destructive",
+            title: "Erreur",
+            description: "Format d'ID client invalide."
+          });
+          return;
+        }
+        
         await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,

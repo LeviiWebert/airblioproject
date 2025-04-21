@@ -93,22 +93,30 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
       throw new Error("L'ID du client et l'ID de l'intervention sont requis");
     }
 
-    // Vérifier si le client est un objet ou une chaîne
-    let clientId = pvData.clientId;
-    if (typeof clientId === 'object' && clientId !== null) {
-      console.log("ClientId est un objet, extraction de l'ID:", clientId);
-      // Si clientId est un objet (probablement un client complet), extraire uniquement l'ID
-      if ('id' in clientId) {
-        clientId = clientId.id as string;
+    // Gérer le cas où clientId est un objet ou une chaîne
+    let clientIdValue: string;
+    
+    if (typeof pvData.clientId === 'object' && pvData.clientId !== null) {
+      console.log("ClientId est un objet, extraction de l'ID:", pvData.clientId);
+      // Si clientId est un objet, vérifier s'il a une propriété 'id'
+      if ('id' in pvData.clientId && typeof pvData.clientId.id === 'string') {
+        clientIdValue = pvData.clientId.id;
       } else {
+        console.error("Format d'ID client invalide:", pvData.clientId);
         throw new Error("Format d'ID client invalide");
       }
+    } else if (typeof pvData.clientId === 'string') {
+      // Si c'est déjà une chaîne, l'utiliser directement
+      clientIdValue = pvData.clientId;
+    } else {
+      console.error("Type de clientId non pris en charge:", typeof pvData.clientId, pvData.clientId);
+      throw new Error("Type de clientId non pris en charge");
     }
 
     // Transformer les propriétés camelCase en snake_case pour la base de données
     const dbData = {
       intervention_id: pvData.interventionId,
-      client_id: clientId,
+      client_id: clientIdValue,
       validation_client: pvData.validation_client,
       commentaire: pvData.commentaire
     };

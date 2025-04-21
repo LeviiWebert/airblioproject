@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -93,7 +92,18 @@ const AdminInterventionDetails = () => {
     fetchInterventionDetails();
   };
 
-  const handleEditPv = () => setEditPvOpen(true);
+  const handleEditPv = () => {
+    if (intervention?.demande?.client_id) {
+      console.log("Using client ID for PV:", intervention.demande.client_id);
+      setEditPvOpen(true);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible d'éditer le PV : ID client manquant"
+      });
+    }
+  };
 
   if (loading) {
     return (
@@ -475,10 +485,14 @@ const AdminInterventionDetails = () => {
         open={editPvOpen}
         onOpenChange={setEditPvOpen}
         interventionId={intervention.id}
-        clientId={intervention.demande_intervention_id?.client_id ?? ""}
+        clientId={intervention.demande?.client_id ?? ""}
         initialPvId={intervention.pv_intervention_id || undefined}
         onSaved={() => {
-          // TODO : Optionnel - recharger l'intervention après édition du PV
+          fetchInterventionDetails();
+          toast({
+            title: "PV enregistré",
+            description: "Le PV a été enregistré avec succès."
+          });
         }}
       />
     </div>
