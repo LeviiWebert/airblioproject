@@ -14,6 +14,7 @@ import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { useToast } from "@/hooks/use-toast";
 import AssignEquipmentDialog from "@/components/dialogs/AssignEquipmentDialog";
 import ManageTeamsDialog from "@/components/dialogs/ManageTeamsDialog";
+import { EditPvDialog } from "@/components/dialogs/EditPvDialog";
 
 const AdminInterventionDetails = () => {
   const { id } = useParams();
@@ -24,6 +25,7 @@ const AdminInterventionDetails = () => {
   const [error, setError] = useState<string | null>(null);
   const [isAssignEquipmentDialogOpen, setIsAssignEquipmentDialogOpen] = useState(false);
   const [isManageTeamsDialogOpen, setIsManageTeamsDialogOpen] = useState(false);
+  const [editPvOpen, setEditPvOpen] = useState(false);
 
   const fetchInterventionDetails = async () => {
     if (!id) return;
@@ -90,6 +92,8 @@ const AdminInterventionDetails = () => {
     fetchInterventionDetails();
   };
 
+  const handleEditPv = () => setEditPvOpen(true);
+
   if (loading) {
     return (
       <div className="flex items-center justify-center h-64">
@@ -149,6 +153,10 @@ const AdminInterventionDetails = () => {
             onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}
           >
             Modifier
+          </Button>
+          
+          <Button variant="outline" onClick={handleEditPv}>
+            <span>Éditer le PV</span>
           </Button>
         </div>
       </div>
@@ -460,6 +468,17 @@ const AdminInterventionDetails = () => {
         interventionId={intervention.id}
         currentTeams={intervention.teams || []}
         onTeamsUpdated={handleTeamsUpdated}
+      />
+
+      <EditPvDialog
+        open={editPvOpen}
+        onOpenChange={setEditPvOpen}
+        interventionId={intervention.id}
+        clientId={intervention.demande_intervention_id?.client_id ?? ""}
+        initialPvId={intervention.pv_intervention_id || undefined}
+        onSaved={() => {
+          // TODO : Optionnel - recharger l’intervention après édition du PV
+        }}
       />
     </div>
   );

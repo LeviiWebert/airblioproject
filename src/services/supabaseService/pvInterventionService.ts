@@ -1,4 +1,3 @@
-
 import { supabase } from "@/integrations/supabase/client";
 import { PVIntervention } from "@/types/models";
 
@@ -72,8 +71,21 @@ const updatePVStatus = async (pvId: string, validationClient: boolean, commentai
   return data;
 };
 
+// Créer un PV
+const createPv = async (pvData: Partial<PVIntervention>) => {
+  const { data, error } = await supabase
+    .from('pv_interventions')
+    .insert([pvData])
+    .select()
+    .single();
+
+  if (error) throw error;
+  return data;
+};
+
 export const pvInterventionService = {
   getPVsByClientId,
   getPVById,
-  updatePVStatus
+  updatePVStatus,
+  createPv
 };
