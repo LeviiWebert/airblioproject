@@ -83,23 +83,26 @@ const NewInterventionPage = () => {
       
       setFetchLoading(true);
       try {
-        const data = await interventionService.getById(interventionId);
-        if (data) {
-          setOriginalIntervention(data);
+        // Récupérer l'intervention sans transformation
+        const rawData = await interventionService.getById(interventionId);
+        console.log("Données brutes de l'intervention:", rawData);
+        
+        if (rawData) {
+          setOriginalIntervention(rawData);
           setIsEditMode(true);
           
-          // Récupérer l'ID de l'équipe principale
+          // Récupérer l'ID de l'équipe principale des données brutes
           let equipeId = "";
-          if (data.teams && data.teams.length > 0) {
-            equipeId = data.teams[0].id;
+          if (rawData.intervention_equipes && rawData.intervention_equipes.length > 0) {
+            equipeId = rawData.intervention_equipes[0].equipe_id.id;
           }
           
           form.reset({
-            clientId: data.demande?.client_id || "",
-            localisation: data.localisation || "",
-            description: data.demande?.description || "",
-            urgence: (data.demande?.urgence as any) || "moyenne",
-            dateDebut: data.date_debut ? new Date(data.date_debut) : new Date(),
+            clientId: rawData.demande_intervention_id.client_id.id || "",
+            localisation: rawData.localisation || "",
+            description: rawData.demande_intervention_id.description || "",
+            urgence: (rawData.demande_intervention_id.urgence as any) || "moyenne",
+            dateDebut: rawData.date_debut ? new Date(rawData.date_debut) : new Date(),
             equipeId: equipeId,
           });
         }
@@ -142,7 +145,7 @@ const NewInterventionPage = () => {
             description: values.description,
             urgence: values.urgence
           })
-          .eq('id', originalIntervention.demande_intervention_id);
+          .eq('id', originalIntervention.demande_intervention_id.id);
         
         // Mettre à jour l'équipe (supprimer puis recréer l'association)
         await supabase
