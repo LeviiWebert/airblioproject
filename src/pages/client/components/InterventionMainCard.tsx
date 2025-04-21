@@ -1,5 +1,6 @@
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, Separator } from "@/components/ui/card";
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from "@/components/ui/card";
+import { Separator } from "@/components/ui/separator";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Info, ArrowLeft, Printer, Download, FileText } from "lucide-react";
