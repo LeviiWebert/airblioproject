@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { PVIntervention } from "@/types/models";
 
@@ -73,9 +74,17 @@ const updatePVStatus = async (pvId: string, validationClient: boolean, commentai
 
 // Créer un PV
 const createPv = async (pvData: Partial<PVIntervention>) => {
+  // Map the client-side property names to the database column names
+  const dbData = {
+    intervention_id: pvData.interventionId,
+    client_id: pvData.clientId,
+    validation_client: pvData.validation_client,
+    commentaire: pvData.commentaire
+  };
+
   const { data, error } = await supabase
     .from('pv_interventions')
-    .insert([pvData])
+    .insert([dbData])
     .select()
     .single();
 

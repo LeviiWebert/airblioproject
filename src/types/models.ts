@@ -81,8 +81,8 @@ export interface Intervention {
 
 export interface PVIntervention {
   id: string;
-  validationClient: boolean | null;
-  dateValidation: Date | null;
+  validation_client: boolean | null;
+  date_validation: Date | null;
   commentaire?: string;
   interventionId: string;
   clientId: string;

@@ -23,7 +23,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
   const [commentaire, setCommentaire] = useState("");
   const [loading, setLoading] = useState(false);
 
-  // Récupérer le PV existant à l’ouverture
+  // Récupérer le PV existant à l'ouverture
   useEffect(() => {
     if (open && initialPvId) {
       setLoading(true);
@@ -61,8 +61,8 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       } else {
         // Création du PV si nécessaire
         await pvInterventionService.createPv({
-          client_id: clientId,
-          intervention_id: interventionId,
+          clientId: clientId,
+          interventionId: interventionId,
           validation_client: validationClient ?? null,
           commentaire,
         });
