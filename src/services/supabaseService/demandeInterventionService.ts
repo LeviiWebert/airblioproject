@@ -76,7 +76,11 @@ const updateStatus = async (id: string, status: string) => {
     .eq('id', id)
     .select();
   
-  if (error) throw error;
+  if (error) {
+    console.error("Erreur lors de la mise à jour du statut de la demande:", error);
+    throw error;
+  }
+  console.log("Statut de la demande mis à jour avec succès:", data);
   return data[0];
 };
 
@@ -90,7 +94,11 @@ const updateInterventionId = async (id: string, interventionId: string) => {
     .eq('id', id)
     .select();
   
-  if (error) throw error;
+  if (error) {
+    console.error("Erreur lors de la liaison de l'intervention à la demande:", error);
+    throw error;
+  }
+  console.log("Demande liée à l'intervention avec succès:", data);
   return data[0];
 };
 

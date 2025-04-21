@@ -59,7 +59,7 @@ export const useInterventionRequests = () => {
       // Utiliser le service pour la mise à jour
       await demandeInterventionService.updateStatus(selectedRequest.id, newStatus);
       
-      // Mettre à jour l'interface utilisateur
+      // Mettre à jour l'interface utilisateur en retirant immédiatement la demande de la liste
       setRequests(requests.filter(req => req.id !== selectedRequest.id));
       
       // Si la demande est acceptée, créer une intervention
