@@ -63,12 +63,19 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
   const handleSave = async () => {
     setLoading(true);
     try {
+      console.log("Sauvegarde du PV avec l'intervention ID:", interventionId, "client ID:", clientId);
+      
+      // Mise à jour du rapport d'intervention
+      if (rapport) {
+        await pvInterventionService.updateInterventionReport(interventionId, rapport);
+      }
+      
       if (initialPvId) {
         // Mise à jour du PV existant
-        await pvInterventionService.updatePVStatus(initialPvId, validationClient ?? null, commentaire);
+        await pvInterventionService.updatePVStatus(initialPvId, validationClient, commentaire);
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
-        // Création du PV si nécessaire
+        // Création du PV
         await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,
@@ -77,11 +84,16 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         });
         toast({ title: "PV créé", description: "Le PV a été créé avec succès." });
       }
+      
       if (onSaved) onSaved();
       onOpenChange(false);
-    } catch (error) {
+    } catch (error: any) {
       console.error("Erreur lors de la sauvegarde du PV:", error);
-      toast({ variant: "destructive", title: "Erreur", description: "Impossible d'enregistrer le PV." });
+      toast({ 
+        variant: "destructive", 
+        title: "Erreur", 
+        description: error.message || "Impossible d'enregistrer le PV." 
+      });
     } finally {
       setLoading(false);
     }
@@ -112,13 +124,25 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
           <div>
             <label className="block mb-1 font-medium">Validation client</label>
             <div className="flex gap-3">
-              <Button type="button" variant={validationClient===true ? "default":"outline"} onClick={() => setValidationClient(true)}>
+              <Button 
+                type="button" 
+                variant={validationClient===true ? "default":"outline"} 
+                onClick={() => setValidationClient(true)}
+              >
                 Validé
               </Button>
-              <Button type="button" variant={validationClient===false ? "destructive":"outline"} onClick={() => setValidationClient(false)}>
+              <Button 
+                type="button" 
+                variant={validationClient===false ? "destructive":"outline"} 
+                onClick={() => setValidationClient(false)}
+              >
                 Refusé
               </Button>
-              <Button type="button" variant={validationClient===null ? "secondary":"outline"} onClick={() => setValidationClient(null)}>
+              <Button 
+                type="button" 
+                variant={validationClient===null ? "secondary":"outline"} 
+                onClick={() => setValidationClient(null)}
+              >
                 En attente
               </Button>
             </div>

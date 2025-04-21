@@ -62,44 +62,89 @@ const getPVById = async (pvId: string) => {
 };
 
 // Mettre à jour un PV (validation par le client)
-const updatePVStatus = async (pvId: string, validationClient: boolean, commentaire?: string) => {
-  const { data, error } = await supabase
-    .from('pv_interventions')
-    .update({
-      validation_client: validationClient,
-      date_validation: new Date().toISOString(),
-      commentaire
-    })
-    .eq('id', pvId)
-    .select();
+const updatePVStatus = async (pvId: string, validationClient: boolean | null, commentaire?: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('pv_interventions')
+      .update({
+        validation_client: validationClient,
+        date_validation: validationClient !== null ? new Date().toISOString() : null,
+        commentaire
+      })
+      .eq('id', pvId)
+      .select();
 
-  if (error) throw error;
-  return data;
+    if (error) {
+      console.error("Erreur lors de la mise à jour du PV:", error);
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    console.error("Exception lors de la mise à jour du PV:", error);
+    throw error;
+  }
 };
 
 // Créer un PV
 const createPv = async (pvData: Partial<PVIntervention>) => {
-  // Transformer les propriétés camelCase en snake_case pour la base de données
-  const dbData = {
-    intervention_id: pvData.interventionId,
-    client_id: pvData.clientId,
-    validation_client: pvData.validation_client,
-    commentaire: pvData.commentaire
-  };
+  try {
+    // S'assurer que les IDs sont bien formatés
+    if (!pvData.clientId || !pvData.interventionId) {
+      throw new Error("L'ID du client et l'ID de l'intervention sont requis");
+    }
 
-  const { data, error } = await supabase
-    .from('pv_interventions')
-    .insert([dbData])
-    .select()
-    .maybeSingle();
+    // Transformer les propriétés camelCase en snake_case pour la base de données
+    const dbData = {
+      intervention_id: pvData.interventionId,
+      client_id: pvData.clientId,
+      validation_client: pvData.validation_client,
+      commentaire: pvData.commentaire
+    };
 
-  if (error) throw error;
-  return data;
+    console.log("Données envoyées pour création de PV:", dbData);
+
+    const { data, error } = await supabase
+      .from('pv_interventions')
+      .insert([dbData])
+      .select()
+      .maybeSingle();
+
+    if (error) {
+      console.error("Erreur lors de la création du PV:", error);
+      throw error;
+    }
+    
+    return data;
+  } catch (error) {
+    console.error("Exception lors de la création du PV:", error);
+    throw error;
+  }
+};
+
+// Mettre à jour le rapport d'intervention
+const updateInterventionReport = async (interventionId: string, rapport: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('interventions')
+      .update({ rapport })
+      .eq('id', interventionId)
+      .select();
+
+    if (error) {
+      console.error("Erreur lors de la mise à jour du rapport:", error);
+      throw error;
+    }
+    return data;
+  } catch (error) {
+    console.error("Exception lors de la mise à jour du rapport:", error);
+    throw error;
+  }
 };
 
 export const pvInterventionService = {
   getPVsByClientId,
   getPVById,
   updatePVStatus,
-  createPv
+  createPv,
+  updateInterventionReport
 };
