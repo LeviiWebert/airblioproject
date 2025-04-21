@@ -1,426 +1,134 @@
 import { supabase } from '@/integrations/supabase/client';
-import { FilterOptions } from '@/types/models';
 
+// Get all interventions
 const getAll = async () => {
   const { data, error } = await supabase
     .from('interventions')
     .select(`
-      id,
-      date_debut,
-      date_fin,
-      localisation,
-      statut,
-      demande_intervention_id,
-      demande_interventions:demande_intervention_id (
-        description,
-        urgence,
-        client_id,
-        clients:client_id (
-          id,
-          nom_entreprise
-        )
-      ),
-      intervention_equipes (
-        equipe_id,
-        equipes:equipe_id (
-          id,
-          nom
-        )
-      )
+      *,
+      demande_intervention_id(*, client_id(*))
     `);
-    
-  if (error) throw error;
-  
-  return data.map(item => ({
-    id: item.id,
-    dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-    dateFin: item.date_fin ? new Date(item.date_fin) : null,
-    localisation: item.localisation,
-    statut: item.statut,
-    client: {
-      id: item.demande_interventions?.clients?.id || '',
-      nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-    },
-    demande: {
-      description: item.demande_interventions?.description || '',
-      urgence: item.demande_interventions?.urgence || 'basse'
-    },
-    equipes: item.intervention_equipes?.map(eq => ({
-      id: eq.equipes?.id || '',
-      nom: eq.equipes?.nom || 'Équipe inconnue'
-    })) || []
-  }));
-};
-
-const getById = async (id: string) => {
-  const { data, error } = await supabase
-    .from('interventions')
-    .select(`
-      id,
-      date_debut,
-      date_fin,
-      rapport,
-      statut,
-      localisation,
-      demande_intervention_id,
-      pv_intervention_id,
-      created_at,
-      updated_at
-    `)
-    .eq('id', id)
-    .maybeSingle();
-  
-  if (error) throw error;
-  
-  if (!data) return null;
-  
-  const { data: demandeData, error: demandeError } = await supabase
-    .from('demande_interventions')
-    .select(`
-      id,
-      description,
-      date_demande,
-      urgence,
-      statut,
-      client_id,
-      client:client_id (
-        id, 
-        nom_entreprise,
-        email,
-        tel
-      )
-    `)
-    .eq('id', data.demande_intervention_id)
-    .maybeSingle();
-  
-  if (demandeError) throw demandeError;
-  
-  const { data: teamsData, error: teamsError } = await supabase
-    .from('intervention_equipes')
-    .select(`
-      equipe_id,
-      equipes:equipe_id (
-        id,
-        nom,
-        specialisation
-      )
-    `)
-    .eq('intervention_id', id);
-  
-  if (teamsError) throw teamsError;
-  
-  const teams = teamsData.map(item => item.equipes);
-  
-  const { data: equipmentData, error: equipmentError } = await supabase
-    .from('intervention_materiels')
-    .select(`
-      materiel_id,
-      materiels:materiel_id (
-        id,
-        reference,
-        type_materiel,
-        etat
-      )
-    `)
-    .eq('intervention_id', id);
-  
-  if (equipmentError) throw equipmentError;
-  
-  const equipment = equipmentData.map(item => item.materiels);
-  
-  let pv = null;
-  if (data.pv_intervention_id) {
-    const { data: pvData, error: pvError } = await supabase
-      .from('pv_interventions')
-      .select(`
-        id,
-        validation_client,
-        date_validation,
-        commentaire
-      `)
-      .eq('id', data.pv_intervention_id)
-      .maybeSingle();
-    
-    if (!pvError && pvData) {
-      pv = pvData;
-    }
-  }
-  
-  return {
-    ...data,
-    demande: demandeData || null,
-    teams,
-    equipment,
-    pv_interventions: pv
-  };
-};
-
-const updateStatus = async (id: string, status: string) => {
-  const updates = { 
-    statut: status,
-    ...(status === "en_cours" && { date_debut: new Date().toISOString() }),
-    ...(status === "terminée" && { date_fin: new Date().toISOString() }),
-  };
-  
-  const { data, error } = await supabase
-    .from('interventions')
-    .update(updates)
-    .eq('id', id)
-    .select();
   
   if (error) throw error;
   return data;
 };
 
-const assignTeam = async (interventionId: string, teamId: string) => {
-  try {
-    await supabase
-      .from('intervention_equipes')
-      .delete()
-      .eq('intervention_id', interventionId);
-    
-    const { error } = await supabase
-      .from('intervention_equipes')
-      .insert({
-        intervention_id: interventionId,
-        equipe_id: teamId
-      });
-    
-    if (error) throw error;
-    
-    const { data: interventionData } = await supabase
-      .from('interventions')
-      .select('statut')
-      .eq('id', interventionId)
-      .maybeSingle();
-    
-    if (interventionData && (interventionData.statut === 'en_attente' || interventionData.statut === 'validée')) {
-      await supabase
-        .from('interventions')
-        .update({ statut: 'planifiée' })
-        .eq('id', interventionId);
-    }
-    
-    return true;
-  } catch (error) {
-    throw error;
-  }
-};
-
-const assignEquipment = async (interventionId: string, equipmentIds: string[]) => {
-  try {
-    await supabase
-      .from('intervention_materiels')
-      .delete()
-      .eq('intervention_id', interventionId);
-    
-    const insertData = equipmentIds.map(equipId => ({
-      intervention_id: interventionId,
-      materiel_id: equipId
-    }));
-    
-    const { error } = await supabase
-      .from('intervention_materiels')
-      .insert(insertData);
-    
-    if (error) throw error;
-    
-    for (const equipId of equipmentIds) {
-      await supabase
-        .from('materiels')
-        .update({ etat: 'en utilisation' })
-        .eq('id', equipId);
-    }
-    
-    const { data: interventionData } = await supabase
-      .from('interventions')
-      .select('statut')
-      .eq('id', interventionId)
-      .maybeSingle();
-    
-    if (interventionData && (interventionData.statut === 'en_attente' || interventionData.statut === 'validée')) {
-      await supabase
-        .from('interventions')
-        .update({ statut: 'planifiée' })
-        .eq('id', interventionId);
-    }
-    
-    return true;
-  } catch (error) {
-    throw error;
-  }
-};
-
-const getAvailableEquipment = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('materiels')
-      .select('*')
-      .in('etat', ['disponible']);
-    
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-const getAvailableTeams = async () => {
-  try {
-    const { data, error } = await supabase
-      .from('equipes')
-      .select('*');
-    
-    if (error) throw error;
-    
-    return data;
-  } catch (error) {
-    throw error;
-  }
-};
-
-const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
-  let query = supabase
-    .from('interventions')
-    .select(`
-      id,
-      date_debut,
-      date_fin,
-      localisation,
-      statut,
-      demande_intervention_id,
-      demande_interventions:demande_intervention_id (
-        description,
-        urgence,
-        client_id,
-        clients:client_id (
-          id,
-          nom_entreprise
-        )
-      ),
-      intervention_equipes (
-        equipe_id,
-        equipes:equipe_id (
-          id,
-          nom
-        )
-      )
-    `);
-  
-  if (filterOptions.status) {
-    query = query.eq('statut', filterOptions.status);
-  }
-  
-  if (filterOptions.client) {
-    query = query.eq('demande_interventions.clients.id', filterOptions.client);
-  }
-  
-  if (filterOptions.dateRange?.from) {
-    const fromDate = new Date(filterOptions.dateRange.from);
-    fromDate.setHours(0, 0, 0, 0);
-    query = query.gte('date_debut', fromDate.toISOString());
-  }
-  
-  if (filterOptions.dateRange?.to) {
-    const toDate = new Date(filterOptions.dateRange.to);
-    toDate.setHours(23, 59, 59, 999);
-    query = query.lte('date_debut', toDate.toISOString());
-  }
-  
-  const { data, error } = await query;
-  
-  if (error) throw error;
-  
-  let formattedData = data.map(item => ({
-    id: item.id,
-    dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-    dateFin: item.date_fin ? new Date(item.date_fin) : null,
-    localisation: item.localisation,
-    statut: item.statut,
-    client: {
-      id: item.demande_interventions?.clients?.id || '',
-      nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-    },
-    demande: {
-      description: item.demande_interventions?.description || '',
-      urgence: item.demande_interventions?.urgence || 'basse'
-    },
-    equipes: item.intervention_equipes?.map(eq => ({
-      id: eq.equipes?.id || '',
-      nom: eq.equipes?.nom || 'Équipe inconnue'
-    })) || []
-  }));
-  
-  if (filterOptions.team) {
-    formattedData = formattedData.filter(item => 
-      item.equipes.some(eq => eq.id === filterOptions.team)
-    );
-  }
-  
-  return formattedData;
-};
-
-const getByStatus = async (status) => {
+// Get intervention by ID
+const getById = async (id: string) => {
   const { data, error } = await supabase
     .from('interventions')
     .select(`
-      id,
-      date_debut,
-      date_fin,
-      localisation,
-      statut,
-      demande_intervention_id,
-      demande_interventions:demande_intervention_id (
-        description,
-        urgence,
-        client_id,
-        clients:client_id (
-          id,
-          nom_entreprise
-        )
-      ),
-      intervention_equipes (
-        equipe_id,
-        equipes:equipe_id (
-          id,
-          nom
-        )
-      )
+      *,
+      demande_intervention_id(*, client_id(*)),
+      intervention_equipes(equipe_id(*)),
+      intervention_materiels(materiel_id(*))
     `)
-    .eq('statut', status);
+    .eq('id', id)
+    .single();
   
   if (error) throw error;
-  
-  return data.map(item => ({
-    id: item.id,
-    dateDebut: item.date_debut ? new Date(item.date_debut) : null,
-    dateFin: item.date_fin ? new Date(item.date_fin) : null,
-    localisation: item.localisation,
-    statut: item.statut,
-    client: {
-      id: item.demande_interventions?.clients?.id || '',
-      nomEntreprise: item.demande_interventions?.clients?.nom_entreprise || 'Client inconnu'
-    },
-    demande: {
-      description: item.demande_interventions?.description || '',
-      urgence: item.demande_interventions?.urgence || 'basse'
-    },
-    equipes: item.intervention_equipes?.map(eq => ({
-      id: eq.equipes?.id || '',
-      nom: eq.equipes?.nom || 'Équipe inconnue'
-    })) || []
-  }));
+
+  // Transform the data to match the expected structure
+  if (data) {
+    const teams = data.intervention_equipes ? data.intervention_equipes.map((item: any) => item.equipe_id) : [];
+    const equipment = data.intervention_materiels ? data.intervention_materiels.map((item: any) => item.materiel_id) : [];
+
+    return {
+      ...data,
+      demande: data.demande_intervention_id,
+      teams: teams,
+      equipment: equipment
+    };
+  }
+
+  return data;
 };
 
+// Create a new intervention
+const createIntervention = async (interventionData: any) => {
+  const { data, error } = await supabase
+    .from('interventions')
+    .insert([interventionData])
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
+// Update intervention
+const updateIntervention = async (id: string, interventionData: any) => {
+  const { data, error } = await supabase
+    .from('interventions')
+    .update(interventionData)
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
+// Update intervention status
+const updateStatus = async (id: string, status: string) => {
+  const { data, error } = await supabase
+    .from('interventions')
+    .update({ statut: status })
+    .eq('id', id)
+    .select();
+  
+  if (error) throw error;
+  return data[0];
+};
+
+// Update intervention teams
+const updateTeams = async (interventionId: string, teamIds: string[]) => {
+  try {
+    // First, delete all current team associations
+    const { error: deleteError } = await supabase
+      .from('intervention_equipes')
+      .delete()
+      .eq('intervention_id', interventionId);
+    
+    if (deleteError) throw deleteError;
+    
+    // If there are teams to add, insert them
+    if (teamIds.length > 0) {
+      const teamAssociations = teamIds.map(teamId => ({
+        intervention_id: interventionId,
+        equipe_id: teamId
+      }));
+      
+      const { error: insertError } = await supabase
+        .from('intervention_equipes')
+        .insert(teamAssociations);
+      
+      if (insertError) throw insertError;
+    }
+    
+    return true;
+  } catch (error) {
+    console.error('Erreur lors de la mise à jour des équipes:', error);
+    throw error;
+  }
+};
+
+// Delete intervention
+const deleteIntervention = async (id: string) => {
+  const { error } = await supabase
+    .from('interventions')
+    .delete()
+    .eq('id', id);
+  
+  if (error) throw error;
+  return true;
+};
+
+// Export all functions
 export const interventionService = {
   getAll,
   getById,
+  createIntervention,
+  updateIntervention,
   updateStatus,
-  assignTeam,
-  assignEquipment,
-  getAvailableEquipment,
-  getAvailableTeams,
-  getDetailedInterventions,
-  getByStatus,
+  updateTeams,
+  deleteIntervention
 };

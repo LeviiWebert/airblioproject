@@ -1,4 +1,3 @@
-
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { Card, CardContent, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
@@ -14,6 +13,7 @@ import { InterventionStatusBadge } from "@/components/interventions/Intervention
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
 import { useToast } from "@/hooks/use-toast";
 import AssignEquipmentDialog from "@/components/dialogs/AssignEquipmentDialog";
+import ManageTeamsDialog from "@/components/dialogs/ManageTeamsDialog";
 
 const AdminInterventionDetails = () => {
   const { id } = useParams();
@@ -23,6 +23,7 @@ const AdminInterventionDetails = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isAssignEquipmentDialogOpen, setIsAssignEquipmentDialogOpen] = useState(false);
+  const [isManageTeamsDialogOpen, setIsManageTeamsDialogOpen] = useState(false);
 
   const fetchInterventionDetails = async () => {
     if (!id) return;
@@ -77,6 +78,14 @@ const AdminInterventionDetails = () => {
     toast({
       title: "Matériel assigné",
       description: "Le matériel a été assigné avec succès à l'intervention.",
+    });
+    fetchInterventionDetails();
+  };
+
+  const handleTeamsUpdated = () => {
+    toast({
+      title: "Équipes mises à jour",
+      description: "Les équipes ont été mises à jour avec succès.",
     });
     fetchInterventionDetails();
   };
@@ -242,7 +251,7 @@ const AdminInterventionDetails = () => {
                   )}
                 </CardContent>
                 <CardFooter className="border-t pt-4">
-                  <Button variant="outline" className="w-full" onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}>
+                  <Button variant="outline" className="w-full" onClick={() => setIsManageTeamsDialogOpen(true)}>
                     Gérer les équipes
                   </Button>
                 </CardFooter>
@@ -394,7 +403,7 @@ const AdminInterventionDetails = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/admin/interventions/new?edit=${intervention.id}`)}
+                onClick={() => setIsManageTeamsDialogOpen(true)}
               >
                 <Users className="mr-2 h-4 w-4" />
                 Gérer les équipes
@@ -443,6 +452,14 @@ const AdminInterventionDetails = () => {
         onOpenChange={setIsAssignEquipmentDialogOpen}
         interventionId={intervention.id}
         onEquipmentAssigned={handleEquipmentAssigned}
+      />
+
+      <ManageTeamsDialog
+        open={isManageTeamsDialogOpen}
+        onOpenChange={setIsManageTeamsDialogOpen}
+        interventionId={intervention.id}
+        currentTeams={intervention.teams || []}
+        onTeamsUpdated={handleTeamsUpdated}
       />
     </div>
   );
