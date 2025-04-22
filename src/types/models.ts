@@ -1,4 +1,3 @@
-
 import { DateRange } from "react-day-picker";
 
 export interface Client {
@@ -26,6 +25,7 @@ export interface Equipe {
   nom: string;
   membres: string[]; // IDs des utilisateurs
   specialisation: string;
+  disponibilite: boolean;
 }
 
 export interface SuiviEquipe {
