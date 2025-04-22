@@ -19,7 +19,7 @@ const InterventionRequests = () => {
     processing,
     requests,
     selectedRequest,
-    setSelectedRequest,
+    setSelectedRequest,  // Now this is properly destructured
     acceptRequest,
     rejectRequest,
     confirmAction,

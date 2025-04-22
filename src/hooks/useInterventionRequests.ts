@@ -161,6 +161,7 @@ export const useInterventionRequests = () => {
     processing,
     requests,
     selectedRequest,
+    setSelectedRequest,  // <-- Added this line to expose the setter
     actionType,
     handleAccept,
     handleReject,
