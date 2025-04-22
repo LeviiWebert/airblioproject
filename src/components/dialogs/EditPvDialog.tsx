@@ -22,41 +22,58 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
   const [validationClient, setValidationClient] = useState<boolean | null>(null);
   const [commentaire, setCommentaire] = useState("");
   const [loading, setLoading] = useState(false);
+  const [pvId, setPvId] = useState<string | undefined>(initialPvId);
 
   // Récupérer le PV existant à l'ouverture
   useEffect(() => {
-    if (open && initialPvId) {
-      setLoading(true);
-      pvInterventionService
-        .getPVById(initialPvId)
-        .then((data: any) => {
+    if (!open) return;
+    
+    setLoading(true);
+    
+    const fetchPv = async () => {
+      try {
+        // Si un ID de PV est fourni, on utilise celui-là
+        if (initialPvId) {
+          const data = await pvInterventionService.getPVById(initialPvId);
           if (data) {
+            setPvId(data.id);
+            setRapport(data.intervention?.rapport || "");
+            setValidationClient(data.validation_client);
+            setCommentaire(data.commentaire || "");
+          }
+        } 
+        // Sinon, on cherche si un PV existe déjà pour cette intervention
+        else if (interventionId) {
+          console.log("Vérification de l'existence d'un PV pour l'intervention:", interventionId);
+          const data = await pvInterventionService.getPVByInterventionId(interventionId);
+          if (data) {
+            console.log("PV existant trouvé:", data);
+            setPvId(data.id);
             setRapport(data.intervention?.rapport || "");
             setValidationClient(data.validation_client);
             setCommentaire(data.commentaire || "");
           } else {
-            toast({
-              variant: "destructive",
-              title: "Erreur",
-              description: "PV non trouvé"
-            });
+            // Pas de PV existant, réinitialiser le formulaire
+            console.log("Aucun PV existant pour cette intervention, préparation d'un nouveau PV");
+            setPvId(undefined);
+            setRapport("");
+            setValidationClient(null);
+            setCommentaire("");
           }
-        })
-        .catch((error) => {
-          console.error("Erreur lors du chargement du PV:", error);
-          toast({
-            variant: "destructive",
-            title: "Erreur",
-            description: "Impossible de charger le PV existant"
-          });
-        })
-        .finally(() => setLoading(false));
-    } else if (open && interventionId) {
-      // Si pas de PV existant, initialiser rapport vide
-      setRapport("");
-      setValidationClient(null);
-      setCommentaire("");
-    }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement du PV:", error);
+        toast({
+          variant: "destructive",
+          title: "Erreur",
+          description: "Impossible de charger les données du PV"
+        });
+      } finally {
+        setLoading(false);
+      }
+    };
+    
+    fetchPv();
   }, [open, initialPvId, interventionId, toast]);
 
   // Sauvegarder ou créer le PV
@@ -71,18 +88,23 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         await pvInterventionService.updateInterventionReport(interventionId, rapport);
       }
       
-      if (initialPvId) {
+      if (pvId) {
         // Mise à jour du PV existant
-        await pvInterventionService.updatePVStatus(initialPvId, validationClient, commentaire);
+        await pvInterventionService.updatePVStatus(pvId, validationClient, commentaire);
         toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
       } else {
         // Création du PV
-        await pvInterventionService.createPv({
+        const result = await pvInterventionService.createPv({
           clientId: clientId,
           interventionId: interventionId,
           validation_client: validationClient,
           commentaire,
         });
+        
+        if (result) {
+          setPvId(result.id);
+        }
+        
         toast({ title: "PV créé", description: "Le PV a été créé avec succès." });
       }
       
@@ -106,7 +128,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
         <DialogHeader>
           <DialogTitle>Édition du PV d'intervention</DialogTitle>
           <DialogDescription>
-            Modifiez le PV ou validez la fin de l'intervention.
+            {pvId ? "Modifiez le PV existant." : "Créez un nouveau PV pour cette intervention."}
           </DialogDescription>
         </DialogHeader>
         <form 
@@ -161,7 +183,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
               <Button type="button" variant="outline">Annuler</Button>
             </DialogClose>
             <Button type="submit" disabled={loading}>
-              {initialPvId ? "Enregistrer" : "Créer le PV"}
+              {pvId ? "Enregistrer" : "Créer le PV"}
             </Button>
           </DialogFooter>
         </form>

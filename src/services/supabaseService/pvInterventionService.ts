@@ -1,3 +1,4 @@
+
 import { supabase } from "@/integrations/supabase/client";
 import { PVIntervention } from "@/types/models";
 
@@ -56,6 +57,38 @@ const getPVById = async (pvId: string) => {
     return data;
   } catch (error) {
     console.error("Erreur lors de la récupération du PV:", error);
+    throw error;
+  }
+};
+
+// Récupérer un PV par ID d'intervention
+const getPVByInterventionId = async (interventionId: string) => {
+  try {
+    const { data, error } = await supabase
+      .from('pv_interventions')
+      .select(`
+        id,
+        validation_client,
+        date_validation,
+        commentaire,
+        client_id,
+        intervention_id,
+        created_at,
+        intervention:interventions (
+          id,
+          date_fin,
+          rapport,
+          localisation,
+          statut
+        )
+      `)
+      .eq('intervention_id', interventionId)
+      .maybeSingle();
+
+    if (error) throw error;
+    return data;
+  } catch (error) {
+    console.error("Erreur lors de la récupération du PV par intervention:", error);
     throw error;
   }
 };
@@ -119,6 +152,29 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
 
     const clientIdValue = extractClientId(pvData.clientId);
 
+    // Vérifier si un PV existe déjà pour cette intervention
+    const existingPV = await getPVByInterventionId(pvData.interventionId);
+    if (existingPV) {
+      console.log("Un PV existe déjà pour cette intervention, mise à jour au lieu de création");
+      // Si un PV existe déjà, on le met à jour
+      const { data, error } = await supabase
+        .from("pv_interventions")
+        .update({
+          validation_client: pvData.validation_client,
+          commentaire: pvData.commentaire
+        })
+        .eq("id", existingPV.id)
+        .select()
+        .maybeSingle();
+
+      if (error) {
+        console.error("Erreur lors de la mise à jour du PV existant:", error);
+        throw error;
+      }
+
+      return data;
+    }
+
     // Transformer les propriétés camelCase en snake_case pour la base de données
     const dbData = {
       intervention_id: pvData.interventionId,
@@ -127,7 +183,7 @@ const createPv = async (pvData: Partial<PVIntervention>) => {
       commentaire: pvData.commentaire,
     };
 
-    console.log("Données de création PV envoyées :", dbData);
+    console.log("Données de création PV envoyées :", dbData);
 
     const { data, error } = await supabase
       .from("pv_interventions")
@@ -170,6 +226,7 @@ const updateInterventionReport = async (interventionId: string, rapport: string)
 export const pvInterventionService = {
   getPVsByClientId,
   getPVById,
+  getPVByInterventionId,
   updatePVStatus,
   createPv,
   updateInterventionReport,
