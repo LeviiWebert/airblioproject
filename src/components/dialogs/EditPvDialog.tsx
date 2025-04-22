@@ -1,11 +1,11 @@
 
 import { useState, useEffect } from "react";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogDescription, DialogClose } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogClose } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { pvInterventionService } from "@/services/dataService";
+import { useAuth } from "@/hooks/useAuth";
 
 interface EditPvDialogProps {
   open: boolean;
@@ -18,104 +18,70 @@ interface EditPvDialogProps {
 
 export function EditPvDialog({ open, onOpenChange, interventionId, clientId, initialPvId, onSaved }: EditPvDialogProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [rapport, setRapport] = useState("");
-  const [validationClient, setValidationClient] = useState<boolean | null>(null);
-  const [commentaire, setCommentaire] = useState("");
   const [loading, setLoading] = useState(false);
   const [pvId, setPvId] = useState<string | undefined>(initialPvId);
 
-  // Récupérer le PV existant à l'ouverture
   useEffect(() => {
     if (!open) return;
     
-    setLoading(true);
-    
     const fetchPv = async () => {
       try {
-        // Si un ID de PV est fourni, on utilise celui-là
         if (initialPvId) {
           const data = await pvInterventionService.getPVById(initialPvId);
           if (data) {
             setPvId(data.id);
             setRapport(data.intervention?.rapport || "");
-            setValidationClient(data.validation_client);
-            setCommentaire(data.commentaire || "");
           }
-        } 
-        // Sinon, on cherche si un PV existe déjà pour cette intervention
-        else if (interventionId) {
-          console.log("Vérification de l'existence d'un PV pour l'intervention:", interventionId);
+        } else {
           const data = await pvInterventionService.getPVByInterventionId(interventionId);
           if (data) {
-            console.log("PV existant trouvé:", data);
             setPvId(data.id);
             setRapport(data.intervention?.rapport || "");
-            setValidationClient(data.validation_client);
-            setCommentaire(data.commentaire || "");
-          } else {
-            // Pas de PV existant, réinitialiser le formulaire
-            console.log("Aucun PV existant pour cette intervention, préparation d'un nouveau PV");
-            setPvId(undefined);
-            setRapport("");
-            setValidationClient(null);
-            setCommentaire("");
           }
         }
       } catch (error) {
         console.error("Erreur lors du chargement du PV:", error);
-        toast({
-          variant: "destructive",
-          title: "Erreur",
-          description: "Impossible de charger les données du PV"
-        });
-      } finally {
-        setLoading(false);
       }
     };
     
     fetchPv();
-  }, [open, initialPvId, interventionId, toast]);
+  }, [open, initialPvId, interventionId]);
 
-  // Sauvegarder ou créer le PV
   const handleSave = async () => {
     setLoading(true);
     try {
-      console.log("Sauvegarde du PV avec l'intervention ID:", interventionId);
-      console.log("Type de clientId:", typeof clientId, clientId);
-      
       // Mise à jour du rapport d'intervention
       if (rapport) {
         await pvInterventionService.updateInterventionReport(interventionId, rapport);
       }
       
-      if (pvId) {
-        // Mise à jour du PV existant
-        await pvInterventionService.updatePVStatus(pvId, validationClient, commentaire);
-        toast({ title: "PV mis à jour", description: "Le PV a été mis à jour avec succès." });
-      } else {
-        // Création du PV
-        const result = await pvInterventionService.createPv({
-          clientId: clientId,
-          interventionId: interventionId,
-          validation_client: validationClient,
-          commentaire,
-        });
-        
-        if (result) {
-          setPvId(result.id);
-        }
-        
-        toast({ title: "PV créé", description: "Le PV a été créé avec succès." });
+      // Création ou mise à jour du PV
+      const result = await pvInterventionService.createPv({
+        clientId: clientId,
+        interventionId: interventionId,
+        validation_client: null, // Seul le client peut valider
+        commentaire: "", // Le commentaire est réservé au client
+      });
+      
+      if (result) {
+        setPvId(result.id);
       }
       
       if (onSaved) onSaved();
       onOpenChange(false);
+      
+      toast({
+        title: pvId ? "PV mis à jour" : "PV créé",
+        description: "Le PV a été enregistré avec succès."
+      });
     } catch (error: any) {
       console.error("Erreur lors de la sauvegarde du PV:", error);
-      toast({ 
-        variant: "destructive", 
-        title: "Erreur", 
-        description: error.message || "Impossible d'enregistrer le PV." 
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: error.message || "Impossible d'enregistrer le PV."
       });
     } finally {
       setLoading(false);
@@ -127,63 +93,27 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       <DialogContent>
         <DialogHeader>
           <DialogTitle>Édition du PV d'intervention</DialogTitle>
-          <DialogDescription>
-            {pvId ? "Modifiez le PV existant." : "Créez un nouveau PV pour cette intervention."}
-          </DialogDescription>
         </DialogHeader>
-        <form 
-          onSubmit={e => { e.preventDefault(); handleSave(); }}
-          className="flex flex-col gap-4"
-        >
-          <div>
-            <label className="block mb-1 font-medium">Rapport (intervention)</label>
-            <Textarea
-              value={rapport}
-              onChange={e => setRapport(e.target.value)}
-              rows={5}
-              placeholder="Saisir le rapport d'intervention"
-            />
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Validation client</label>
-            <div className="flex gap-3">
-              <Button 
-                type="button" 
-                variant={validationClient===true ? "default":"outline"} 
-                onClick={() => setValidationClient(true)}
-              >
-                Validé
-              </Button>
-              <Button 
-                type="button" 
-                variant={validationClient===false ? "destructive":"outline"} 
-                onClick={() => setValidationClient(false)}
-              >
-                Refusé
-              </Button>
-              <Button 
-                type="button" 
-                variant={validationClient===null ? "secondary":"outline"} 
-                onClick={() => setValidationClient(null)}
-              >
-                En attente
-              </Button>
+        <form onSubmit={(e) => { e.preventDefault(); handleSave(); }}>
+          <div className="space-y-4">
+            <div>
+              <label className="block mb-2 text-sm font-medium">
+                Rapport d'intervention
+              </label>
+              <Textarea
+                value={rapport}
+                onChange={(e) => setRapport(e.target.value)}
+                placeholder="Saisissez le rapport d'intervention"
+                rows={5}
+              />
             </div>
-          </div>
-          <div>
-            <label className="block mb-1 font-medium">Commentaire</label>
-            <Input
-              value={commentaire}
-              onChange={e => setCommentaire(e.target.value)}
-              placeholder="Ajouter un commentaire (optionnel)"
-            />
           </div>
           <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button type="button" variant="outline">Annuler</Button>
             </DialogClose>
             <Button type="submit" disabled={loading}>
-              {pvId ? "Enregistrer" : "Créer le PV"}
+              {pvId ? "Mettre à jour" : "Créer le PV"}
             </Button>
           </DialogFooter>
         </form>
