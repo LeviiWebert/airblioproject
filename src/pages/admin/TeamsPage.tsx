@@ -2,6 +2,7 @@
 import { useState, Suspense } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, Plus, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Equipe } from "@/types/models";
@@ -30,10 +31,8 @@ const TeamsPage = () => {
       try {
         const data = await equipeService.getAll();
         return data.map((team) => ({
-          id: team.id,
-          nom: team.nom,
-          specialisation: team.specialisation || '',
-          membres: []
+          ...team,
+          membres: [] // Garder la même structure de données
         }));
       } catch (error) {
         console.error("Erreur lors du chargement des équipes:", error);
@@ -103,6 +102,7 @@ const TeamsPage = () => {
               <TableRow>
                 <TableHead>Nom de l'équipe</TableHead>
                 <TableHead>Spécialisation</TableHead>
+                <TableHead>Disponibilité</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
@@ -111,7 +111,14 @@ const TeamsPage = () => {
                 teams.map((team) => (
                   <TableRow key={team.id}>
                     <TableCell className="font-medium">{team.nom}</TableCell>
-                    <TableCell>{team.specialisation}</TableCell>
+                    <TableCell>{team.specialisation || "Non spécifiée"}</TableCell>
+                    <TableCell>
+                      <Badge 
+                        variant={team.disponibilite ? "default" : "destructive"}
+                      >
+                        {team.disponibilite ? "Disponible" : "Non disponible"}
+                      </Badge>
+                    </TableCell>
                     <TableCell className="text-right">
                       <div className="flex justify-end gap-2">
                         <Button 
@@ -136,7 +143,7 @@ const TeamsPage = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={3} className="h-24 text-center">
+                  <TableCell colSpan={4} className="h-24 text-center">
                     Aucune équipe trouvée.
                   </TableCell>
                 </TableRow>

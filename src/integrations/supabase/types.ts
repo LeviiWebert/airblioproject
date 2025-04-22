@@ -188,6 +188,7 @@ export type Database = {
       equipes: {
         Row: {
           created_at: string | null
+          disponibilite: boolean | null
           id: string
           nom: string
           specialisation: string | null
@@ -195,6 +196,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string | null
+          disponibilite?: boolean | null
           id?: string
           nom: string
           specialisation?: string | null
@@ -202,6 +204,7 @@ export type Database = {
         }
         Update: {
           created_at?: string | null
+          disponibilite?: boolean | null
           id?: string
           nom?: string
           specialisation?: string | null

@@ -24,13 +24,18 @@ const getById = async (id: string) => {
 };
 
 // Function to create a new team
-const createTeam = async (values: { nom: string; specialisation?: string }) => {
+const createTeam = async (values: { 
+  nom: string; 
+  specialisation?: string; 
+  disponibilite?: boolean 
+}) => {
   const { data, error } = await supabase
     .from('equipes')
     .insert([
       {
         nom: values.nom,
         specialisation: values.specialisation || null,
+        disponibilite: values.disponibilite ?? true,
       },
     ])
     .select();
@@ -40,12 +45,17 @@ const createTeam = async (values: { nom: string; specialisation?: string }) => {
 };
 
 // Function to update a team
-const updateTeam = async (id: string, values: { nom: string; specialisation?: string }) => {
+const updateTeam = async (id: string, values: { 
+  nom: string; 
+  specialisation?: string; 
+  disponibilite?: boolean 
+}) => {
   const { data, error } = await supabase
     .from('equipes')
     .update({
       nom: values.nom,
       specialisation: values.specialisation || null,
+      disponibilite: values.disponibilite ?? true,
     })
     .eq('id', id)
     .select();

@@ -13,11 +13,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import { Switch } from "@/components/ui/switch";
 import { Equipe } from "@/types/models";
 
 const teamSchema = z.object({
   nom: z.string().min(2, { message: "Le nom doit contenir au moins 2 caractères" }),
   specialisation: z.string().optional(),
+  disponibilite: z.boolean().default(true)
 });
 
 type TeamFormValues = z.infer<typeof teamSchema>;
@@ -34,6 +36,7 @@ const TeamForm = ({ onSubmit, initialData, isSubmitting }: TeamFormProps) => {
     defaultValues: {
       nom: initialData?.nom || "",
       specialisation: initialData?.specialisation || "",
+      disponibilite: initialData?.disponibilite ?? true
     },
   });
 
@@ -63,6 +66,26 @@ const TeamForm = ({ onSubmit, initialData, isSubmitting }: TeamFormProps) => {
                 <Input placeholder="Spécialisation de l'équipe" {...field} />
               </FormControl>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="disponibilite"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
+              <div className="space-y-0.5">
+                <FormLabel>Disponibilité</FormLabel>
+                <FormLabel className="text-sm text-muted-foreground">
+                  Indique si l'équipe est actuellement disponible
+                </FormLabel>
+              </div>
+              <FormControl>
+                <Switch
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
             </FormItem>
           )}
         />

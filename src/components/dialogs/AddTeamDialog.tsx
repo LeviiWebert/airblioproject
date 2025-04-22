@@ -17,8 +17,16 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const createTeamMutation = useMutation({
-    mutationFn: async (values: { nom: string; specialisation?: string }) => {
-      return await equipeService.createTeam(values);
+    mutationFn: async (values: { 
+      nom: string; 
+      specialisation?: string; 
+      disponibilite?: boolean 
+    }) => {
+      return await equipeService.createTeam({
+        nom: values.nom,
+        specialisation: values.specialisation,
+        disponibilite: values.disponibilite
+      });
     },
     onSuccess: () => {
       toast({
@@ -42,7 +50,11 @@ const AddTeamDialog = ({ open, onOpenChange, onTeamAdded }: AddTeamDialogProps) 
     }
   });
 
-  const handleSubmit = async (values: { nom: string; specialisation?: string }) => {
+  const handleSubmit = async (values: { 
+    nom: string; 
+    specialisation?: string; 
+    disponibilite?: boolean 
+  }) => {
     if (isSubmitting) return;
     setIsSubmitting(true);
     createTeamMutation.mutate(values);
