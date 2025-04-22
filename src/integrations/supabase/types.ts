@@ -425,7 +425,9 @@ export type Database = {
           equipe_id: string | null
           id: string
           intervention_id: string | null
+          latitude: number | null
           localisation: string | null
+          longitude: number | null
           role_equipe: string
           statut_intervention: string
           updated_at: string | null
@@ -437,7 +439,9 @@ export type Database = {
           equipe_id?: string | null
           id?: string
           intervention_id?: string | null
+          latitude?: number | null
           localisation?: string | null
+          longitude?: number | null
           role_equipe: string
           statut_intervention: string
           updated_at?: string | null
@@ -449,7 +453,9 @@ export type Database = {
           equipe_id?: string | null
           id?: string
           intervention_id?: string | null
+          latitude?: number | null
           localisation?: string | null
+          longitude?: number | null
           role_equipe?: string
           statut_intervention?: string
           updated_at?: string | null
@@ -479,7 +485,9 @@ export type Database = {
           etat_avant: string
           id: string
           intervention_id: string | null
+          latitude: number | null
           localisation: string | null
+          longitude: number | null
           materiel_id: string | null
           updated_at: string | null
         }
@@ -490,7 +498,9 @@ export type Database = {
           etat_avant: string
           id?: string
           intervention_id?: string | null
+          latitude?: number | null
           localisation?: string | null
+          longitude?: number | null
           materiel_id?: string | null
           updated_at?: string | null
         }
@@ -501,7 +511,9 @@ export type Database = {
           etat_avant?: string
           id?: string
           intervention_id?: string | null
+          latitude?: number | null
           localisation?: string | null
+          longitude?: number | null
           materiel_id?: string | null
           updated_at?: string | null
         }

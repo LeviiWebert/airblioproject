@@ -1,4 +1,3 @@
-
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -10,9 +9,9 @@ import {
   Truck,
   Receipt,
   BarChart3,
-  // Settings, // SUPPRIMÉ
   ChevronRight,
   ChevronDown,
+  MapPin
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -71,11 +70,6 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       href: "/admin/equipment",
       icon: Wrench,
     },
-    // {
-    //   title: "Clients",
-    //   href: "/admin/clients",
-    //   icon: Users,
-    // },
     {
       title: "PV d'interventions",
       href: "/admin/reports",
@@ -96,11 +90,11 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
       href: "/admin/statistics",
       icon: BarChart3,
     },
-    // {
-    //   title: "Paramètres",
-    //   href: "/admin/settings",
-    //   icon: Settings,
-    // },
+    {
+      title: "Mappemonde",
+      href: "/admin/world-map",
+      icon: MapPin,
+    },
   ];
 
   const isActive = (href: string) => {

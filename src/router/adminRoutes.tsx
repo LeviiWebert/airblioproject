@@ -1,4 +1,3 @@
-
 import { lazy, Suspense } from "react";
 import { RouteObject, Outlet } from "react-router-dom";
 import { BackOfficeLayout } from "@/components/layout/BackOfficeLayout";
@@ -27,6 +26,7 @@ const LogisticsPage = lazy(() => import("@/pages/admin/LogisticsPage"));
 const BillingPage = lazy(() => import("@/pages/admin/BillingPage"));
 const ProcessVerbalPage = lazy(() => import("@/pages/admin/ProcessVerbalPage"));
 const StatisticsPage = lazy(() => import("@/pages/StatisticsPage"));
+const WorldMapPage = lazy(() => import("@/pages/admin/WorldMapPage"));
 
 // Helper simple pour chaque page : ErrorBoundary + Suspense court
 function withBoundary(element: React.ReactNode) {
@@ -61,6 +61,7 @@ const adminRoutes: RouteObject = {
     { path: "billing", element: withBoundary(<BillingPage />) },
     { path: "pv/:id", element: withBoundary(<ProcessVerbalPage />) },
     { path: "statistics", element: withBoundary(<StatisticsPage />) },
+    { path: "world-map", element: withBoundary(<WorldMapPage />) },
   ]
 };
 
