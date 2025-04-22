@@ -90,7 +90,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
   console.log(`Création d'intervention à partir de la demande ID: ${demandeId}`);
   
   try {
-    // 1. Récupérer la demande pour vérifier qu'elle existe
+    // 1. Récupérer la demande pour obtenir les infos du client (pour l'affichage)
     const { data: demande, error: demandeError } = await supabase
       .from('demande_interventions')
       .select(`
@@ -114,7 +114,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
       client: demande.client?.nom_entreprise
     });
     
-    // 2. Créer l'intervention avec les informations essentielles
+    // 2. Créer une intervention basique avec seulement les données essentielles
     const interventionData = {
       demande_intervention_id: demandeId,
       statut: 'planifiée',
@@ -123,6 +123,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     
     console.log("📝 Création de l'intervention avec ces données:", interventionData);
     
+    // Créer l'intervention dans la base de données
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .insert([interventionData])
@@ -135,7 +136,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     
     console.log("✅ Intervention créée avec succès:", intervention[0]);
     
-    // 3. Supprimer la demande d'origine
+    // 3. Supprimer la demande d'intervention d'origine
     console.log(`📝 Suppression de la demande ID: ${demandeId}`);
     
     const { error: deleteError } = await supabase

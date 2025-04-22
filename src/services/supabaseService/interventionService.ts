@@ -1,3 +1,4 @@
+
 import { supabase } from '@/integrations/supabase/client';
 import { FilterOptions } from '@/types/models';
 
@@ -25,6 +26,8 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
   try {
     console.log("🔄 Récupération des interventions détaillées avec filtres:", filterOptions);
     
+    // Modification de la requête pour permettre les jointures externes (LEFT JOIN) 
+    // au lieu des jointures internes (INNER JOIN) avec demande_intervention_id
     let query = supabase
       .from('interventions')
       .select(`
@@ -34,11 +37,11 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
         localisation,
         rapport,
         statut,
-        demande_intervention_id!inner (
-          id,
+        demande_intervention_id (
+          id, 
           description,
           urgence,
-          client_id!inner (
+          client_id (
             id,
             nom_entreprise
           )
@@ -57,7 +60,8 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
     }
     
     if (filterOptions.client) {
-      query = query.eq('demande_intervention_id.client_id', filterOptions.client);
+      // Si la demande d'intervention existe, filtre par client
+      query = query.or(`demande_intervention_id.client_id.eq.${filterOptions.client},demande_intervention_id.is.null`);
     }
     
     if (filterOptions.team) {
@@ -93,7 +97,7 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
       throw error;
     }
     
-    console.log(`✅ ${data?.length || 0} interventions détaillées récupérées avant formatage`);
+    console.log(`✅ ${data?.length || 0} interventions détaillées récupérées avant formatage`, data);
     
     // Format data for easier consumption
     const formattedData = data.map(intervention => {
@@ -104,6 +108,19 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
             .map(item => item.equipe_id)
         : [];
       
+      // Si la demande_intervention_id est null (a été supprimée), créer des valeurs par défaut
+      const demande = intervention.demande_intervention_id || { 
+        id: null, 
+        description: "Demande initiale supprimée", 
+        urgence: "moyenne" 
+      };
+      
+      // Si le client_id est null, créer une valeur par défaut
+      const client = demande.client_id || { 
+        id: null, 
+        nom_entreprise: "Client inconnu" 
+      };
+      
       return {
         id: intervention.id,
         dateDebut: intervention.date_debut,
@@ -112,13 +129,13 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
         rapport: intervention.rapport,
         statut: intervention.statut,
         demande: {
-          id: intervention.demande_intervention_id.id,
-          description: intervention.demande_intervention_id.description,
-          urgence: intervention.demande_intervention_id.urgence
+          id: demande.id,
+          description: demande.description,
+          urgence: demande.urgence
         },
         client: {
-          id: intervention.demande_intervention_id.client_id.id,
-          nomEntreprise: intervention.demande_intervention_id.client_id.nom_entreprise
+          id: client.id,
+          nomEntreprise: client.nom_entreprise
         },
         equipes: teams
       };
