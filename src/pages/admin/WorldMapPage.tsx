@@ -45,14 +45,19 @@ const WorldMapPage = () => {
     teams: 0,
     updatedAt: new Date()
   });
+  const [error, setError] = useState<string | null>(null);
+  const [retryCount, setRetryCount] = useState(0);
   const { toast } = useToast();
 
   // Fonction de récupération des données optimisée
   const fetchLocations = useCallback(async () => {
     try {
+      console.log("Début de la récupération des données de localisation");
       setLoading(true);
+      setError(null);
       
       // Appels parallèles aux API pour les équipements et équipes
+      console.log("Appels parallèles à Supabase");
       const [equipmentResponse, teamsResponse] = await Promise.all([
         supabase
           .from('suivi_materiels')
@@ -84,10 +89,16 @@ const WorldMapPage = () => {
           .limit(500)
       ]);
 
+      console.log("Réponses reçues de Supabase", { 
+        equipmentError: equipmentResponse.error ? true : false,
+        teamsError: teamsResponse.error ? true : false
+      });
+
       if (equipmentResponse.error) throw equipmentResponse.error;
       if (teamsResponse.error) throw teamsResponse.error;
 
       // Transformer les données des équipements
+      console.log("Transformation des données d'équipement", { count: equipmentResponse.data?.length || 0 });
       const equipmentLocations: EquipmentLocation[] = (equipmentResponse.data || []).map(item => ({
         id: item.id,
         type: 'equipment',
@@ -98,6 +109,7 @@ const WorldMapPage = () => {
       }));
 
       // Transformer les données des équipes
+      console.log("Transformation des données d'équipe", { count: teamsResponse.data?.length || 0 });
       const teamLocations: TeamLocation[] = (teamsResponse.data || []).map(item => ({
         id: item.id,
         type: 'team',
@@ -109,6 +121,7 @@ const WorldMapPage = () => {
 
       // Combiner les deux types de localisation
       const combinedLocations = [...equipmentLocations, ...teamLocations];
+      console.log("Combinaison des données terminée", { totalCount: combinedLocations.length });
       
       setLocations(combinedLocations);
       setStats({
@@ -116,6 +129,7 @@ const WorldMapPage = () => {
         teams: teamLocations.length,
         updatedAt: new Date()
       });
+      setRetryCount(0);
 
       // Afficher une notification de succès uniquement au premier chargement
       if (loading && combinedLocations.length > 0) {
@@ -126,23 +140,48 @@ const WorldMapPage = () => {
       }
     } catch (error: any) {
       console.error("Erreur lors du chargement des données:", error);
-      toast({
-        variant: "destructive",
-        title: "Erreur de chargement",
-        description: "Impossible de charger les données de localisation.",
-      });
+      
+      // Si l'erreur est liée à la connectivité, essayer de se reconnecter
+      if (error.message && error.message.includes("Failed to fetch")) {
+        setError("Problème de connexion. Tentative de reconnexion...");
+        
+        // Réessayer après un délai si moins de 3 tentatives ont été effectuées
+        if (retryCount < 3) {
+          console.log(`Nouvelle tentative dans 3 secondes (${retryCount + 1}/3)`);
+          setTimeout(() => {
+            setRetryCount(prev => prev + 1);
+            fetchLocations();
+          }, 3000);
+        } else {
+          setError("Impossible de se connecter au serveur. Veuillez vérifier votre connexion internet et réessayer.");
+          toast({
+            variant: "destructive",
+            title: "Erreur de connexion",
+            description: "Impossible de récupérer les données. Veuillez réessayer manuellement.",
+          });
+        }
+      } else {
+        setError("Erreur lors du chargement des données. Veuillez réessayer.");
+        toast({
+          variant: "destructive",
+          title: "Erreur de chargement",
+          description: "Impossible de charger les données de localisation.",
+        });
+      }
     } finally {
       setLoading(false);
     }
-  }, [loading, toast]);
+  }, [loading, toast, retryCount]);
 
   // Charger les données initiales
   useEffect(() => {
+    console.log("Effet initial pour charger les données");
     fetchLocations();
   }, [fetchLocations]);
 
   // Mettre en place la souscription en temps réel
   useEffect(() => {
+    console.log("Configuration des souscriptions en temps réel");
     // Canal pour les mises à jour d'équipement
     const equipmentChannel = supabase
       .channel('realtime-equipment')
@@ -151,6 +190,7 @@ const WorldMapPage = () => {
         schema: 'public', 
         table: 'suivi_materiels' 
       }, () => {
+        console.log("Changement détecté dans suivi_materiels");
         fetchLocations();
       })
       .subscribe();
@@ -163,12 +203,14 @@ const WorldMapPage = () => {
         schema: 'public', 
         table: 'suivi_equipes' 
       }, () => {
+        console.log("Changement détecté dans suivi_equipes");
         fetchLocations();
       })
       .subscribe();
 
     // Nettoyage des abonnements
     return () => {
+      console.log("Nettoyage des souscriptions en temps réel");
       supabase.removeChannel(equipmentChannel);
       supabase.removeChannel(teamsChannel);
     };
@@ -176,6 +218,8 @@ const WorldMapPage = () => {
 
   // Fonction de rafraîchissement manuel
   const handleRefresh = () => {
+    console.log("Rafraîchissement manuel des données");
+    setError(null);
     fetchLocations();
     toast({
       title: "Actualisation en cours",
@@ -197,6 +241,19 @@ const WorldMapPage = () => {
           Actualiser
         </Button>
       </div>
+
+      {error && (
+        <Card className="bg-destructive/10 border-destructive">
+          <CardContent className="pt-4">
+            <div className="flex items-center justify-between">
+              <p className="text-destructive">{error}</p>
+              <Button size="sm" onClick={handleRefresh} disabled={loading}>
+                Réessayer
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <Card>
