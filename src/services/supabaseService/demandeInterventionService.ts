@@ -134,15 +134,14 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     console.log("Demande récupérée avec succès:", demande);
 
     // 2. Créer l'intervention avec ces données
+    // S'assurer de n'utiliser que les colonnes qui existent dans la table interventions
     const interventionData = {
       demande_intervention_id: demande.id,
       statut: 'planifiée',
       localisation: 'À déterminer',
       rapport: '',
       date_debut: null,
-      date_fin: null,
-      urgence: demande.urgence, // Transfer urgency level
-      description: demande.description // Transfer description
+      date_fin: null
     };
 
     console.log("Données pour la nouvelle intervention:", interventionData);
