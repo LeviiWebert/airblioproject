@@ -115,11 +115,13 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
         urgence: "moyenne" 
       };
       
-      // Si le client_id est null, créer une valeur par défaut
-      const client = demande.client_id || { 
-        id: null, 
-        nom_entreprise: "Client inconnu" 
-      };
+      // Traiter séparément les informations du client
+      let client = { id: null, nom_entreprise: "Client inconnu" };
+      
+      // Ne vérifier client_id que si demande existe et a cette propriété
+      if (demande && 'client_id' in demande && demande.client_id) {
+        client = demande.client_id;
+      }
       
       return {
         id: intervention.id,
