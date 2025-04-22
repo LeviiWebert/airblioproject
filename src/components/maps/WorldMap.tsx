@@ -1,3 +1,4 @@
+
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
@@ -6,8 +7,6 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
-
-mapboxgl.accessToken = '';
 
 interface Location {
   id: string;
@@ -30,6 +29,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   const [mapboxToken, setMapboxToken] = useState<string>('');
   const [tokenInputVisible, setTokenInputVisible] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const [mapInitialized, setMapInitialized] = useState<boolean>(false);
   const { toast } = useToast();
 
   const loadMapboxToken = async () => {
@@ -89,6 +89,9 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   const initializeMap = () => {
     if (!mapContainer.current || !mapboxToken) return;
     
+    // Éviter l'initialisation multiple de la carte
+    if (map.current) return;
+    
     setError(null);
     setLoading(true);
 
@@ -101,12 +104,21 @@ const WorldMap = ({ locations }: WorldMapProps) => {
         center: [2.3522, 48.8566],
         zoom: 2,
         minZoom: 1.5,
+        maxParallelImageRequests: 10, // Optimisation des requêtes d'images
+        attributionControl: false, // Désactiver le contrôle d'attribution pour optimiser le chargement
       });
 
-      map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
-
-      map.current.on('load', () => {
-        setLoading(false);
+      // Ajouter les contrôles une fois que la carte est chargée
+      map.current.once('load', () => {
+        if (map.current) {
+          map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
+          map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
+          setMapInitialized(true);
+          setLoading(false);
+          
+          // Ajouter les marqueurs après le chargement de la carte
+          addMarkersToMap();
+        }
       });
 
       map.current.on('error', (e) => {
@@ -123,19 +135,11 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     }
   };
 
-  useEffect(() => {
-    loadMapboxToken().then((hasToken) => {
-      if (hasToken) {
-        initializeMap();
-      } else {
-        setTokenInputVisible(true);
-      }
-    });
-  }, []);
+  // Fonction séparée pour ajouter les marqueurs à la carte
+  const addMarkersToMap = () => {
+    if (!map.current || !mapInitialized) return;
 
-  useEffect(() => {
-    if (!map.current || loading || !mapboxToken) return;
-
+    // Supprimer les marqueurs qui ne sont plus présents dans les emplacements
     Object.entries(markers.current).forEach(([id, marker]) => {
       if (!locations.find(loc => loc.id === id)) {
         marker.remove();
@@ -143,6 +147,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       }
     });
 
+    // Ajouter ou mettre à jour les marqueurs
     locations.forEach(location => {
       const el = document.createElement('div');
       el.className = `marker ${location.type === 'equipment' ? 'bg-blue-500' : 'bg-green-500'} w-4 h-4 rounded-full`;
@@ -166,7 +171,33 @@ const WorldMap = ({ locations }: WorldMapProps) => {
         markers.current[location.id] = marker;
       }
     });
-  }, [locations, loading, mapboxToken]);
+  };
+
+  // Chargement initial du token
+  useEffect(() => {
+    loadMapboxToken().then((hasToken) => {
+      if (hasToken) {
+        initializeMap();
+      } else {
+        setTokenInputVisible(true);
+      }
+    });
+    
+    // Cleanup au démontage
+    return () => {
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+    };
+  }, []);
+
+  // Mettre à jour les marqueurs quand les locations changent
+  useEffect(() => {
+    if (map.current && mapInitialized) {
+      addMarkersToMap();
+    }
+  }, [locations, mapInitialized]);
 
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -204,8 +235,9 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     <div className="space-y-4">
       <div className="relative w-full h-[calc(100vh-12rem)] rounded-lg overflow-hidden border border-border">
         {loading && (
-          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
-            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <div className="absolute inset-0 flex flex-col items-center justify-center bg-background/80 z-50">
+            <Loader2 className="h-12 w-12 animate-spin text-primary mb-4" />
+            <p className="text-muted-foreground">Chargement de la carte en cours...</p>
           </div>
         )}
         {error && (

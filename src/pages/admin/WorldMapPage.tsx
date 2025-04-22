@@ -1,9 +1,9 @@
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import WorldMap from "@/components/maps/WorldMap";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Loader2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -19,32 +19,39 @@ const WorldMapPage = () => {
   });
   const { toast } = useToast();
 
-  const fetchLocations = async () => {
+  // Optimiser la fonction de récupération des données
+  const fetchLocations = useCallback(async () => {
     try {
       setLoading(true);
       const [equipmentResponse, teamsResponse] = await Promise.all([
         supabase
           .from('suivi_materiels')
           .select(`
-            *,
+            id,
+            latitude,
+            longitude,
+            etat_apres,
             materiel:materiel_id (
               reference,
               type_materiel
             )
           `)
           .order('created_at', { ascending: false })
-          .limit(1000),
+          .limit(500),
         supabase
           .from('suivi_equipes')
           .select(`
-            *,
+            id,
+            latitude,
+            longitude,
+            role_equipe,
             equipe:equipe_id (
               nom,
               specialisation
             )
           `)
           .order('created_at', { ascending: false })
-          .limit(1000)
+          .limit(500)
       ]);
 
       if (equipmentResponse.error) throw equipmentResponse.error;
@@ -77,10 +84,10 @@ const WorldMapPage = () => {
         updatedAt: new Date()
       });
 
-      if (loading) {
+      if (loading && combinedLocations.length > 0) {
         toast({
           title: "Carte chargée avec succès",
-          description: `${combinedLocations.length} localisations affichées sur la carte.`,
+          description: `${combinedLocations.length} localisations affichées.`,
         });
       }
     } catch (error: any) {
@@ -93,12 +100,12 @@ const WorldMapPage = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [loading, toast]);
 
   // Charger les données initiales
   useEffect(() => {
     fetchLocations();
-  }, []);
+  }, [fetchLocations]);
 
   // Mettre en place la souscription en temps réel
   useEffect(() => {
@@ -128,7 +135,7 @@ const WorldMapPage = () => {
       supabase.removeChannel(equipmentChannel);
       supabase.removeChannel(teamsChannel);
     };
-  }, []);
+  }, [fetchLocations]);
 
   const handleRefresh = () => {
     fetchLocations();
