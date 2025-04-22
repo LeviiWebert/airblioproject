@@ -60,7 +60,11 @@ export const useInterventionRequests = () => {
       
       if (actionType === "accept") {
         console.log("Creating intervention and deleting request");
-        await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
+        console.log("Request data:", selectedRequest);
+        
+        // Tentative de création d'intervention avec timeouts plus longs
+        const intervention = await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
+        console.log("Intervention created:", intervention);
         
         // Remove the request from the local state
         setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));

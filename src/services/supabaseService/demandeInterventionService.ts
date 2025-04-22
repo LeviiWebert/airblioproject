@@ -146,6 +146,21 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     console.log("Données pour la nouvelle intervention:", interventionData);
     
+    // DEBUG: Vérifions la structure de la table interventions
+    console.log("Structure attendue de la table interventions:", {
+      id: "UUID (auto)",
+      demande_intervention_id: "UUID (référence vers demande_interventions)",
+      statut: "string ('planifiée', 'en_cours', 'terminée', 'annulée')",
+      localisation: "string",
+      rapport: "string (nullable)",
+      date_debut: "timestamp (nullable)",
+      date_fin: "timestamp (nullable)",
+      created_at: "timestamp (auto)",
+      updated_at: "timestamp (auto)",
+      facturation_id: "UUID (nullable)",
+      pv_intervention_id: "UUID (nullable)"
+    });
+    
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .insert([interventionData])
@@ -153,6 +168,9 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     if (interventionError) {
       console.error("Erreur lors de la création de l'intervention:", interventionError);
+      console.error("Détails de l'erreur:", interventionError.details);
+      console.error("Message d'erreur:", interventionError.message);
+      console.error("Code d'erreur:", interventionError.code);
       throw interventionError;
     }
     
@@ -163,7 +181,11 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     console.log("Intervention créée avec succès:", intervention[0]);
 
+    // Attendre un moment pour assurer que l'intervention a été enregistrée
+    await new Promise(resolve => setTimeout(resolve, 500));
+
     // 3. Supprimer la demande
+    console.log("Suppression de la demande avec l'ID:", demandeId);
     const { error: deleteError } = await supabase
       .from('demande_interventions')
       .delete()

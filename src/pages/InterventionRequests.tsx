@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -12,6 +12,7 @@ const InterventionRequests = () => {
   const [showAcceptDialog, setShowAcceptDialog] = useState(false);
   const [showRejectDialog, setShowRejectDialog] = useState(false);
   const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [redirecting, setRedirecting] = useState(false);
 
   // Utiliser le hook personnalisé pour gérer les requêtes
   const {
@@ -20,8 +21,14 @@ const InterventionRequests = () => {
     requests,
     handleAccept,
     handleReject,
-    confirmAction
+    confirmAction,
+    refreshRequests
   } = useInterventionRequests();
+
+  // Rafraîchir les demandes au chargement
+  useEffect(() => {
+    refreshRequests();
+  }, [refreshRequests]);
 
   const openAcceptDialog = (request: any) => {
     console.log("Ouverture de la boîte de dialogue d'acceptation pour la demande:", request.id);
@@ -41,6 +48,8 @@ const InterventionRequests = () => {
     try {
       console.log("Acceptation de la demande:", selectedRequest.id);
       handleAccept(selectedRequest);
+      setRedirecting(true);
+      
       const success = await confirmAction();
       
       if (success) {
@@ -49,13 +58,17 @@ const InterventionRequests = () => {
         
         // Attendre un court instant avant de rediriger pour permettre à l'UI de se mettre à jour
         setTimeout(() => {
+          console.log("Redirection vers la page des interventions");
           navigate("/admin/interventions?refresh=true");
-        }, 500);
+        }, 1000);
+      } else {
+        setRedirecting(false);
       }
     } catch (error) {
       console.error("Erreur lors de l'acceptation de la demande:", error);
       toast.error("Erreur lors de l'acceptation de la demande");
       setShowAcceptDialog(false);
+      setRedirecting(false);
     } finally {
       setSelectedRequest(null);
     }
@@ -72,6 +85,7 @@ const InterventionRequests = () => {
       if (success) {
         toast.success("Demande d'intervention refusée");
         setShowRejectDialog(false);
+        refreshRequests();
       }
     } catch (error) {
       console.error("Erreur lors du refus de la demande:", error);
@@ -103,7 +117,7 @@ const InterventionRequests = () => {
           requests={requests}
           onAccept={openAcceptDialog}
           onReject={openRejectDialog}
-          disabled={processing}
+          disabled={processing || redirecting}
         />
       )}
 
@@ -114,7 +128,7 @@ const InterventionRequests = () => {
         selectedRequest={selectedRequest}
         actionType="accept"
         onConfirm={handleAcceptRequest}
-        isLoading={processing}
+        isLoading={processing || redirecting}
       />
 
       <ConfirmationDialog
