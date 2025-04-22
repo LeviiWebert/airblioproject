@@ -126,6 +126,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
       console.error("Erreur lors de la récupération de la demande:", demandeError);
       throw demandeError;
     }
+    
     if (!demande) {
       console.error("Demande non trouvée avec l'ID:", demandeId);
       throw new Error("Demande non trouvée");
@@ -133,7 +134,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     console.log("Demande récupérée avec succès:", demande);
 
-    // 2. Créer l'intervention avec ces données
+    // 2. Créer l'intervention avec les données valides pour la table interventions
     // S'assurer de n'utiliser que les colonnes qui existent dans la table interventions
     const interventionData = {
       demande_intervention_id: demande.id,
@@ -146,7 +147,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     console.log("Données pour la nouvelle intervention:", interventionData);
     
-    // DEBUG: Vérifions la structure de la table interventions
+    // Vérifier la structure attendue de la table
     console.log("Structure attendue de la table interventions:", {
       id: "UUID (auto)",
       demande_intervention_id: "UUID (référence vers demande_interventions)",
@@ -161,6 +162,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
       pv_intervention_id: "UUID (nullable)"
     });
     
+    // Insérer l'intervention dans la base de données
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .insert([interventionData])
@@ -182,7 +184,7 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     console.log("Intervention créée avec succès:", intervention[0]);
 
     // Attendre un moment pour assurer que l'intervention a été enregistrée
-    await new Promise(resolve => setTimeout(resolve, 500));
+    await new Promise(resolve => setTimeout(resolve, 800));
 
     // 3. Supprimer la demande
     console.log("Suppression de la demande avec l'ID:", demandeId);
