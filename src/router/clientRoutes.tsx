@@ -1,4 +1,3 @@
-
 import { RouteObject } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import ClientDashboard from "@/pages/client/ClientDashboard";
@@ -13,6 +12,7 @@ import NotFound from "@/pages/NotFound";
 import RequestIntervention from "@/pages/intervention/RequestIntervention";
 import InterventionDetails from "@/pages/intervention/InterventionDetails";
 import InterventionSchedule from "@/pages/intervention/InterventionSchedule";
+import PVClientPage from "@/pages/client/PVClientPage";  // New page for PV management
 
 // Helper function to wrap client components with protection and layout
 const withClientProtection = (Component: React.ComponentType<any>) => (
@@ -70,5 +70,13 @@ export const clientRoutes: RouteObject[] = [
   {
     path: "/client/*",
     element: withClientProtection(NotFound)
+  },
+  {
+    path: "/client/pvs",
+    element: withClientProtection(PVList)
+  },
+  {
+    path: "/client/pv/:id",
+    element: withClientProtection(PVClientPage)  // New route for individual PV page
   }
 ];

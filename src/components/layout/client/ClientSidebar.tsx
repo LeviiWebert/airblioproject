@@ -1,6 +1,5 @@
-
 import { Link } from "react-router-dom";
-import { Home, FileText, Clock, User } from "lucide-react";
+import { Home, FileText, Clock, User, FileCheck } from "lucide-react";
 
 interface ClientSidebarProps {
   sidebarOpen: boolean;
@@ -53,11 +52,20 @@ export const ClientSidebar = ({ sidebarOpen, toggleSidebar }: ClientSidebarProps
                 <span>Mon profil</span>
               </Link>
             </li>
+            <li>
+              <Link
+                to="/client/pvs"
+                className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
+              >
+                <FileCheck className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                <span>Mes Procès-Verbaux</span>
+              </Link>
+            </li>
           </ul>
         </nav>
       </aside>
       
-      {/* Overlay pour fermer le sidebar sur mobile */}
+      {/* Overlay */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 bg-black bg-opacity-50 z-10 md:hidden"

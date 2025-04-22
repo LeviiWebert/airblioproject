@@ -1,5 +1,5 @@
 
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
@@ -12,36 +12,18 @@ import {
   MapPin,
   ArrowUpRight
 } from "lucide-react";
-import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Separator } from "@/components/ui/separator";
 import { toast } from "sonner";
-
-interface PVIntervention {
-  id: string;
-  validation_client: boolean | null;
-  date_validation: string | null;
-  commentaire: string | null;
-  client_id: string;
-  intervention_id: string;
-  intervention?: {
-    id: string;
-    date_fin: string | null;
-    rapport: string | null;
-    localisation: string;
-    statut: string;
-  }
-  created_at: string;
-}
+import { pvInterventionService } from "@/services/dataService";
 
 const PVList = () => {
   const navigate = useNavigate();
   const { clientId } = useAuth();
-  const [pvs, setPvs] = useState<PVIntervention[]>([]);
+  const [pvs, setPvs] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -50,35 +32,11 @@ const PVList = () => {
       
       try {
         setLoading(true);
-        
-        // Récupérer les PVs liés au client
-        const { data: pvsData, error: pvsError } = await supabase
-          .from('pv_interventions')
-          .select(`
-            id,
-            validation_client,
-            date_validation,
-            commentaire,
-            client_id,
-            intervention_id,
-            created_at,
-            intervention:interventions (
-              id,
-              date_fin,
-              rapport,
-              localisation,
-              statut
-            )
-          `)
-          .eq('client_id', clientId)
-          .order('created_at', { ascending: false });
-        
-        if (pvsError) throw pvsError;
-        
+        const pvsData = await pvInterventionService.getPVsByClientId(clientId);
         setPvs(pvsData || []);
       } catch (error) {
         console.error("Erreur lors du chargement des PVs:", error);
-        toast.error("Impossible de charger vos procès-verbaux d'intervention");
+        toast.error("Impossible de charger vos procès-verbaux");
       } finally {
         setLoading(false);
       }
@@ -87,7 +45,7 @@ const PVList = () => {
     fetchPVs();
   }, [clientId]);
 
-  const getStatusBadge = (pv: PVIntervention) => {
+  const getStatusBadge = (pv: any) => {
     if (pv.validation_client === null) {
       return (
         <Badge variant="outline" className="flex items-center gap-1">
@@ -196,7 +154,6 @@ const PVList = () => {
                       </div>
                     </>
                   )}
-                  <Separator className="my-2" />
                   <div className="pt-2">
                     <Button 
                       className="w-full flex items-center justify-between"
