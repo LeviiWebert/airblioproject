@@ -63,8 +63,8 @@ export const useInterventionRequests = () => {
       if (actionType === "accept") {
         console.log("🔄 Acceptation de la demande et création d'intervention...");
         
-        // Créer l'intervention basée sur la demande
-        const newIntervention = await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
+        // Créer l'intervention basée sur la demande et marquer comme validée au lieu de supprimer
+        const newIntervention = await demandeInterventionService.createFromRequestAndAccept(selectedRequest.id);
         console.log("✅ Intervention créée avec succès:", newIntervention);
         
         // Vérification des données de l'intervention

@@ -13,6 +13,7 @@ const getAll = async () => {
 
 // Function to get all pending intervention requests
 const getPending = async () => {
+  console.log("🔍 Récupération des demandes en attente...");
   const { data, error } = await supabase
     .from('demande_interventions')
     .select(`
@@ -26,7 +27,12 @@ const getPending = async () => {
     `)
     .eq('statut', 'en_attente');
   
-  if (error) throw error;
+  if (error) {
+    console.error("❌ Erreur lors de la récupération des demandes en attente:", error);
+    throw error;
+  }
+  
+  console.log(`✅ ${data?.length || 0} demandes en attente récupérées`);
   return data;
 };
 
@@ -84,9 +90,10 @@ const updateStatus = async (id: string, status: string) => {
   return data[0];
 };
 
-// Fonction pour créer une intervention à partir d'une demande puis supprimer la demande
-const createFromRequestAndDelete = async (demandeId: string) => {
-  console.log("=== DÉBUT: createFromRequestAndDelete ===");
+// Fonction modifiée: au lieu de supprimer la demande, on la marque comme validée
+// et on crée l'intervention
+const createFromRequestAndAccept = async (demandeId: string) => {
+  console.log("=== DÉBUT: createFromRequestAndAccept ===");
   console.log(`Création d'intervention à partir de la demande ID: ${demandeId}`);
   
   try {
@@ -136,26 +143,29 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     
     console.log("✅ Intervention créée avec succès:", intervention[0]);
     
-    // 3. Supprimer la demande d'intervention d'origine
-    console.log(`📝 Suppression de la demande ID: ${demandeId}`);
+    // 3. Mettre à jour le statut de la demande d'intervention à "validée"
+    console.log(`📝 Mise à jour du statut de la demande ID: ${demandeId} à "validée"`);
     
-    const { error: deleteError } = await supabase
+    const { data: updatedRequest, error: updateError } = await supabase
       .from('demande_interventions')
-      .delete()
-      .eq('id', demandeId);
+      .update({ 
+        statut: 'validée',
+        intervention_id: intervention[0].id  // Liaison avec l'intervention créée
+      })
+      .eq('id', demandeId)
+      .select();
     
-    if (deleteError) {
-      console.error("❌ ERREUR: Impossible de supprimer la demande:", deleteError);
-      console.error("L'intervention a été créée mais la demande n'a pas pu être supprimée");
-      throw deleteError;
+    if (updateError) {
+      console.error("❌ ERREUR: Impossible de mettre à jour le statut de la demande:", updateError);
+      throw updateError;
     }
     
-    console.log("✅ Demande supprimée avec succès");
-    console.log("=== FIN: createFromRequestAndDelete ===");
+    console.log("✅ Statut de la demande mis à jour avec succès:", updatedRequest);
+    console.log("=== FIN: createFromRequestAndAccept ===");
     
     return intervention[0];
   } catch (error) {
-    console.error("❌ ERREUR GLOBALE dans createFromRequestAndDelete:", error);
+    console.error("❌ ERREUR GLOBALE dans createFromRequestAndAccept:", error);
     throw error;
   }
 };
@@ -166,5 +176,5 @@ export const demandeInterventionService = {
   getById,
   create,
   updateStatus,
-  createFromRequestAndDelete
+  createFromRequestAndAccept
 };
