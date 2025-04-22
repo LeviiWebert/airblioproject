@@ -58,6 +58,7 @@ export function EditPvDialog({ open, onOpenChange, interventionId, clientId, ini
       }
       
       // Création ou mise à jour du PV
+      // Note: Only the client can validate PVs, so validation_client is always null here
       const result = await pvInterventionService.createPv({
         clientId: clientId,
         interventionId: interventionId,

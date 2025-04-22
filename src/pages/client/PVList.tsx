@@ -19,6 +19,7 @@ import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { pvInterventionService } from "@/services/dataService";
+import { supabase } from "@/integrations/supabase/client";
 
 const PVList = () => {
   const navigate = useNavigate();
@@ -33,9 +34,30 @@ const PVList = () => {
       try {
         setLoading(true);
         console.log("Fetching PVs for client ID:", clientId);
-        const pvsData = await pvInterventionService.getPVsByClientId(clientId);
-        console.log("PVs fetched:", pvsData);
-        setPvs(pvsData || []);
+        
+        // Use direct Supabase query to ensure we get the latest data
+        const { data, error } = await supabase
+          .from('pv_interventions')
+          .select(`
+            id,
+            validation_client,
+            date_validation,
+            commentaire,
+            created_at,
+            intervention:interventions (
+              id,
+              date_fin,
+              rapport,
+              localisation,
+              statut
+            )
+          `)
+          .eq('client_id', clientId);
+        
+        if (error) throw error;
+        
+        console.log("PVs fetched:", data);
+        setPvs(data || []);
       } catch (error) {
         console.error("Erreur lors du chargement des PVs:", error);
         toast.error("Impossible de charger vos procès-verbaux");

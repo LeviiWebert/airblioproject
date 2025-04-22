@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { 
@@ -19,7 +18,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
-import { pvInterventionService } from "@/services/dataService";
 
 const PVClientPage = () => {
   const { id } = useParams<{ id: string }>();
@@ -36,22 +34,43 @@ const PVClientPage = () => {
       try {
         if (!id) return;
         
-        const pvData = await pvInterventionService.getPVById(id);
+        const { data, error } = await supabase
+          .from('pv_interventions')
+          .select(`
+            id,
+            validation_client,
+            date_validation,
+            commentaire,
+            client_id,
+            intervention_id,
+            created_at,
+            intervention:interventions(
+              id,
+              date_fin,
+              rapport,
+              localisation,
+              statut
+            )
+          `)
+          .eq('id', id)
+          .maybeSingle();
         
-        if (!pvData) {
+        if (error) throw error;
+        
+        if (!data) {
           navigate('/client/pvs');
           toast.error("PV non trouvé");
           return;
         }
         
-        if (pvData.client_id !== clientId) {
+        if (data.client_id !== clientId) {
           navigate('/client/pvs');
           toast.error("Accès non autorisé à ce PV");
           return;
         }
         
-        setPv(pvData);
-        setFeedback(pvData.commentaire || "");
+        setPv(data);
+        setFeedback(data.commentaire || "");
       } catch (error) {
         console.error("Erreur lors du chargement du PV:", error);
         toast.error("Impossible de charger les détails du PV");
@@ -68,7 +87,16 @@ const PVClientPage = () => {
     try {
       setSubmitting(true);
       
-      await pvInterventionService.updatePVStatus(id!, validate, feedback);
+      const { error } = await supabase
+        .from('pv_interventions')
+        .update({
+          validation_client: validate,
+          date_validation: new Date().toISOString(),
+          commentaire: feedback
+        })
+        .eq('id', id);
+        
+      if (error) throw error;
       
       setPv(prev => ({
         ...prev,
