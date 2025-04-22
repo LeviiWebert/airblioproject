@@ -1,12 +1,12 @@
-
 import React, { useEffect, useRef, useState } from 'react';
 import mapboxgl from 'mapbox-gl';
 import 'mapbox-gl/dist/mapbox-gl.css';
-import { Loader2 } from "lucide-react";
+import { Loader2, Settings } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
-// Token Mapbox temporaire à remplacer (nous utiliserons une input pour permettre à l'utilisateur de saisir son propre token)
 mapboxgl.accessToken = '';
 
 interface Location {
@@ -27,9 +27,64 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   const map = useRef<mapboxgl.Map | null>(null);
   const markers = useRef<{ [key: string]: mapboxgl.Marker }>({});
   const [loading, setLoading] = useState(true);
-  const [mapboxToken, setMapboxToken] = useState<string>(mapboxgl.accessToken);
-  const [tokenInputVisible, setTokenInputVisible] = useState<boolean>(!mapboxgl.accessToken);
+  const [mapboxToken, setMapboxToken] = useState<string>('');
+  const [tokenInputVisible, setTokenInputVisible] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
+  const { toast } = useToast();
+
+  const loadMapboxToken = async () => {
+    try {
+      const { data, error: tokenError } = await supabase
+        .from('configurations')
+        .select('value')
+        .eq('key', 'mapbox_token')
+        .single();
+
+      if (tokenError) throw tokenError;
+      
+      if (data?.value) {
+        setMapboxToken(data.value);
+        mapboxgl.accessToken = data.value;
+        return true;
+      }
+      return false;
+    } catch (err) {
+      console.error("Erreur lors du chargement du token:", err);
+      setError("Erreur lors du chargement du token Mapbox.");
+      return false;
+    }
+  };
+
+  const saveMapboxToken = async (token: string) => {
+    try {
+      const { error: updateError } = await supabase
+        .from('configurations')
+        .upsert({ key: 'mapbox_token', value: token });
+
+      if (updateError) throw updateError;
+      
+      setMapboxToken(token);
+      mapboxgl.accessToken = token;
+      setTokenInputVisible(false);
+      toast({
+        title: "Token mis à jour",
+        description: "Le token Mapbox a été mis à jour avec succès.",
+      });
+      
+      if (map.current) {
+        map.current.remove();
+        map.current = null;
+      }
+      initializeMap();
+    } catch (err) {
+      console.error("Erreur lors de la sauvegarde du token:", err);
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Impossible de sauvegarder le token Mapbox.",
+      });
+    }
+  };
 
   const initializeMap = () => {
     if (!mapContainer.current || !mapboxToken) return;
@@ -38,16 +93,14 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     setLoading(true);
 
     try {
-      // Appliquer le token d'accès
       mapboxgl.accessToken = mapboxToken;
       
-      // Initialiser la carte
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
         style: 'mapbox://styles/mapbox/light-v11',
-        center: [2.3522, 48.8566], // Paris
-        zoom: 2, // Niveau de zoom plus bas pour voir plus de territoire
-        minZoom: 1.5, // Limiter le zoom minimum pour une meilleure expérience
+        center: [2.3522, 48.8566],
+        zoom: 2,
+        minZoom: 1.5,
       });
 
       map.current.addControl(new mapboxgl.NavigationControl(), 'top-right');
@@ -70,24 +123,19 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     }
   };
 
-  // Initialiser la carte au chargement du composant
   useEffect(() => {
-    if (!tokenInputVisible) {
-      initializeMap();
-    }
-
-    return () => {
-      if (map.current) {
-        map.current.remove();
+    loadMapboxToken().then((hasToken) => {
+      if (hasToken) {
+        initializeMap();
+      } else {
+        setTokenInputVisible(true);
       }
-    };
-  }, [tokenInputVisible]);
+    });
+  }, []);
 
-  // Mettre à jour les marqueurs quand les locations changent
   useEffect(() => {
     if (!map.current || loading || !mapboxToken) return;
 
-    // Supprimer les anciens marqueurs qui ne sont plus présents
     Object.entries(markers.current).forEach(([id, marker]) => {
       if (!locations.find(loc => loc.id === id)) {
         marker.remove();
@@ -95,7 +143,6 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       }
     });
 
-    // Ajouter ou mettre à jour les marqueurs
     locations.forEach(location => {
       const el = document.createElement('div');
       el.className = `marker ${location.type === 'equipment' ? 'bg-blue-500' : 'bg-green-500'} w-4 h-4 rounded-full`;
@@ -124,8 +171,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (mapboxToken) {
-      setTokenInputVisible(false);
-      // La carte sera initialisée grâce à l'effet useEffect
+      saveMapboxToken(mapboxToken);
     }
   };
 
@@ -155,26 +201,39 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   }
 
   return (
-    <div className="relative w-full h-[calc(100vh-8rem)] rounded-lg overflow-hidden border border-border">
-      {loading && (
-        <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
-          <Loader2 className="h-8 w-8 animate-spin text-primary" />
-        </div>
-      )}
-      {error && (
-        <div className="absolute top-4 left-4 right-4 bg-destructive/10 border border-destructive text-destructive p-3 rounded-md z-40">
-          <p>{error}</p>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={() => setTokenInputVisible(true)} 
-            className="mt-2"
-          >
-            Configurer le token
-          </Button>
-        </div>
-      )}
-      <div ref={mapContainer} className="w-full h-full" />
+    <div className="space-y-4">
+      <div className="relative w-full h-[calc(100vh-12rem)] rounded-lg overflow-hidden border border-border">
+        {loading && (
+          <div className="absolute inset-0 flex items-center justify-center bg-background/50 z-50">
+            <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          </div>
+        )}
+        {error && (
+          <div className="absolute top-4 left-4 right-4 bg-destructive/10 border border-destructive text-destructive p-3 rounded-md z-40">
+            <p>{error}</p>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              onClick={() => setTokenInputVisible(true)} 
+              className="mt-2"
+            >
+              Configurer le token
+            </Button>
+          </div>
+        )}
+        <div ref={mapContainer} className="w-full h-full" />
+      </div>
+      
+      <div className="flex justify-end">
+        <Button
+          variant="outline"
+          onClick={() => setTokenInputVisible(true)}
+          className="flex items-center gap-2"
+        >
+          <Settings className="h-4 w-4" />
+          Configurer le token Mapbox
+        </Button>
+      </div>
     </div>
   );
 };
