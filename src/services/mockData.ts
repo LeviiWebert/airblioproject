@@ -1,4 +1,3 @@
-
 import { 
   Client, Utilisateur, Equipe, Materiel, 
   DemandeIntervention, Intervention, PVIntervention,
@@ -127,25 +126,29 @@ export const equipes: Equipe[] = [
     id: "equipe1",
     nom: "Équipe Alpha",
     membres: ["user1", "user4"],
-    specialisation: "Maintenance sous-marine"
+    specialisation: "Maintenance sous-marine",
+    disponibilite: true
   },
   {
     id: "equipe2",
     nom: "Équipe Bravo",
     membres: ["user2", "user6"],
-    specialisation: "Installation de structures"
+    specialisation: "Installation de structures",
+    disponibilite: true
   },
   {
     id: "equipe3",
     nom: "Équipe Charlie",
     membres: ["user1", "user2"],
-    specialisation: "Inspection et diagnostic"
+    specialisation: "Inspection et diagnostic",
+    disponibilite: true
   },
   {
     id: "equipe4",
     nom: "Équipe Delta",
     membres: ["user4", "user6"],
-    specialisation: "Réparation d'urgence"
+    specialisation: "Réparation d'urgence",
+    disponibilite: true
   }
 ];
 
