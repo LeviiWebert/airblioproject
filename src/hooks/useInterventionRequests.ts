@@ -35,91 +35,21 @@ export const useInterventionRequests = () => {
     fetchRequests();
   }, [fetchRequests]);
 
-  // Ces deux fonctions définissent l'action à effectuer et enregistrent la demande sélectionnée
+  // Fonctions pour sélectionner une demande et définir l'action (accept/reject)
   const handleAccept = (request: any) => {
-    console.log("Accepting request:", request);
+    console.log("Selecting request for acceptance:", request);
     setSelectedRequest(request);
     setActionType("accept");
   };
 
   const handleReject = (request: any) => {
-    console.log("Rejecting request:", request);
+    console.log("Selecting request for rejection:", request);
     setSelectedRequest(request);
     setActionType("reject");
   };
 
-  // Cette fonction permet de directement accepter une demande sans avoir à ouvrir une boîte de dialogue
-  const acceptRequest = async (request: any) => {
-    if (!request) {
-      console.error("No request provided to acceptRequest");
-      return false;
-    }
-    
-    setProcessing(true);
-    
-    try {
-      console.log("Processing direct acceptance for request:", request.id);
-      
-      // Créer l'intervention et supprimer la demande
-      const intervention = await demandeInterventionService.createFromRequestAndDelete(request.id);
-      console.log("Intervention created successfully:", intervention);
-      
-      // Mettre à jour l'interface en retirant la demande
-      setRequests(prev => prev.filter(req => req.id !== request.id));
-      
-      toast.success("Demande acceptée et intervention créée avec succès");
-      setProcessing(false);
-      return true;
-    } catch (error: any) {
-      console.error("Erreur lors de l'acceptation directe de la demande:", error);
-      useToastHook({
-        variant: "destructive",
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors de l'acceptation de la demande.",
-      });
-      
-      setProcessing(false);
-      return false;
-    }
-  };
-
-  // Cette fonction permet de directement rejeter une demande sans avoir à ouvrir une boîte de dialogue
-  const rejectRequest = async (request: any) => {
-    if (!request) {
-      console.error("No request provided to rejectRequest");
-      return false;
-    }
-    
-    setProcessing(true);
-    
-    try {
-      console.log("Processing direct rejection for request:", request.id);
-      
-      // Mettre à jour le statut de la demande à "rejetée"
-      await demandeInterventionService.updateStatus(request.id, "rejetée");
-      
-      // Mettre à jour l'interface en retirant la demande
-      setRequests(prev => prev.filter(req => req.id !== request.id));
-      
-      toast.success("Demande refusée avec succès");
-      setProcessing(false);
-      return true;
-    } catch (error: any) {
-      console.error("Erreur lors du refus direct de la demande:", error);
-      useToastHook({
-        variant: "destructive",
-        title: "Erreur",
-        description: error.message || "Une erreur est survenue lors du refus de la demande.",
-      });
-      
-      setProcessing(false);
-      return false;
-    }
-  };
-
-  // Cette fonction exécute l'action sélectionnée (accept ou reject) pour la demande sélectionnée
+  // Fonction pour confirmer l'action (accept/reject)
   const confirmAction = async () => {
-    // Vérification que les données sélectionnées sont présentes
     if (!selectedRequest || !actionType) {
       console.error("No request or action type selected");
       return false;
@@ -128,21 +58,32 @@ export const useInterventionRequests = () => {
     setProcessing(true);
     
     try {
-      console.log(`Confirming action: ${actionType} for request ${selectedRequest.id}`);
-      
-      let success = false;
+      console.log(`Confirming ${actionType} for request ID: ${selectedRequest.id}`);
       
       if (actionType === "accept") {
-        success = await acceptRequest(selectedRequest);
+        // Créer l'intervention basée sur la demande
+        const newIntervention = await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
+        console.log("Intervention created successfully:", newIntervention);
+        
+        // Mettre à jour l'interface en supprimant la demande traitée
+        setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
+        
+        toast.success("Demande acceptée et intervention créée avec succès");
+        setProcessing(false);
+        return true;
       } else if (actionType === "reject") {
-        success = await rejectRequest(selectedRequest);
+        // Rejeter la demande
+        await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée");
+        
+        // Mettre à jour l'interface en supprimant la demande traitée
+        setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
+        
+        toast.success("Demande refusée avec succès");
+        setProcessing(false);
+        return true;
       }
-
-      // Réinitialiser les états sélectionnés
-      setSelectedRequest(null);
-      setActionType(null);
       
-      return success;
+      return false;
     } catch (error: any) {
       console.error("Erreur lors de la gestion de la demande:", error);
       useToastHook({
@@ -161,12 +102,10 @@ export const useInterventionRequests = () => {
     processing,
     requests,
     selectedRequest,
-    setSelectedRequest,  // <-- Added this line to expose the setter
+    setSelectedRequest,
     actionType,
     handleAccept,
     handleReject,
-    acceptRequest,
-    rejectRequest,
     confirmAction,
     refreshRequests: fetchRequests
   };

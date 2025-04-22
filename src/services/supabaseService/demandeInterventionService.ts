@@ -84,85 +84,35 @@ const updateStatus = async (id: string, status: string) => {
   return data[0];
 };
 
-// Function to update intervention_id of a request
-const updateInterventionId = async (id: string, interventionId: string) => {
-  console.log(`Linking intervention ${interventionId} to demande ${id}`);
-  
-  const { data, error } = await supabase
-    .from('demande_interventions')
-    .update({ intervention_id: interventionId })
-    .eq('id', id)
-    .select();
-  
-  if (error) {
-    console.error("Erreur lors de la liaison de l'intervention à la demande:", error);
-    throw error;
-  }
-  console.log("Demande liée à l'intervention avec succès:", data);
-  return data[0];
-};
-
-// Create an intervention from a demande then delete the demande
+// Fonction simplifiée pour créer une intervention à partir d'une demande puis supprimer la demande
 const createFromRequestAndDelete = async (demandeId: string) => {
   try {
-    console.log(`Starting process for demande ${demandeId}: create intervention and delete demande`);
+    console.log(`Création d'intervention à partir de la demande ${demandeId}`);
     
-    // 1. Récupérer la demande complète avec les informations du client
+    // 1. Récupérer les informations de la demande
     const { data: demande, error: demandeError } = await supabase
       .from('demande_interventions')
-      .select(`
-        *,
-        client:client_id (
-          id,
-          nom_entreprise,
-          email,
-          tel
-        )
-      `)
+      .select('*')
       .eq('id', demandeId)
-      .maybeSingle();
+      .single();
 
     if (demandeError) {
       console.error("Erreur lors de la récupération de la demande:", demandeError);
-      throw demandeError;
+      throw new Error("Impossible de récupérer la demande d'intervention");
     }
     
-    if (!demande) {
-      console.error("Demande non trouvée avec l'ID:", demandeId);
-      throw new Error("Demande non trouvée");
-    }
+    console.log("Demande récupérée:", demande);
 
-    console.log("Demande récupérée avec succès:", demande);
-
-    // 2. Créer l'intervention avec les données valides pour la table interventions
-    // S'assurer de n'utiliser que les colonnes qui existent dans la table interventions
+    // 2. Créer l'intervention (avec le minimum de champs nécessaires)
     const interventionData = {
       demande_intervention_id: demande.id,
       statut: 'planifiée',
-      localisation: 'À déterminer',
-      rapport: '',
-      date_debut: null,
-      date_fin: null
+      localisation: 'À définir',
+      rapport: null
     };
-
-    console.log("Données pour la nouvelle intervention:", interventionData);
     
-    // Vérifier la structure attendue de la table
-    console.log("Structure attendue de la table interventions:", {
-      id: "UUID (auto)",
-      demande_intervention_id: "UUID (référence vers demande_interventions)",
-      statut: "string ('planifiée', 'en_cours', 'terminée', 'annulée')",
-      localisation: "string",
-      rapport: "string (nullable)",
-      date_debut: "timestamp (nullable)",
-      date_fin: "timestamp (nullable)",
-      created_at: "timestamp (auto)",
-      updated_at: "timestamp (auto)",
-      facturation_id: "UUID (nullable)",
-      pv_intervention_id: "UUID (nullable)"
-    });
+    console.log("Données d'intervention à créer:", interventionData);
     
-    // Insérer l'intervention dans la base de données
     const { data: intervention, error: interventionError } = await supabase
       .from('interventions')
       .insert([interventionData])
@@ -170,24 +120,12 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     if (interventionError) {
       console.error("Erreur lors de la création de l'intervention:", interventionError);
-      console.error("Détails de l'erreur:", interventionError.details);
-      console.error("Message d'erreur:", interventionError.message);
-      console.error("Code d'erreur:", interventionError.code);
-      throw interventionError;
+      throw new Error("Impossible de créer l'intervention");
     }
     
-    if (!intervention || intervention.length === 0) {
-      console.error("Intervention non créée, résultat vide");
-      throw new Error("Erreur lors de la création de l'intervention");
-    }
+    console.log("Intervention créée avec succès:", intervention);
 
-    console.log("Intervention créée avec succès:", intervention[0]);
-
-    // Attendre un moment pour assurer que l'intervention a été enregistrée
-    await new Promise(resolve => setTimeout(resolve, 800));
-
-    // 3. Supprimer la demande
-    console.log("Suppression de la demande avec l'ID:", demandeId);
+    // 3. Supprimer la demande d'origine
     const { error: deleteError } = await supabase
       .from('demande_interventions')
       .delete()
@@ -195,10 +133,10 @@ const createFromRequestAndDelete = async (demandeId: string) => {
 
     if (deleteError) {
       console.error("Erreur lors de la suppression de la demande:", deleteError);
-      throw deleteError;
+      throw new Error("L'intervention a été créée mais la demande n'a pas pu être supprimée");
     }
 
-    console.log("Demande supprimée avec succès, processus terminé");
+    console.log("Demande supprimée avec succès");
     return intervention[0];
   } catch (error) {
     console.error("Erreur globale dans createFromRequestAndDelete:", error);
@@ -206,13 +144,12 @@ const createFromRequestAndDelete = async (demandeId: string) => {
   }
 };
 
-// Export with the new method
+// Export all functions
 export const demandeInterventionService = {
   getAll,
   getPending,
   getById,
   create,
   updateStatus,
-  updateInterventionId,
-  createFromRequestAndDelete,
+  createFromRequestAndDelete
 };

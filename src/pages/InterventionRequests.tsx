@@ -1,5 +1,5 @@
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { Loader2 } from "lucide-react";
 import { toast } from "sonner";
@@ -19,80 +19,16 @@ const InterventionRequests = () => {
     processing,
     requests,
     selectedRequest,
-    setSelectedRequest,  // Now this is properly destructured
-    acceptRequest,
-    rejectRequest,
+    setSelectedRequest,
+    actionType,
+    handleAccept,
+    handleReject,
     confirmAction,
     refreshRequests
   } = useInterventionRequests();
 
-  // Rafraîchir les demandes au chargement
-  useEffect(() => {
-    refreshRequests();
-  }, [refreshRequests]);
-
-  // Fonction pour gérer le clic sur accepter dans la table
-  const handleTableAccept = async (request: any) => {
-    console.log("Acceptation directe de la demande:", request.id);
-    setRedirecting(true);
-    
-    try {
-      // Utiliser acceptRequest directement sans passer par la boîte de dialogue
-      const success = await acceptRequest(request);
-      
-      if (success) {
-        toast.success("Demande d'intervention acceptée et intervention créée avec succès");
-        
-        // Attendre un court instant avant de rediriger pour permettre à l'UI de se mettre à jour
-        setTimeout(() => {
-          console.log("Redirection vers la page des interventions");
-          navigate("/admin/interventions?refresh=true");
-        }, 1000);
-      } else {
-        setRedirecting(false);
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'acceptation de la demande:", error);
-      toast.error("Erreur lors de l'acceptation de la demande");
-      setRedirecting(false);
-    }
-  };
-
-  // Fonction pour gérer le clic sur rejeter dans la table
-  const handleTableReject = async (request: any) => {
-    console.log("Rejet direct de la demande:", request.id);
-    
-    try {
-      // Utiliser rejectRequest directement sans passer par la boîte de dialogue
-      const success = await rejectRequest(request);
-      
-      if (success) {
-        toast.success("Demande d'intervention refusée");
-        refreshRequests();
-      }
-    } catch (error) {
-      console.error("Erreur lors du refus de la demande:", error);
-      toast.error("Erreur lors du refus de la demande");
-    }
-  };
-
-  // Boîtes de dialogue (désormais utilisées uniquement comme backup)
-  const openAcceptDialog = (request: any) => {
-    console.log("Ouverture de la boîte de dialogue d'acceptation pour la demande:", request.id);
-    setSelectedRequest(request);
-    setShowAcceptDialog(true);
-  };
-
-  const openRejectDialog = (request: any) => {
-    console.log("Ouverture de la boîte de dialogue de refus pour la demande:", request.id);
-    setSelectedRequest(request);
-    setShowRejectDialog(true);
-  };
-
   // Fonction pour gérer l'acceptation via la boîte de dialogue
   const handleAcceptRequest = async () => {
-    if (!selectedRequest) return;
-
     try {
       setRedirecting(true);
       
@@ -102,13 +38,13 @@ const InterventionRequests = () => {
         toast.success("Demande d'intervention acceptée et intervention créée avec succès");
         setShowAcceptDialog(false);
         
-        // Attendre un court instant avant de rediriger pour permettre à l'UI de se mettre à jour
+        // Rediriger vers la page des interventions
         setTimeout(() => {
-          console.log("Redirection vers la page des interventions");
           navigate("/admin/interventions?refresh=true");
-        }, 1000);
+        }, 500);
       } else {
         setRedirecting(false);
+        setShowAcceptDialog(false);
       }
     } catch (error) {
       console.error("Erreur lors de l'acceptation de la demande:", error);
@@ -120,8 +56,6 @@ const InterventionRequests = () => {
 
   // Fonction pour gérer le rejet via la boîte de dialogue
   const handleRejectRequest = async () => {
-    if (!selectedRequest) return;
-
     try {
       const success = await confirmAction();
       
@@ -129,12 +63,26 @@ const InterventionRequests = () => {
         toast.success("Demande d'intervention refusée");
         setShowRejectDialog(false);
         refreshRequests();
+      } else {
+        setShowRejectDialog(false);
       }
     } catch (error) {
       console.error("Erreur lors du refus de la demande:", error);
       toast.error("Erreur lors du refus de la demande");
       setShowRejectDialog(false);
     }
+  };
+
+  // Lorsqu'on clique sur accepter dans la table, on ouvre directement la boîte de dialogue
+  const handleTableAccept = (request: any) => {
+    handleAccept(request);
+    setShowAcceptDialog(true);
+  };
+
+  // Lorsqu'on clique sur refuser dans la table, on ouvre directement la boîte de dialogue
+  const handleTableReject = (request: any) => {
+    handleReject(request);
+    setShowRejectDialog(true);
   };
 
   return (
@@ -162,7 +110,7 @@ const InterventionRequests = () => {
         />
       )}
 
-      {/* Boîtes de dialogue de confirmation (alternative) */}
+      {/* Boîtes de dialogue de confirmation */}
       <ConfirmationDialog
         open={showAcceptDialog}
         onOpenChange={setShowAcceptDialog}
