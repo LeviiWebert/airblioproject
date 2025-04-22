@@ -14,13 +14,14 @@ export const useInterventionRequests = () => {
   const { toast: useToastHook } = useToast();
 
   const fetchRequests = useCallback(async () => {
+    console.log("🔄 Chargement des demandes d'intervention en attente...");
     setLoading(true);
     try {
       const data = await demandeInterventionService.getPending();
-      console.log("Demandes d'intervention récupérées:", data);
+      console.log("✅ Demandes d'intervention récupérées:", data);
       setRequests(data || []);
     } catch (error) {
-      console.error("Error fetching intervention requests:", error);
+      console.error("❌ Erreur lors du chargement des demandes:", error);
       useToastHook({
         variant: "destructive",
         title: "Erreur de chargement",
@@ -37,13 +38,13 @@ export const useInterventionRequests = () => {
 
   // Fonctions pour sélectionner une demande et définir l'action (accept/reject)
   const handleAccept = (request: any) => {
-    console.log("Selecting request for acceptance:", request);
+    console.log("👆 Sélection de la demande pour acceptation:", request);
     setSelectedRequest(request);
     setActionType("accept");
   };
 
   const handleReject = (request: any) => {
-    console.log("Selecting request for rejection:", request);
+    console.log("👆 Sélection de la demande pour rejet:", request);
     setSelectedRequest(request);
     setActionType("reject");
   };
@@ -51,27 +52,37 @@ export const useInterventionRequests = () => {
   // Fonction pour confirmer l'action (accept/reject)
   const confirmAction = async () => {
     if (!selectedRequest || !actionType) {
-      console.error("No request or action type selected");
+      console.error("❌ Aucune demande ou action sélectionnée");
       return false;
     }
     
+    console.log(`🔄 Début de l'action: ${actionType} pour la demande ID: ${selectedRequest.id}`);
     setProcessing(true);
     
     try {
-      console.log(`Confirming ${actionType} for request ID: ${selectedRequest.id}`);
-      
       if (actionType === "accept") {
+        console.log("🔄 Acceptation de la demande et création d'intervention...");
+        
         // Créer l'intervention basée sur la demande
         const newIntervention = await demandeInterventionService.createFromRequestAndDelete(selectedRequest.id);
-        console.log("Intervention created successfully:", newIntervention);
+        console.log("✅ Intervention créée avec succès:", newIntervention);
+        
+        // Vérification des données de l'intervention
+        if (!newIntervention || !newIntervention.id) {
+          console.error("⚠️ L'intervention a été créée mais les données retournées sont incomplètes");
+        }
         
         // Mettre à jour l'interface en supprimant la demande traitée
         setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
         
         toast.success("Demande acceptée et intervention créée avec succès");
         setProcessing(false);
+        
+        console.log("✅ Processus d'acceptation terminé avec succès");
         return true;
       } else if (actionType === "reject") {
+        console.log("🔄 Rejet de la demande...");
+        
         // Rejeter la demande
         await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée");
         
@@ -80,12 +91,14 @@ export const useInterventionRequests = () => {
         
         toast.success("Demande refusée avec succès");
         setProcessing(false);
+        
+        console.log("✅ Processus de rejet terminé avec succès");
         return true;
       }
       
       return false;
     } catch (error: any) {
-      console.error("Erreur lors de la gestion de la demande:", error);
+      console.error("❌ Erreur lors de la gestion de la demande:", error);
       useToastHook({
         variant: "destructive",
         title: "Erreur",

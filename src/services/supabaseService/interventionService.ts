@@ -3,6 +3,7 @@ import { FilterOptions } from '@/types/models';
 
 // Get all interventions
 const getAll = async () => {
+  console.log("🔄 Récupération de toutes les interventions");
   const { data, error } = await supabase
     .from('interventions')
     .select(`
@@ -10,14 +11,19 @@ const getAll = async () => {
       demande_intervention_id(*, client_id(*))
     `);
   
-  if (error) throw error;
+  if (error) {
+    console.error("❌ Erreur lors de la récupération des interventions:", error);
+    throw error;
+  }
+  
+  console.log(`✅ ${data?.length || 0} interventions récupérées`);
   return data;
 };
 
 // Get detailed interventions with filtering options
 const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
   try {
-    console.log("Getting detailed interventions with filters:", filterOptions);
+    console.log("🔄 Récupération des interventions détaillées avec filtres:", filterOptions);
     
     let query = supabase
       .from('interventions')
@@ -66,6 +72,7 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
         query = query.in('id', interventionIds);
       } else {
         // If no interventions match this team, return empty array early
+        console.log("⚠️ Aucune intervention ne correspond à l'équipe sélectionnée");
         return [];
       }
     }
@@ -82,9 +89,11 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
     const { data, error } = await query;
     
     if (error) {
-      console.error("Error fetching detailed interventions:", error);
+      console.error("❌ Erreur lors de la récupération des interventions détaillées:", error);
       throw error;
     }
+    
+    console.log(`✅ ${data?.length || 0} interventions détaillées récupérées avant formatage`);
     
     // Format data for easier consumption
     const formattedData = data.map(intervention => {
@@ -115,10 +124,10 @@ const getDetailedInterventions = async (filterOptions: FilterOptions = {}) => {
       };
     });
     
-    console.log(`Returning ${formattedData.length} formatted interventions`);
+    console.log(`✅ Retour de ${formattedData.length} interventions formatées`);
     return formattedData;
   } catch (error) {
-    console.error("Error in getDetailedInterventions:", error);
+    console.error("❌ Erreur dans getDetailedInterventions:", error);
     throw error;
   }
 };
