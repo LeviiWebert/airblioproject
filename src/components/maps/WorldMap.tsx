@@ -30,11 +30,20 @@ const WorldMap = ({ locations }: WorldMapProps) => {
   const [tokenInputVisible, setTokenInputVisible] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
   const [mapInitialized, setMapInitialized] = useState<boolean>(false);
+  const isTokenLoading = useRef(false);
+  const isMapInitializing = useRef(false);
   const { toast } = useToast();
 
   // Chargement du token depuis Supabase
   const loadMapboxToken = async () => {
+    // Éviter les appels multiples
+    if (isTokenLoading.current) {
+      console.log("Chargement du token déjà en cours, requête ignorée");
+      return false;
+    }
+
     try {
+      isTokenLoading.current = true;
       console.log("Chargement du token Mapbox depuis Supabase");
       const { data, error: tokenError } = await supabase
         .from('configurations')
@@ -58,11 +67,22 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       console.error("Erreur lors du chargement du token:", err);
       setError("Erreur lors du chargement du token Mapbox. Veuillez vérifier votre connexion.");
       return false;
+    } finally {
+      isTokenLoading.current = false;
     }
   };
 
   // Sauvegarde du token dans Supabase
   const saveMapboxToken = async (token: string) => {
+    if (!token.trim()) {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Le token Mapbox ne peut pas être vide.",
+      });
+      return;
+    }
+
     try {
       console.log("Sauvegarde du token Mapbox");
       const { error: updateError } = await supabase
@@ -79,10 +99,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       });
       
       // Réinitialisation de la carte avec le nouveau token
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
+      cleanupMap();
       setTimeout(() => initializeMap(token), 100);
     } catch (err) {
       console.error("Erreur lors de la sauvegarde du token:", err);
@@ -94,21 +111,33 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     }
   };
 
+  // Nettoyage de la carte
+  const cleanupMap = () => {
+    if (map.current) {
+      console.log("Nettoyage de la carte existante");
+      map.current.remove();
+      map.current = null;
+      markers.current = {};
+      setMapInitialized(false);
+    }
+  };
+
   // Initialisation de la carte Mapbox
   const initializeMap = (token: string) => {
-    if (!mapContainer.current || !token) {
+    if (!mapContainer.current || !token || token.trim() === '') {
       console.log("Impossible d'initialiser la carte: conteneur ou token manquant");
       return;
     }
     
     // Éviter l'initialisation multiple
-    if (map.current) {
-      console.log("Carte déjà initialisée");
+    if (map.current || isMapInitializing.current) {
+      console.log("Carte déjà initialisée ou en cours d'initialisation");
       return;
     }
     
     setError(null);
     setLoading(true);
+    isMapInitializing.current = true;
     console.log("Initialisation de la carte Mapbox");
 
     try {
@@ -130,6 +159,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
           map.current.addControl(new mapboxgl.AttributionControl({ compact: true }), 'bottom-right');
           setMapInitialized(true);
           setLoading(false);
+          isMapInitializing.current = false;
           
           // Ajouter les marqueurs après le chargement
           addMarkersToMap();
@@ -141,12 +171,14 @@ const WorldMap = ({ locations }: WorldMapProps) => {
         setError("Erreur lors du chargement de la carte. Veuillez vérifier votre token Mapbox.");
         setLoading(false);
         setTokenInputVisible(true);
+        isMapInitializing.current = false;
       });
     } catch (err) {
       console.error("Erreur d'initialisation de la carte:", err);
       setError("Erreur lors de l'initialisation de la carte. Veuillez vérifier votre token Mapbox.");
       setLoading(false);
       setTokenInputVisible(true);
+      isMapInitializing.current = false;
     }
   };
 
@@ -198,6 +230,8 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     console.log("Effet de montage du composant WorldMap");
     const setupMap = async () => {
       const hasToken = await loadMapboxToken();
+      console.log("Token Mapbox mis à jour", { hasToken });
+      
       if (hasToken && mapboxToken) {
         console.log("Token trouvé, initialisation de la carte");
         initializeMap(mapboxToken);
@@ -213,12 +247,17 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     // Cleanup au démontage
     return () => {
       console.log("Nettoyage du composant WorldMap");
-      if (map.current) {
-        map.current.remove();
-        map.current = null;
-      }
+      cleanupMap();
     };
   }, []);
+
+  // Effet pour initialiser la carte quand le token change
+  useEffect(() => {
+    console.log("Effet de mise à jour du token Mapbox", { hasToken: !!mapboxToken });
+    if (mapboxToken && !map.current && !isMapInitializing.current) {
+      initializeMap(mapboxToken);
+    }
+  }, [mapboxToken]);
 
   // Mettre à jour les marqueurs quand les locations changent
   useEffect(() => {
@@ -228,19 +267,17 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     }
   }, [locations, mapInitialized]);
 
-  // Effet pour initialiser la carte quand le token change
-  useEffect(() => {
-    console.log("Token Mapbox mis à jour", { hasToken: !!mapboxToken });
-    if (mapboxToken && !map.current) {
-      initializeMap(mapboxToken);
-    }
-  }, [mapboxToken]);
-
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     console.log("Soumission du token");
-    if (mapboxToken) {
+    if (mapboxToken.trim()) {
       saveMapboxToken(mapboxToken);
+    } else {
+      toast({
+        variant: "destructive",
+        title: "Erreur",
+        description: "Veuillez entrer un token Mapbox valide.",
+      });
     }
   };
 

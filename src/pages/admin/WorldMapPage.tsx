@@ -1,5 +1,5 @@
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import WorldMap from "@/components/maps/WorldMap";
@@ -47,12 +47,21 @@ const WorldMapPage = () => {
   });
   const [error, setError] = useState<string | null>(null);
   const [retryCount, setRetryCount] = useState(0);
+  const isInitialMount = useRef(true);
+  const isFetching = useRef(false);
   const { toast } = useToast();
 
   // Fonction de récupération des données optimisée
   const fetchLocations = useCallback(async () => {
+    // Éviter les appels multiples simultanés
+    if (isFetching.current) {
+      console.log("Une récupération est déjà en cours, requête ignorée");
+      return;
+    }
+
     try {
       console.log("Début de la récupération des données de localisation");
+      isFetching.current = true;
       setLoading(true);
       setError(null);
       
@@ -132,11 +141,12 @@ const WorldMapPage = () => {
       setRetryCount(0);
 
       // Afficher une notification de succès uniquement au premier chargement
-      if (loading && combinedLocations.length > 0) {
+      if (isInitialMount.current && combinedLocations.length > 0) {
         toast({
           title: "Carte chargée avec succès",
           description: `${combinedLocations.length} localisations affichées.`,
         });
+        isInitialMount.current = false;
       }
     } catch (error: any) {
       console.error("Erreur lors du chargement des données:", error);
@@ -170,19 +180,17 @@ const WorldMapPage = () => {
       }
     } finally {
       setLoading(false);
+      isFetching.current = false;
     }
-  }, [loading, toast, retryCount]);
+  }, [toast, retryCount]);
 
-  // Charger les données initiales
+  // Charger les données initiales une seule fois
   useEffect(() => {
     console.log("Effet initial pour charger les données");
     fetchLocations();
-  }, [fetchLocations]);
-
-  // Mettre en place la souscription en temps réel
-  useEffect(() => {
+    
+    // Mettre en place la souscription en temps réel
     console.log("Configuration des souscriptions en temps réel");
-    // Canal pour les mises à jour d'équipement
     const equipmentChannel = supabase
       .channel('realtime-equipment')
       .on('postgres_changes', { 
@@ -191,7 +199,9 @@ const WorldMapPage = () => {
         table: 'suivi_materiels' 
       }, () => {
         console.log("Changement détecté dans suivi_materiels");
-        fetchLocations();
+        if (!isFetching.current) {
+          fetchLocations();
+        }
       })
       .subscribe();
 
@@ -204,7 +214,9 @@ const WorldMapPage = () => {
         table: 'suivi_equipes' 
       }, () => {
         console.log("Changement détecté dans suivi_equipes");
-        fetchLocations();
+        if (!isFetching.current) {
+          fetchLocations();
+        }
       })
       .subscribe();
 
@@ -236,7 +248,7 @@ const WorldMapPage = () => {
             Suivi en temps réel de la localisation des équipes et du matériel
           </p>
         </div>
-        <Button onClick={handleRefresh} disabled={loading}>
+        <Button onClick={handleRefresh} disabled={loading || isFetching.current}>
           <RefreshCw className={`h-4 w-4 mr-2 ${loading ? 'animate-spin' : ''}`} />
           Actualiser
         </Button>
@@ -247,7 +259,7 @@ const WorldMapPage = () => {
           <CardContent className="pt-4">
             <div className="flex items-center justify-between">
               <p className="text-destructive">{error}</p>
-              <Button size="sm" onClick={handleRefresh} disabled={loading}>
+              <Button size="sm" onClick={handleRefresh} disabled={loading || isFetching.current}>
                 Réessayer
               </Button>
             </div>
