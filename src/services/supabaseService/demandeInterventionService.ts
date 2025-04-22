@@ -136,7 +136,6 @@ const createFromRequestAndDelete = async (demandeId: string) => {
     // 2. Créer l'intervention avec ces données
     const interventionData = {
       demande_intervention_id: demande.id,
-      client_id: demande.client_id, // Add client_id to the new intervention
       statut: 'planifiée',
       localisation: 'À déterminer',
       rapport: '',
