@@ -32,7 +32,9 @@ const PVList = () => {
       
       try {
         setLoading(true);
+        console.log("Fetching PVs for client ID:", clientId);
         const pvsData = await pvInterventionService.getPVsByClientId(clientId);
+        console.log("PVs fetched:", pvsData);
         setPvs(pvsData || []);
       } catch (error) {
         console.error("Erreur lors du chargement des PVs:", error);

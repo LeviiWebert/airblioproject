@@ -1,3 +1,4 @@
+
 import { DateRange } from "react-day-picker";
 
 export interface Client {
@@ -87,6 +88,7 @@ export interface PVIntervention {
   commentaire?: string;
   interventionId: string;
   clientId: string | { id: string };
+  created_at?: string;
 }
 
 export interface Facturation {
