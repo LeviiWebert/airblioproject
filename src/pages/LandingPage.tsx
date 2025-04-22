@@ -410,7 +410,7 @@ const LandingPage = () => {
               <address className="text-gray-400 not-italic">
                 <div className="mb-2">123 Avenue de la Mer</div>
                 <div className="mb-2">13000 Marseille, France</div>
-                <div className="mb-2">contact@gestint.com</div>
+                <div className="mb-2">contact@Airblio.com</div>
                 <div>+33 4 91 XX XX XX</div>
               </address>
             </div>

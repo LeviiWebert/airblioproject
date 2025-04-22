@@ -67,7 +67,7 @@ export const InterventionRecapSidebar = ({
     </CardContent>
     <CardFooter className="flex flex-col gap-3">
       <Button variant="outline" className="w-full" asChild>
-        <a href={`mailto:support@gestint.com?subject=Question sur l'intervention #${demande.id.substring(0, 8).toUpperCase()}`}>
+        <a href={`mailto:support@Airblio.com?subject=Question sur l'intervention #${demande.id.substring(0, 8).toUpperCase()}`}>
           <MessageSquare className="mr-2 h-4 w-4" />
           Contacter le support
         </a>

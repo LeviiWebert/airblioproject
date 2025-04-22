@@ -120,7 +120,7 @@ const InterventionDetails = () => {
         <div className="container mx-auto px-4 py-3">
           <div className="flex items-center justify-between">
             <div className="flex items-center">
-              <Link to="/" className="text-2xl font-bold text-primary">GestInt</Link>
+              <Link to="/" className="text-2xl font-bold text-primary">Airblio</Link>
               <span className="ml-2 text-sm font-medium text-muted-foreground">Sous-Marine</span>
             </div>
             <div className="flex items-center space-x-4">
@@ -264,7 +264,7 @@ const InterventionDetails = () => {
       <footer className="bg-gray-800 text-gray-200">
         <div className="container mx-auto px-4 py-8">
           <div className="text-center text-gray-400 text-sm">
-            <p>&copy; {new Date().getFullYear()} GestInt Sous-Marine. Tous droits réservés.</p>
+            <p>&copy; {new Date().getFullYear()} Airblio Sous-Marine. Tous droits réservés.</p>
           </div>
         </div>
       </footer>

@@ -134,7 +134,7 @@ const Auth = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-block">
-            <h1 className="text-3xl font-bold">GestInt - Sous-Marine</h1>
+            <h1 className="text-3xl font-bold">Airblio - Sous-Marine</h1>
             <p className="text-muted-foreground">Gestion des interventions sous-marines</p>
           </Link>
         </div>
