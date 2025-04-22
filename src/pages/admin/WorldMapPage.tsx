@@ -9,20 +9,50 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+// Types pour les données de localisation
+interface EquipmentLocation {
+  id: string;
+  type: 'equipment';
+  name: string;
+  latitude: number;
+  longitude: number;
+  details: string;
+}
+
+interface TeamLocation {
+  id: string;
+  type: 'team';
+  name: string;
+  latitude: number;
+  longitude: number;
+  details: string;
+}
+
+type Location = EquipmentLocation | TeamLocation;
+
+// Statistiques du tableau de bord
+interface MapStats {
+  equipment: number;
+  teams: number;
+  updatedAt: Date;
+}
+
 const WorldMapPage = () => {
   const [loading, setLoading] = useState(true);
-  const [locations, setLocations] = useState<any[]>([]);
-  const [stats, setStats] = useState({
+  const [locations, setLocations] = useState<Location[]>([]);
+  const [stats, setStats] = useState<MapStats>({
     equipment: 0,
     teams: 0,
     updatedAt: new Date()
   });
   const { toast } = useToast();
 
-  // Optimiser la fonction de récupération des données
+  // Fonction de récupération des données optimisée
   const fetchLocations = useCallback(async () => {
     try {
       setLoading(true);
+      
+      // Appels parallèles aux API pour les équipements et équipes
       const [equipmentResponse, teamsResponse] = await Promise.all([
         supabase
           .from('suivi_materiels')
@@ -57,24 +87,27 @@ const WorldMapPage = () => {
       if (equipmentResponse.error) throw equipmentResponse.error;
       if (teamsResponse.error) throw teamsResponse.error;
 
-      const equipmentLocations = (equipmentResponse.data || []).map(item => ({
+      // Transformer les données des équipements
+      const equipmentLocations: EquipmentLocation[] = (equipmentResponse.data || []).map(item => ({
         id: item.id,
-        type: 'equipment' as const,
+        type: 'equipment',
         name: item.materiel?.reference || 'Matériel sans référence',
         latitude: item.latitude || 48.8566,
         longitude: item.longitude || 2.3522,
         details: `Type: ${item.materiel?.type_materiel || 'Non spécifié'}<br/>État: ${item.etat_apres || 'Non spécifié'}`
       }));
 
-      const teamLocations = (teamsResponse.data || []).map(item => ({
+      // Transformer les données des équipes
+      const teamLocations: TeamLocation[] = (teamsResponse.data || []).map(item => ({
         id: item.id,
-        type: 'team' as const,
+        type: 'team',
         name: item.equipe?.nom || 'Équipe sans nom',
         latitude: item.latitude || 48.8566,
         longitude: item.longitude || 2.3522,
         details: `Spécialisation: ${item.equipe?.specialisation || 'Non spécifiée'}<br/>Rôle: ${item.role_equipe || 'Non spécifié'}`
       }));
 
+      // Combiner les deux types de localisation
       const combinedLocations = [...equipmentLocations, ...teamLocations];
       
       setLocations(combinedLocations);
@@ -84,6 +117,7 @@ const WorldMapPage = () => {
         updatedAt: new Date()
       });
 
+      // Afficher une notification de succès uniquement au premier chargement
       if (loading && combinedLocations.length > 0) {
         toast({
           title: "Carte chargée avec succès",
@@ -109,6 +143,7 @@ const WorldMapPage = () => {
 
   // Mettre en place la souscription en temps réel
   useEffect(() => {
+    // Canal pour les mises à jour d'équipement
     const equipmentChannel = supabase
       .channel('realtime-equipment')
       .on('postgres_changes', { 
@@ -120,6 +155,7 @@ const WorldMapPage = () => {
       })
       .subscribe();
 
+    // Canal pour les mises à jour d'équipes
     const teamsChannel = supabase
       .channel('realtime-teams')
       .on('postgres_changes', { 
@@ -131,12 +167,14 @@ const WorldMapPage = () => {
       })
       .subscribe();
 
+    // Nettoyage des abonnements
     return () => {
       supabase.removeChannel(equipmentChannel);
       supabase.removeChannel(teamsChannel);
     };
   }, [fetchLocations]);
 
+  // Fonction de rafraîchissement manuel
   const handleRefresh = () => {
     fetchLocations();
     toast({

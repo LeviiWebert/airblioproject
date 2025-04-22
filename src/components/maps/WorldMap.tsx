@@ -44,7 +44,6 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       
       if (data?.value) {
         setMapboxToken(data.value);
-        mapboxgl.accessToken = data.value;
         return true;
       }
       return false;
@@ -64,7 +63,6 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       if (updateError) throw updateError;
       
       setMapboxToken(token);
-      mapboxgl.accessToken = token;
       setTokenInputVisible(false);
       toast({
         title: "Token mis à jour",
@@ -75,7 +73,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
         map.current.remove();
         map.current = null;
       }
-      initializeMap();
+      initializeMap(token);
     } catch (err) {
       console.error("Erreur lors de la sauvegarde du token:", err);
       toast({
@@ -86,8 +84,8 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     }
   };
 
-  const initializeMap = () => {
-    if (!mapContainer.current || !mapboxToken) return;
+  const initializeMap = (token: string) => {
+    if (!mapContainer.current || !token) return;
     
     // Éviter l'initialisation multiple de la carte
     if (map.current) return;
@@ -96,7 +94,7 @@ const WorldMap = ({ locations }: WorldMapProps) => {
     setLoading(true);
 
     try {
-      mapboxgl.accessToken = mapboxToken;
+      mapboxgl.accessToken = token;
       
       map.current = new mapboxgl.Map({
         container: mapContainer.current,
@@ -104,7 +102,6 @@ const WorldMap = ({ locations }: WorldMapProps) => {
         center: [2.3522, 48.8566],
         zoom: 2,
         minZoom: 1.5,
-        maxParallelImageRequests: 10, // Optimisation des requêtes d'images
         attributionControl: false, // Désactiver le contrôle d'attribution pour optimiser le chargement
       });
 
@@ -175,13 +172,17 @@ const WorldMap = ({ locations }: WorldMapProps) => {
 
   // Chargement initial du token
   useEffect(() => {
-    loadMapboxToken().then((hasToken) => {
-      if (hasToken) {
-        initializeMap();
+    const setupMap = async () => {
+      const hasToken = await loadMapboxToken();
+      if (hasToken && mapboxToken) {
+        initializeMap(mapboxToken);
       } else {
         setTokenInputVisible(true);
+        setLoading(false);
       }
-    });
+    };
+    
+    setupMap();
     
     // Cleanup au démontage
     return () => {
@@ -198,6 +199,13 @@ const WorldMap = ({ locations }: WorldMapProps) => {
       addMarkersToMap();
     }
   }, [locations, mapInitialized]);
+
+  // Effet pour initialiser la carte quand le token change
+  useEffect(() => {
+    if (mapboxToken && !map.current) {
+      initializeMap(mapboxToken);
+    }
+  }, [mapboxToken]);
 
   const handleTokenSubmit = (e: React.FormEvent) => {
     e.preventDefault();
