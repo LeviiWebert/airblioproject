@@ -26,7 +26,7 @@ export const BaseAutocompleteInput: React.FC<BaseAutocompleteInputProps> = ({
   const [creating, setCreating] = useState(false);
 
   const { userType } = useAuth();
-  const canCreate = userType === "admin";
+  const canCreate = userType === "admin" || userType === "internal";
 
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 

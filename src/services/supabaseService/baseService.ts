@@ -11,7 +11,7 @@ const getAll = async () => {
   return data;
 };
 
-// Crée une nouvelle base (réservé admin)
+// Crée une nouvelle base (réservé admin et interne)
 const create = async (nom: string, description?: string) => {
   const { data, error } = await supabase
     .from("bases")
