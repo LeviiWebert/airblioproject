@@ -9,6 +9,30 @@ export type Json =
 export type Database = {
   public: {
     Tables: {
+      bases: {
+        Row: {
+          created_at: string | null
+          description: string | null
+          id: string
+          nom: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          nom: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          description?: string | null
+          id?: string
+          nom?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           created_at: string | null
@@ -368,6 +392,7 @@ export type Database = {
       }
       materiels: {
         Row: {
+          base_id: string | null
           created_at: string | null
           etat: string | null
           id: string
@@ -376,6 +401,7 @@ export type Database = {
           updated_at: string | null
         }
         Insert: {
+          base_id?: string | null
           created_at?: string | null
           etat?: string | null
           id?: string
@@ -384,6 +410,7 @@ export type Database = {
           updated_at?: string | null
         }
         Update: {
+          base_id?: string | null
           created_at?: string | null
           etat?: string | null
           id?: string
@@ -391,7 +418,15 @@ export type Database = {
           type_materiel?: string
           updated_at?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "materiels_base_id_fkey"
+            columns: ["base_id"]
+            isOneToOne: false
+            referencedRelation: "bases"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       pv_interventions: {
         Row: {

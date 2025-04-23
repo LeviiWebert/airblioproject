@@ -1,5 +1,5 @@
 
-import React from "react";
+import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
@@ -21,30 +21,42 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Materiel } from "@/types/models";
+import { BaseAutocompleteInput } from "@/components/form/BaseAutocompleteInput";
 
-// Define the schema for equipment form validation
+// Schema du formulaire matériel
 const equipmentSchema = z.object({
   reference: z.string().min(2, { message: "La référence doit contenir au moins 2 caractères" }),
   typeMateriel: z.string().min(2, { message: "Le type de matériel est requis" }),
   etat: z.enum(["disponible", "en utilisation", "en maintenance", "hors service"]),
+  base: z.object({
+    id: z.string().nullable(),
+    label: z.string()
+  }).refine(val => val.label.trim().length > 0, { message: "La base de stockage est requise" }),
 });
 
-// Export the type derived from the schema for use in other components
+// Export type
 export type EquipmentFormValues = z.infer<typeof equipmentSchema>;
 
 interface EquipmentFormProps {
   onSubmit: (values: EquipmentFormValues) => void;
-  initialData?: Partial<Materiel>;
+  initialData?: Partial<Materiel> & { base_id?: string, baseNom?: string };
   isSubmitting: boolean;
 }
 
 const EquipmentForm = ({ onSubmit, initialData, isSubmitting }: EquipmentFormProps) => {
+  // Remplir base à partir des props si modification
+  const [baseState, setBaseState] = useState<{ id: string | null, label: string }>({
+    id: (initialData?.base_id as string) || null,
+    label: (initialData as any)?.baseNom || "",
+  });
+
   const form = useForm<EquipmentFormValues>({
     resolver: zodResolver(equipmentSchema),
     defaultValues: {
       reference: initialData?.reference || "",
       typeMateriel: initialData?.typeMateriel || "",
       etat: (initialData?.etat as any) || "disponible",
+      base: { id: baseState.id, label: baseState.label },
     },
   });
 
@@ -72,6 +84,24 @@ const EquipmentForm = ({ onSubmit, initialData, isSubmitting }: EquipmentFormPro
               <FormLabel>Type de matériel</FormLabel>
               <FormControl>
                 <Input placeholder="Type de matériel" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+        <FormField
+          control={form.control}
+          name="base"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Base de stockage</FormLabel>
+              <FormControl>
+                <BaseAutocompleteInput
+                  value={field.value}
+                  onChange={field.onChange}
+                  disabled={isSubmitting}
+                  placeholder="Nom de la base"
+                />
               </FormControl>
               <FormMessage />
             </FormItem>
