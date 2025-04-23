@@ -11,32 +11,39 @@ import AddEquipmentDialog from "@/components/dialogs/AddEquipmentDialog";
 import EditEquipmentDialog from "@/components/dialogs/EditEquipmentDialog";
 import DeleteEquipmentDialog from "@/components/dialogs/DeleteEquipmentDialog";
 
+// Nouveau type incluant info base
+type EquipmentWithBase = Materiel & {
+  base_nom?: string | null;
+};
+
 const EquipmentPage = () => {
   const [loading, setLoading] = useState(true);
-  const [equipment, setEquipment] = useState<Materiel[]>([]);
+  const [equipment, setEquipment] = useState<EquipmentWithBase[]>([]);
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
-  const [selectedEquipment, setSelectedEquipment] = useState<Materiel | null>(null);
+  const [selectedEquipment, setSelectedEquipment] = useState<EquipmentWithBase | null>(null);
   const { toast } = useToast();
 
   const fetchEquipment = async () => {
     setLoading(true);
     try {
+      // Jointure pour récupérer le nom de la base
       const { data, error } = await supabase
         .from('materiels')
-        .select('*');
-          
+        .select('*, bases:base_id (nom)')
       if (error) throw error;
-      
-      // Transform the data to match our Materiel type
-      const formattedData: Materiel[] = (data || []).map((item) => ({
+
+      // Transforme la donnée pour l’affichage
+      const formattedData: EquipmentWithBase[] = (data || []).map((item: any) => ({
         id: item.id,
         reference: item.reference,
         typeMateriel: item.type_materiel,
-        etat: item.etat as "disponible" | "en utilisation" | "en maintenance" | "hors service"
+        etat: item.etat as "disponible" | "en utilisation" | "en maintenance" | "hors service",
+        base_nom: item.bases?.nom ?? null,
+        base_id: item.base_id,
       }));
-      
+
       setEquipment(formattedData);
     } catch (error: any) {
       console.error("Erreur lors du chargement du matériel:", error);
@@ -69,12 +76,12 @@ const EquipmentPage = () => {
     }
   };
 
-  const handleEdit = (item: Materiel) => {
+  const handleEdit = (item: EquipmentWithBase) => {
     setSelectedEquipment(item);
     setIsEditDialogOpen(true);
   };
 
-  const handleDelete = (item: Materiel) => {
+  const handleDelete = (item: EquipmentWithBase) => {
     setSelectedEquipment(item);
     setIsDeleteDialogOpen(true);
   };
@@ -111,6 +118,7 @@ const EquipmentPage = () => {
               <TableRow>
                 <TableHead>Référence</TableHead>
                 <TableHead>Type de matériel</TableHead>
+                <TableHead>Base</TableHead>
                 <TableHead>État</TableHead>
                 <TableHead className="text-right">Actions</TableHead>
               </TableRow>
@@ -121,6 +129,7 @@ const EquipmentPage = () => {
                   <TableRow key={item.id}>
                     <TableCell className="font-medium">{item.reference}</TableCell>
                     <TableCell>{item.typeMateriel}</TableCell>
+                    <TableCell>{item.base_nom || <span className="text-muted-foreground italic">Non renseignée</span>}</TableCell>
                     <TableCell>
                       <Badge variant="outline" className={getEquipmentStatusColor(item.etat)}>
                         {item.etat}
@@ -150,7 +159,7 @@ const EquipmentPage = () => {
                 ))
               ) : (
                 <TableRow>
-                  <TableCell colSpan={4} className="h-24 text-center">
+                  <TableCell colSpan={5} className="h-24 text-center">
                     Aucun matériel trouvé.
                   </TableCell>
                 </TableRow>
