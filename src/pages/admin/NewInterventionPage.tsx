@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useToast } from "@/hooks/use-toast";
@@ -19,6 +18,7 @@ import { cn } from "@/lib/utils";
 import { clientService, equipeService, interventionService } from "@/services/dataService";
 import { supabase } from "@/integrations/supabase/client";
 import { toast as sonnerToast } from "sonner";
+import { AdresseAutocompleteInput } from "@/components/form/AdresseAutocompleteInput";
 
 const formSchema = z.object({
   clientId: z.string().min(1, { message: "Veuillez sélectionner un client" }),
@@ -53,7 +53,6 @@ const NewInterventionPage = () => {
     },
   });
 
-  // Charger les clients et équipes
   useEffect(() => {
     const fetchData = async () => {
       try {
@@ -76,14 +75,12 @@ const NewInterventionPage = () => {
     fetchData();
   }, [toast]);
 
-  // Charger les données de l'intervention si on est en mode édition
   useEffect(() => {
     const fetchIntervention = async () => {
       if (!interventionId) return;
       
       setFetchLoading(true);
       try {
-        // Récupérer l'intervention sans transformation
         const rawData = await interventionService.getById(interventionId);
         console.log("Données brutes de l'intervention:", rawData);
         
@@ -91,7 +88,6 @@ const NewInterventionPage = () => {
           setOriginalIntervention(rawData);
           setIsEditMode(true);
           
-          // Récupérer l'ID de l'équipe principale des données brutes
           let equipeId = "";
           if (rawData.intervention_equipes && rawData.intervention_equipes.length > 0) {
             equipeId = rawData.intervention_equipes[0].equipe_id.id;
@@ -127,8 +123,6 @@ const NewInterventionPage = () => {
       console.log("Valeurs du formulaire:", values);
       
       if (isEditMode && originalIntervention) {
-        // Mode édition - Mettre à jour l'intervention existante
-        // Mettre à jour l'intervention
         await supabase
           .from('interventions')
           .update({
@@ -137,7 +131,6 @@ const NewInterventionPage = () => {
           })
           .eq('id', interventionId);
         
-        // Mettre à jour la demande
         await supabase
           .from('demande_interventions')
           .update({
@@ -147,7 +140,6 @@ const NewInterventionPage = () => {
           })
           .eq('id', originalIntervention.demande_intervention_id.id);
         
-        // Mettre à jour l'équipe (supprimer puis recréer l'association)
         await supabase
           .from('intervention_equipes')
           .delete()
@@ -169,8 +161,6 @@ const NewInterventionPage = () => {
           description: "L'intervention a été mise à jour avec succès.",
         });
       } else {
-        // Mode création - Créer une nouvelle intervention
-        // Créer d'abord une demande d'intervention
         const { data: demandeData, error: demandeError } = await supabase
           .from('demande_interventions')
           .insert([
@@ -186,7 +176,6 @@ const NewInterventionPage = () => {
         
         if (demandeError) throw demandeError;
         
-        // Ensuite créer l'intervention
         const { data: interventionData, error: interventionError } = await supabase
           .from('interventions')
           .insert([
@@ -203,7 +192,6 @@ const NewInterventionPage = () => {
         
         if (interventionError) throw interventionError;
         
-        // Mettre à jour la demande avec l'ID de l'intervention
         const { error: updateDemandeError } = await supabase
           .from('demande_interventions')
           .update({ intervention_id: interventionData.id })
@@ -211,7 +199,6 @@ const NewInterventionPage = () => {
         
         if (updateDemandeError) throw updateDemandeError;
         
-        // Créer l'association avec l'équipe
         const { error: equipeError } = await supabase
           .from('intervention_equipes')
           .insert([
@@ -328,7 +315,11 @@ const NewInterventionPage = () => {
                 <FormItem>
                   <FormLabel>Adresse d'intervention</FormLabel>
                   <FormControl>
-                    <Input placeholder="123 rue de la Mer, 13000 Marseille" {...field} />
+                    <AdresseAutocompleteInput
+                      value={field.value || ""}
+                      onChange={field.onChange}
+                      placeholder="123 rue de la Mer, 13000 Marseille"
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
