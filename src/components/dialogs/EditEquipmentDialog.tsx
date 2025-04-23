@@ -25,6 +25,7 @@ const EditEquipmentDialog = ({ open, onOpenChange, onEquipmentUpdated, equipment
           reference: values.reference,
           type_materiel: values.typeMateriel,
           etat: values.etat,
+          base_id: values.base.id, // Ajout de la référence à la base
         })
         .eq("id", equipment.id);
 

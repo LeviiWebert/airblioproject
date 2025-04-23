@@ -46,10 +46,7 @@ const EquipmentForm = ({ onSubmit, initialData, isSubmitting }: EquipmentFormPro
   // Remplir base à partir des props si modification
   const [baseState, setBaseState] = useState<{ id: string | null; label: string }>({
     id: typeof initialData?.base_id === "string" ? initialData?.base_id : null,
-    label:
-      typeof (initialData as any)?.baseNom === "string"
-        ? (initialData as any).baseNom
-        : "",
+    label: typeof (initialData as any)?.baseNom === "string" ? (initialData as any).baseNom : "",
   });
 
   const form = useForm<EquipmentFormValues>({
@@ -59,8 +56,8 @@ const EquipmentForm = ({ onSubmit, initialData, isSubmitting }: EquipmentFormPro
       typeMateriel: initialData?.typeMateriel || "",
       etat: (initialData?.etat as any) || "disponible",
       base: {
-        id: baseState.id ?? null,
-        label: typeof baseState.label === "string" ? baseState.label : "",
+        id: baseState.id,
+        label: baseState.label,
       },
     },
   });

@@ -1,9 +1,8 @@
-
 import { useEffect, useState } from "react";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { Loader2, Plus, Wrench, Pencil, Trash } from "lucide-react";
+import { Loader2, Plus, Pencil, Trash } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Materiel } from "@/types/models";
@@ -14,6 +13,7 @@ import DeleteEquipmentDialog from "@/components/dialogs/DeleteEquipmentDialog";
 // Nouveau type incluant info base
 type EquipmentWithBase = Materiel & {
   base_nom?: string | null;
+  base_id?: string | null;
 };
 
 const EquipmentPage = () => {
@@ -31,17 +31,17 @@ const EquipmentPage = () => {
       // Jointure pour récupérer le nom de la base
       const { data, error } = await supabase
         .from('materiels')
-        .select('*, bases:base_id (nom)')
+        .select('*, bases:base_id (nom, id)')
       if (error) throw error;
 
-      // Transforme la donnée pour l’affichage
+      // Transforme la donnée pour l'affichage
       const formattedData: EquipmentWithBase[] = (data || []).map((item: any) => ({
         id: item.id,
         reference: item.reference,
         typeMateriel: item.type_materiel,
         etat: item.etat as "disponible" | "en utilisation" | "en maintenance" | "hors service",
         base_nom: item.bases?.nom ?? null,
-        base_id: item.base_id,
+        base_id: item.base_id || null,
       }));
 
       setEquipment(formattedData);
@@ -77,7 +77,12 @@ const EquipmentPage = () => {
   };
 
   const handleEdit = (item: EquipmentWithBase) => {
-    setSelectedEquipment(item);
+    // S'assurer que l'information de la base est passée correctement
+    const equipmentWithBase = {
+      ...item,
+      baseNom: item.base_nom || "",
+    };
+    setSelectedEquipment(equipmentWithBase);
     setIsEditDialogOpen(true);
   };
 
