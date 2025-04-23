@@ -1,3 +1,4 @@
+
 import React, { useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
@@ -99,8 +100,17 @@ const EquipmentForm = ({ onSubmit, initialData, isSubmitting }: EquipmentFormPro
               <FormLabel>Base de stockage</FormLabel>
               <FormControl>
                 <BaseAutocompleteInput
-                  value={field.value}
-                  onChange={field.onChange}
+                  value={{
+                    id: field.value.id,
+                    label: field.value.label || ""
+                  }}
+                  onChange={(val) => {
+                    // S'assurer que les valeurs ne sont jamais undefined
+                    field.onChange({
+                      id: val.id,
+                      label: val.label || ""
+                    });
+                  }}
                   disabled={isSubmitting}
                   placeholder="Nom de la base"
                 />
