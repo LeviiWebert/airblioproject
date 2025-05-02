@@ -95,6 +95,7 @@ export type Database = {
           description: string
           id: string
           intervention_id: string | null
+          motif_rejet: string | null
           statut: string | null
           updated_at: string | null
           urgence: string | null
@@ -106,6 +107,7 @@ export type Database = {
           description: string
           id?: string
           intervention_id?: string | null
+          motif_rejet?: string | null
           statut?: string | null
           updated_at?: string | null
           urgence?: string | null
@@ -117,6 +119,7 @@ export type Database = {
           description?: string
           id?: string
           intervention_id?: string | null
+          motif_rejet?: string | null
           statut?: string | null
           updated_at?: string | null
           urgence?: string | null

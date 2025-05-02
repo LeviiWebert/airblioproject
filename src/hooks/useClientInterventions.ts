@@ -43,7 +43,7 @@ export const useClientInterventions = () => {
           setClientData(clientData);
         }
         
-        // Récupérer toutes les demandes d'intervention du client
+        // Récupérer toutes les demandes d'intervention du client avec motif_rejet
         const { data: demandesData, error: demandesError } = await supabase
           .from('demande_interventions')
           .select(`

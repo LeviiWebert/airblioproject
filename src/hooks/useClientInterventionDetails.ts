@@ -67,6 +67,7 @@ export const useClientInterventionDetails = () => {
         }
         setAuthChecked(true);
 
+        // Fetch the request with motif_rejet column included
         const { data: demandeData, error: demandeError } = await supabase
           .from('demande_interventions')
           .select(`

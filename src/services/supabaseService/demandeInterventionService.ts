@@ -78,7 +78,7 @@ const updateStatus = async (id: string, status: string, comment?: string) => {
   
   const updateData: any = { statut: status };
   
-  // Add comment to the description field if provided (for rejection cases)
+  // Add comment to the motif_rejet field if provided (for rejection cases)
   if (comment && status === 'rejetée') {
     updateData.motif_rejet = comment;
   }

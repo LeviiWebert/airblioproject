@@ -61,7 +61,7 @@ export const InterventionMainCard = ({
       </CardHeader>
       <CardContent className="p-6">
         <div className="space-y-6">
-          {/* Affichage du motif de rejet si la demande a été refusée */}
+          {/* Affichage du motif de rejet si la demande a été rejetée */}
           {demande.statut === 'rejetée' && demande.motif_rejet && (
             <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />

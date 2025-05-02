@@ -1,16 +1,17 @@
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { supabase } from "@/integrations/supabase/client";
 import { InterventionStatusBadge } from "@/components/interventions/InterventionStatusBadge";
 import { PriorityBadge } from "@/components/interventions/PriorityBadge";
-import { Eye, Calendar, Clock, CheckCircle, FileText, MapPin, User, RefreshCcw, Edit } from "lucide-react";
+import { Eye, Calendar, Clock, AlertCircle, MapPin, User, RefreshCcw, Edit } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useAuth } from "@/hooks/useAuth";
+import { Alert, AlertDescription } from "@/components/ui/alert";
 
 const InterventionsList = () => {
   const { toast } = useToast();
@@ -323,11 +324,12 @@ const InterventionsList = () => {
 
                   {/* Affichage du motif de refus si la demande a été rejetée */}
                   {item.statut === 'rejetée' && item.motif_rejet && (
-                    <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-md">
-                      <p className="text-sm text-red-800">
-                        <strong>Refusée :</strong> {item.motif_rejet}
-                      </p>
-                    </div>
+                    <Alert variant="destructive" className="mb-4">
+                      <AlertCircle className="h-4 w-4 mr-2" />
+                      <AlertDescription>
+                        <strong>Motif du refus : </strong> {item.motif_rejet}
+                      </AlertDescription>
+                    </Alert>
                   )}
 
                   <p className="text-sm mb-4 line-clamp-2">
