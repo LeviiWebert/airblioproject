@@ -61,11 +61,11 @@ const InterventionRequests = () => {
   };
 
   // Fonction pour gérer le rejet via la boîte de dialogue
-  const handleRejectRequest = async () => {
+  const handleRejectRequest = async (comment?: string) => {
     console.log("👆 Validation du refus de la demande via la boîte de dialogue");
     try {
-      console.log("🔄 Appel de confirmAction()...");
-      const success = await confirmAction();
+      console.log("🔄 Appel de confirmAction() avec le commentaire:", comment);
+      const success = await confirmAction(comment);
       console.log("Résultat de confirmAction:", success);
       
       if (success) {

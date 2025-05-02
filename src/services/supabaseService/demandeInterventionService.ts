@@ -73,12 +73,19 @@ const create = async (demandeData: any) => {
 };
 
 // Function to update the status of an intervention request
-const updateStatus = async (id: string, status: string) => {
+const updateStatus = async (id: string, status: string, comment?: string) => {
   console.log(`Updating status for demande ${id} to ${status}`);
+  
+  const updateData: any = { statut: status };
+  
+  // Add comment to the description field if provided (for rejection cases)
+  if (comment && status === 'rejetée') {
+    updateData.motif_rejet = comment;
+  }
   
   const { data, error } = await supabase
     .from('demande_interventions')
-    .update({ statut: status })
+    .update(updateData)
     .eq('id', id)
     .select();
   

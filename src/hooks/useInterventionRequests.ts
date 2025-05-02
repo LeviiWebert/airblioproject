@@ -50,13 +50,25 @@ export const useInterventionRequests = () => {
   };
 
   // Fonction pour confirmer l'action (accept/reject)
-  const confirmAction = async () => {
+  const confirmAction = async (comment?: string) => {
     if (!selectedRequest || !actionType) {
       console.error("❌ Aucune demande ou action sélectionnée");
       return false;
     }
     
+    // Vérifier si un commentaire est fourni pour le rejet
+    if (actionType === "reject" && !comment?.trim()) {
+      console.error("❌ Commentaire obligatoire pour le rejet");
+      useToastHook({
+        variant: "destructive",
+        title: "Commentaire requis",
+        description: "Veuillez fournir un motif pour le refus de la demande.",
+      });
+      return false;
+    }
+    
     console.log(`🔄 Début de l'action: ${actionType} pour la demande ID: ${selectedRequest.id}`);
+    console.log(`Commentaire de refus: ${comment || 'Non fourni'}`);
     setProcessing(true);
     
     try {
@@ -83,8 +95,8 @@ export const useInterventionRequests = () => {
       } else if (actionType === "reject") {
         console.log("🔄 Rejet de la demande...");
         
-        // Rejeter la demande
-        await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée");
+        // Rejeter la demande avec le commentaire
+        await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée", comment);
         
         // Mettre à jour l'interface en supprimant la demande traitée
         setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
