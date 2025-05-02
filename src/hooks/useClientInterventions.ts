@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useToast } from "@/hooks/use-toast";
@@ -52,6 +51,7 @@ export const useClientInterventions = () => {
             description,
             urgence,
             statut,
+            motif_rejet,
             intervention_id,
             interventions:intervention_id (
               id,

@@ -1,4 +1,3 @@
-
 import { useEffect, useState, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -321,6 +320,15 @@ const InterventionsList = () => {
                       )}
                     </div>
                   </div>
+
+                  {/* Affichage du motif de refus si la demande a été rejetée */}
+                  {item.statut === 'rejetée' && item.motif_rejet && (
+                    <div className="mb-4 p-2 bg-red-50 border border-red-200 rounded-md">
+                      <p className="text-sm text-red-800">
+                        <strong>Refusée :</strong> {item.motif_rejet}
+                      </p>
+                    </div>
+                  )}
 
                   <p className="text-sm mb-4 line-clamp-2">
                     {item.description}
