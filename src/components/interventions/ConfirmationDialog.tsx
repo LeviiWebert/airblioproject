@@ -58,7 +58,14 @@ export const ConfirmationDialog = ({
   };
 
   return (
-    <AlertDialog open={open} onOpenChange={onOpenChange}>
+    <AlertDialog open={open} onOpenChange={(newOpen) => {
+      if (!newOpen) {
+        // Reset form state when dialog closes
+        setComment("");
+        setError(null);
+      }
+      onOpenChange(newOpen);
+    }}>
       <AlertDialogContent>
         <AlertDialogHeader>
           <AlertDialogTitle>

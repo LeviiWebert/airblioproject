@@ -65,12 +65,18 @@ const InterventionRequests = () => {
     console.log("👆 Validation du refus de la demande via la boîte de dialogue");
     try {
       console.log("🔄 Appel de confirmAction() avec le commentaire:", comment);
+      if (!comment?.trim()) {
+        console.error("❌ Commentaire obligatoire pour le rejet");
+        toast.error("Veuillez fournir un motif pour le refus de la demande");
+        return false;
+      }
+      
       const success = await confirmAction(comment);
       console.log("Résultat de confirmAction:", success);
       
       if (success) {
         console.log("✅ Demande rejetée avec succès");
-        toast.success("Demande d'intervention refusée");
+        toast.success("Demande d'intervention refusée avec succès");
         setShowRejectDialog(false);
         refreshRequests();
       } else {

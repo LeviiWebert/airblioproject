@@ -96,6 +96,7 @@ export const useInterventionRequests = () => {
         return true;
       } else if (actionType === "reject") {
         console.log("🔄 Rejet de la demande...");
+        console.log("Motif de rejet fourni:", comment);
         
         // Rejeter la demande avec le commentaire
         await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée", comment);

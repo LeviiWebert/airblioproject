@@ -75,12 +75,14 @@ const create = async (demandeData: any) => {
 // Function to update the status of an intervention request
 const updateStatus = async (id: string, status: string, comment?: string) => {
   console.log(`Updating status for demande ${id} to ${status}`);
+  console.log(`Comment provided: ${comment || 'None'}`);
   
   const updateData: any = { statut: status };
   
   // Add comment to the motif_rejet field if provided (for rejection cases)
   if (comment && status === 'rejetée') {
     updateData.motif_rejet = comment;
+    console.log("Adding rejection reason:", comment);
   }
   
   const { data, error } = await supabase
