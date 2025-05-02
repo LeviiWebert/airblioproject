@@ -119,7 +119,7 @@ export const ConfirmationDialog = ({
           <Button
             onClick={handleConfirm}
             variant={actionType === "accept" ? "default" : "destructive"}
-            disabled={isLoading}
+            disabled={isLoading || (actionType === "reject" && !comment.trim())}
           >
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
             {actionType === "accept" ? "Accepter" : "Refuser"}

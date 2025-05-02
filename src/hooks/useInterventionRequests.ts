@@ -57,14 +57,16 @@ export const useInterventionRequests = () => {
     }
     
     // Vérifier si un commentaire est fourni pour le rejet
-    if (actionType === "reject" && !comment?.trim()) {
-      console.error("❌ Commentaire obligatoire pour le rejet");
-      useToastHook({
-        variant: "destructive",
-        title: "Commentaire requis",
-        description: "Veuillez fournir un motif pour le refus de la demande.",
-      });
-      return false;
+    if (actionType === "reject") {
+      if (!comment?.trim()) {
+        console.error("❌ Commentaire obligatoire pour le rejet");
+        useToastHook({
+          variant: "destructive",
+          title: "Commentaire requis",
+          description: "Veuillez fournir un motif pour le refus de la demande.",
+        });
+        return false;
+      }
     }
     
     console.log(`🔄 Début de l'action: ${actionType} pour la demande ID: ${selectedRequest.id}`);
