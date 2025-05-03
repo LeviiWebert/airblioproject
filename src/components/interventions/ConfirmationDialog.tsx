@@ -15,7 +15,7 @@ import { fr } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
 import { useState, useEffect } from "react";
-import { FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Label } from "@/components/ui/label";
 
 interface ConfirmationDialogProps {
   open: boolean;
@@ -110,8 +110,8 @@ export const ConfirmationDialog = ({
                 </p>
                 
                 <div className="mt-4">
-                  <FormItem className="space-y-1">
-                    <FormLabel className="font-medium">Motif du refus <span className="text-red-500">*</span></FormLabel>
+                  <div className="space-y-1">
+                    <Label className="font-medium">Motif du refus <span className="text-red-500">*</span></Label>
                     <Textarea
                       placeholder="Veuillez indiquer le motif du refus..."
                       value={comment}
@@ -123,9 +123,9 @@ export const ConfirmationDialog = ({
                       disabled={isLoading}
                     />
                     {error && (
-                      <FormMessage>{error}</FormMessage>
+                      <p className="text-sm font-medium text-red-500">{error}</p>
                     )}
-                  </FormItem>
+                  </div>
                 </div>
               </div>
             )}
