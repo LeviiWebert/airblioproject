@@ -100,6 +100,7 @@ export const useInterventionRequests = () => {
         
         // Rejeter la demande avec le commentaire
         await demandeInterventionService.updateStatus(selectedRequest.id, "rejetée", comment);
+        console.log("✅ Demande rejetée avec succès, statut mis à jour et motif enregistré");
         
         // Mettre à jour l'interface en supprimant la demande traitée
         setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));

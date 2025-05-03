@@ -14,7 +14,7 @@ import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { Loader2 } from "lucide-react";
 import { Textarea } from "@/components/ui/textarea";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 
 interface ConfirmationDialogProps {
@@ -36,6 +36,15 @@ export const ConfirmationDialog = ({
 }: ConfirmationDialogProps) => {
   const [comment, setComment] = useState("");
   const [error, setError] = useState<string | null>(null);
+
+  // Reset form state when dialog opens with new data or closes
+  useEffect(() => {
+    if (open) {
+      // Only reset if the dialog is opening
+      setComment("");
+      setError(null);
+    }
+  }, [open, selectedRequest, actionType]);
 
   if (!selectedRequest) return null;
 
@@ -111,6 +120,7 @@ export const ConfirmationDialog = ({
                         if(e.target.value.trim()) setError(null);
                       }}
                       className={error ? "border-red-500" : ""}
+                      disabled={isLoading}
                     />
                     {error && (
                       <FormMessage>{error}</FormMessage>
