@@ -152,6 +152,12 @@ const InterventionsList = () => {
     );
   };
 
+  const getRejectedInterventions = () => {
+    return interventions.filter(intervention => 
+      intervention.statut === 'rejetée'
+    );
+  };
+
   const formatDate = (dateString: string | null) => {
     if (!dateString) return "Non planifiée";
     return format(new Date(dateString), "dd MMMM yyyy à HH:mm", { locale: fr });
@@ -214,6 +220,7 @@ const InterventionsList = () => {
             <TabsTrigger value="pending">En attente ({getPendingInterventions().length})</TabsTrigger>
             <TabsTrigger value="active">En cours ({getActiveInterventions().length})</TabsTrigger>
             <TabsTrigger value="completed">Terminées ({getCompletedInterventions().length})</TabsTrigger>
+            <TabsTrigger value="rejected">Refusées ({getRejectedInterventions().length})</TabsTrigger>
           </TabsList>
 
           <TabsContent value="all" className="space-y-4">
@@ -266,6 +273,18 @@ const InterventionsList = () => {
               </Card>
             ) : (
               renderInterventionsList(getCompletedInterventions())
+            )}
+          </TabsContent>
+
+          <TabsContent value="rejected" className="space-y-4">
+            {getRejectedInterventions().length === 0 ? (
+              <Card>
+                <CardContent className="p-8 text-center">
+                  <p className="text-muted-foreground">Vous n'avez pas d'interventions refusées.</p>
+                </CardContent>
+              </Card>
+            ) : (
+              renderInterventionsList(getRejectedInterventions())
             )}
           </TabsContent>
         </Tabs>
