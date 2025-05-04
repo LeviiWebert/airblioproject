@@ -6,24 +6,21 @@ import { Textarea } from "@/components/ui/textarea";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 
-interface ValidationProps {
-  intervention: any;
+export interface ValidationProps {
   feedback: string;
   setFeedback: (v: string) => void;
   submitting: boolean;
   handleValidate: (v: boolean) => void;
+  completed?: boolean;
 }
 
 export const InterventionValidationCard = ({
-  intervention,
   feedback,
   setFeedback,
   submitting,
-  handleValidate
+  handleValidate,
+  completed
 }: ValidationProps) => {
-  if (!intervention) return null;
-  if (intervention.statut !== "terminée") return null;
-  // pv_interventions is loaded as part of intervention
   return (
     <Card className="print:hidden">
       <CardHeader>
@@ -41,10 +38,10 @@ export const InterventionValidationCard = ({
               className="min-h-[120px]"
               value={feedback}
               onChange={(e) => setFeedback(e.target.value)}
-              disabled={intervention.pv_interventions?.validation_client !== null}
+              disabled={completed !== undefined}
             />
           </div>
-          {intervention.pv_interventions?.validation_client === null ? (
+          {completed === undefined ? (
             <div className="flex flex-col sm:flex-row gap-3 pt-2">
               <Button 
                 onClick={() => handleValidate(true)} 
@@ -67,24 +64,17 @@ export const InterventionValidationCard = ({
           ) : (
             <div className="flex items-center justify-between p-4 border rounded-md">
               <div className="flex items-center">
-                {intervention.pv_interventions?.validation_client ? (
+                {completed ? (
                   <Check className="h-5 w-5 text-green-500 mr-2" />
                 ) : (
                   <X className="h-5 w-5 text-red-500 mr-2" />
                 )}
                 <div>
                   <p className="font-medium">
-                    {intervention.pv_interventions?.validation_client 
+                    {completed 
                       ? "Intervention validée" 
                       : "Problème signalé"
                     }
-                  </p>
-                  <p className="text-xs text-muted-foreground">
-                    Le {format(
-                      new Date(intervention.pv_interventions?.date_validation || ''),
-                      "dd/MM/yyyy à HH:mm",
-                      { locale: fr }
-                    )}
                   </p>
                 </div>
               </div>

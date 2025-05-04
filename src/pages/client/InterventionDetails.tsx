@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
@@ -12,7 +13,7 @@ import { InterventionMainCard } from "./components/InterventionMainCard";
 import { InterventionTeamsAndEquipment } from "./components/InterventionTeamsAndEquipment";
 import { InterventionRecapSidebar } from "./components/InterventionRecapSidebar";
 import { InterventionValidationCard } from "./components/InterventionValidationCard";
-import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Alert, AlertTitle, AlertDescription } from "@/components/ui/alert";
 
 const handlePrint = () => {
   window.print();
@@ -167,8 +168,7 @@ export default function InterventionDetails() {
                 feedback={feedback}
                 setFeedback={setFeedback}
                 submitting={submitting}
-                onValidate={() => handleValidateIntervention(true)}
-                onReject={() => handleValidateIntervention(false)}
+                handleValidate={handleValidateIntervention}
                 completed={
                   intervention?.pv_interventions?.validation_client === true
                 }
