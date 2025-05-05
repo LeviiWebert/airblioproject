@@ -340,7 +340,7 @@ const AdminInterventionDetails = () => {
                   )}
                 </CardContent>
                 <CardFooter className="border-t pt-4">
-                  <Button variant="outline" className="w-full" onClick={() => navigate(`/admin/pv/${intervention.id}`)}>
+                  <Button variant="outline" className="w-full" onClick={handleEditPv}>
                     Éditer le PV d'intervention
                   </Button>
                 </CardFooter>
@@ -434,7 +434,7 @@ const AdminInterventionDetails = () => {
               <Button 
                 variant="outline" 
                 className="w-full"
-                onClick={() => navigate(`/admin/pv/${intervention.id}`)}
+                onClick={handleEditPv}
               >
                 <FileText className="mr-2 h-4 w-4" />
                 Éditer le PV
