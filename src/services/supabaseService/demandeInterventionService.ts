@@ -127,14 +127,17 @@ const createFromRequestAndAccept = async (demandeId: string) => {
     console.log("✅ Demande trouvée:", {
       id: demande.id, 
       description: demande.description,
-      client: demande.client?.nom_entreprise
+      client: demande.client?.nom_entreprise,
+      date : demande.date_demande,
+      localisation: demande.localisation
     });
     
     // 2. Créer une intervention basique avec seulement les données essentielles
     const interventionData = {
       demande_intervention_id: demandeId,
       statut: 'planifiée',
-      localisation: 'À définir'
+      date_debut: demande.date_demande,
+      localisation: demande.localisation
     };
     
     console.log("📝 Création de l'intervention avec ces données:", interventionData);
