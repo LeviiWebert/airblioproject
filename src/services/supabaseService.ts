@@ -11,3 +11,4 @@ export { facturationService } from './supabaseService/facturationService';
 export { suiviEquipeService } from './supabaseService/suiviEquipeService';
 export { suiviMaterielService } from './supabaseService/suiviMaterielService';
 export { dashboardService } from './supabaseService/dashboardService';
+export { baseService } from './supabaseService/baseService';
