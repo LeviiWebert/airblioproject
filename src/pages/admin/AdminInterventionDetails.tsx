@@ -64,6 +64,14 @@ const AdminInterventionDetails = () => {
         title: "Statut mis à jour",
         description: `Le statut de l'intervention a été mis à jour avec succès.`,
       });
+      await interventionService.updateIntervention(intervention.id, {
+        date_fin: new Date(), // ou une autre date au bon format
+      });;
+      
+      toast({
+        title: "Date de fin mise à jour",
+        description: `La date de fin de l'intervention a été mis à jour avec succès.`,
+      });
       
       fetchInterventionDetails();
     } catch (error: any) {
