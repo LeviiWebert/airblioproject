@@ -12,6 +12,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "sonner";
 import { useInterventionStep1 } from "@/hooks/useInterventionStep1";
+import { AdresseAutocompleteInput } from "@/components/form/AdresseAutocompleteInput";
 
 const requestSchema = z.object({
   description: z.string()
@@ -140,10 +141,11 @@ const RequestIntervention = () => {
                       <FormItem>
                         <FormLabel className="text-lg font-medium">Lieu d'intervention</FormLabel>
                         <FormControl>
-                          <Input 
-                            placeholder="Adresse ou site de l'intervention" 
-                            {...field} 
-                          />
+                        <AdresseAutocompleteInput
+                          value={field.value || ""}
+                          onChange={field.onChange}
+                          placeholder="123 rue de la Mer, 13000 Marseille"
+                        />
                         </FormControl>
                         <FormMessage />
                       </FormItem>
