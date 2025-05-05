@@ -379,14 +379,13 @@ const AdminInterventionDetails = () => {
                   </Button>
                 )}
                 
-                {intervention.statut === "planifiée" && (
-                  <Button 
-                    className="w-full" 
-                    onClick={() => handleStatusChange("en_cours")}
-                  >
-                    Démarrer l'intervention
-                  </Button>
-                )}
+                <Button
+                  className={`w-full ${!intervention.date_debut ? "opacity-50 cursor-not-allowed" : ""}`}
+                  onClick={() => handleStatusChange("en_cours")}
+                  disabled={!intervention.date_debut}
+                >
+                  Démarrer l'intervention
+                </Button>
                 
                 {intervention.statut === "en_cours" && (
                   <Button 
