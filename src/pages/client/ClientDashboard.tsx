@@ -8,6 +8,7 @@ import { RecentInterventions } from "@/components/client-dashboard/RecentInterve
 import { TechnicianTeam } from "@/components/client-dashboard/TechnicianTeam";
 import { QuickActions } from "@/components/client-dashboard/QuickActions";
 import { InterventionTabs } from "@/components/client-dashboard/InterventionTabs";
+import { EquipmentAlert } from "@/components/client-dashboard/EquipmentAlert";
 
 const ClientDashboard = () => {
   const {
@@ -44,6 +45,8 @@ const ClientDashboard = () => {
           </Link>
         </div>
       </div>
+
+      <EquipmentAlert />
 
       <StatCards
         loading={loading}

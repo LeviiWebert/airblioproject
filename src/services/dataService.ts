@@ -11,7 +11,8 @@ import {
   facturationService,
   suiviEquipeService,
   suiviMaterielService,
-  dashboardService
+  dashboardService,
+  baseService
 } from "./supabaseService";
 
 // Re-export all services
@@ -26,5 +27,6 @@ export {
   facturationService,
   suiviEquipeService,
   suiviMaterielService,
-  dashboardService
+  dashboardService,
+  baseService
 };
