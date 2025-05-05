@@ -64,9 +64,12 @@ const AdminInterventionDetails = () => {
         title: "Statut mis à jour",
         description: `Le statut de l'intervention a été mis à jour avec succès.`,
       });
-      await interventionService.updateIntervention(intervention.id, {
-        date_fin: new Date(), // ou une autre date au bon format
-      });;
+      if(newStatus == "terminée") {
+        await interventionService.updateIntervention(intervention.id, {
+          date_fin: new Date(),
+        });
+      }
+      
       
       toast({
         title: "Date de fin mise à jour",
