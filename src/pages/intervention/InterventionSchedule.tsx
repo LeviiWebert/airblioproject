@@ -91,7 +91,8 @@ const InterventionSchedule = () => {
         description: finalData.description, 
         urgence: finalData.urgence,
         statut: "en_attente",
-        date_demande: new Date().toISOString()
+        date_demande: new Date().toISOString(),
+        localisation: finalData.localisation,
       };
       
       console.log("Données à envoyer:", demandData);
