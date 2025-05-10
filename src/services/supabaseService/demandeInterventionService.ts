@@ -59,7 +59,7 @@ const getById = async (id: string) => {
 // Function to create a new intervention request
 const create = async (demandeData: any) => {
   // Remove any fields not in the demande_interventions table
-  const { localisation, ...validData } = demandeData;
+  const { ...validData } = demandeData;
   
   console.log("Sanitized data for demande_interventions:", validData);
   
