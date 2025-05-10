@@ -25,6 +25,7 @@ const getPending = async () => {
         tel
       )
     `)
+    .order('created_at', { ascending: false })
     .eq('statut', 'en_attente');
   
   if (error) {

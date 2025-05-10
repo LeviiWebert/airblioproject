@@ -10,7 +10,8 @@ const getAll = async () => {
     .select(`
       *,
       demande_intervention_id(*, client_id(*))
-    `);
+    `)
+    .order('updated_at', { ascending: false });
   
   if (error) {
     console.error("❌ Erreur lors de la récupération des interventions:", error);
