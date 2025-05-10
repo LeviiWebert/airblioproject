@@ -91,7 +91,7 @@ const InterventionSchedule = () => {
         description: finalData.description, 
         urgence: finalData.urgence,
         statut: "en_attente",
-        date_demande: new Date().toISOString(),
+        date_demande: finalData.schedule.date+"T"+ finalData.schedule.timeSlot,
         localisation: finalData.localisation,
       };
       
