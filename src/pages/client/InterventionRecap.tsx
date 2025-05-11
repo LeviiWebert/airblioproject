@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect, useRef } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
@@ -132,7 +133,7 @@ const InterventionRecap = () => {
     try {
       const content = contentRef.current;
       const canvas = await html2canvas(content, {
-        dpi: 300, // Use dpi instead of scale
+        scale: 2, // Using the correct scale property for better quality
         useCORS: true,
         logging: false,
       });
