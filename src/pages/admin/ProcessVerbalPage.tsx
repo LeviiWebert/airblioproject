@@ -126,9 +126,9 @@ const ProcessVerbalPage = () => {
 
   const handleCreateOrEditInvoice = () => {
     if (facturationId) {
-      navigate(`/admin/facturation/${facturationId}/edit`);
+      navigate(`/admin/billing`);
     } else if (pv?.intervention_id) {
-      navigate(`/admin/facturation/new?interventionId=${pv.intervention_id}`);
+      navigate(`/admin/billing`);
     }
   };
 
