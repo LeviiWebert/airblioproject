@@ -133,7 +133,8 @@ const InterventionRecap = () => {
     try {
       const content = contentRef.current;
       const canvas = await html2canvas(content, {
-        windowWidth: content.offsetWidth * 2, // Using windowWidth for a better quality
+        width: content.offsetWidth * 2, // Double the width for better quality
+        height: content.offsetHeight * 2, // Double the height for better quality
         useCORS: true,
         logging: false,
       });
