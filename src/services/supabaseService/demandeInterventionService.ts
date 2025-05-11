@@ -135,7 +135,8 @@ const createFromRequestAndAccept = async (demandeId: string) => {
       demande_intervention_id: demandeId,
       statut: 'planifiée',
       date_debut: demande.date_demande,
-      localisation: demande.localisation
+      // Utiliser la localisation de la demande ou fournir une valeur par défaut
+      localisation: demande.localisation || "À déterminer"
     };
     
     console.log("📝 Création de l'intervention avec ces données:", interventionData);

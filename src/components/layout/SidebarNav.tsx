@@ -1,3 +1,4 @@
+
 import { useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import {
@@ -11,7 +12,8 @@ import {
   BarChart3,
   ChevronRight,
   ChevronDown,
-  MapPin
+  MapPin,
+  Calendar
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +61,11 @@ export const SidebarNav = ({ isOpen }: SidebarNavProps) => {
         { title: "Nouvelle intervention", href: "/admin/interventions/new" },
         { title: "Demandes en attente", href: "/admin/intervention-requests" },
       ],
+    },
+    {
+      title: "Calendrier",
+      href: "/admin/calendar",
+      icon: Calendar,
     },
     {
       title: "Équipes",
