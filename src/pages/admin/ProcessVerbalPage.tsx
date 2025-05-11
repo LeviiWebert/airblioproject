@@ -1,7 +1,7 @@
 
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import { ArrowLeft, Clock, Calendar, FileText, User, Building, CheckCircle, XCircle, Download, Printer } from "lucide-react";
+import { ArrowLeft, Clock, Calendar, FileText, User, Building, CheckCircle, XCircle, Download, Printer, Receipt } from "lucide-react";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { supabase } from "@/integrations/supabase/client";
@@ -44,6 +44,7 @@ const ProcessVerbalPage = () => {
   const { toast } = useToast();
   const [pv, setPv] = useState<PvIntervention | null>(null);
   const [loading, setLoading] = useState(true);
+  const [facturationId, setFacturationId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchPvDetails = async () => {
@@ -61,13 +62,13 @@ const ProcessVerbalPage = () => {
             commentaire,
             client_id,
             intervention_id,
-            client:client_id (
+            client:clients (
               id,
               nom_entreprise,
               email,
               tel
             ),
-            intervention:intervention_id (
+            intervention:interventions (
               id,
               date_debut,
               date_fin,
@@ -82,6 +83,19 @@ const ProcessVerbalPage = () => {
         if (pvError) throw pvError;
         
         setPv(pvData);
+
+        // Vérifiez si une facturation existe pour cette intervention
+        if (pvData?.intervention_id) {
+          const { data: facturationData } = await supabase
+            .from('facturations')
+            .select('id')
+            .eq('intervention_id', pvData.intervention_id)
+            .maybeSingle();
+          
+          if (facturationData) {
+            setFacturationId(facturationData.id);
+          }
+        }
         
       } catch (error) {
         console.error("Erreur lors du chargement du PV:", error);
@@ -108,6 +122,14 @@ const ProcessVerbalPage = () => {
       title: "Téléchargement du PDF",
       description: "Le PV d'intervention a été téléchargé."
     });
+  };
+
+  const handleCreateOrEditInvoice = () => {
+    if (facturationId) {
+      navigate(`/admin/facturation/${facturationId}/edit`);
+    } else if (pv?.intervention_id) {
+      navigate(`/admin/facturation/new?interventionId=${pv.intervention_id}`);
+    }
   };
 
   const formatDate = (dateString: string | null) => {
@@ -153,6 +175,16 @@ const ProcessVerbalPage = () => {
         </Button>
         
         <div className="flex gap-2">
+          {pv.validation_client === true && (
+            <Button 
+              variant="outline" 
+              onClick={handleCreateOrEditInvoice}
+              className="bg-green-50 hover:bg-green-100 text-green-700 hover:text-green-800"
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              {facturationId ? "Éditer la facture" : "Créer une facture"}
+            </Button>
+          )}
           <Button variant="outline" onClick={handlePrint}>
             <Printer className="mr-2 h-4 w-4" />
             Imprimer
@@ -301,6 +333,15 @@ const ProcessVerbalPage = () => {
           </Button>
           
           <div className="flex gap-2">
+            {pv.validation_client === true && (
+              <Button 
+                onClick={handleCreateOrEditInvoice}
+                className="bg-green-600 hover:bg-green-700 text-white"
+              >
+                <Receipt className="mr-2 h-4 w-4" />
+                {facturationId ? "Éditer la facture" : "Créer une facture"}
+              </Button>
+            )}
             <Button variant="outline" onClick={handlePrint}>
               <Printer className="mr-2 h-4 w-4" />
               Imprimer
