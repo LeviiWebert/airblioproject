@@ -185,7 +185,7 @@ const CalendarPage = () => {
                   <li key={intervention.id} className="border rounded-lg p-3 hover:bg-muted/50">
                     <div className="flex justify-between items-start mb-1">
                       <h3 className="font-medium line-clamp-1">{intervention.title}</h3>
-                      <Badge variant={intervention.status === 'terminée' ? 'success' : intervention.status === 'en_cours' ? 'default' : 'outline'}>
+                      <Badge variant={intervention.status === 'terminée' ? 'secondary' : intervention.status === 'en_cours' ? 'default' : 'outline'}>
                         {intervention.status}
                       </Badge>
                     </div>
