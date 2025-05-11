@@ -92,7 +92,16 @@ const ClientInvoices = () => {
           .in('intervention_id', filteredInterventionIds);
         
         if (invoicesError) throw invoicesError;
-        setInvoices(invoicesData || []);
+        
+        // Convert and validate the statut_paiement to the expected type
+        const typedInvoices = (invoicesData || []).map(invoice => ({
+          ...invoice,
+          statut_paiement: ['en_attente', 'payée', 'annulée'].includes(invoice.statut_paiement) 
+            ? invoice.statut_paiement as "en_attente" | "payée" | "annulée"
+            : "en_attente"
+        }));
+        
+        setInvoices(typedInvoices);
       } catch (error) {
         console.error("Erreur lors du chargement des factures:", error);
       } finally {

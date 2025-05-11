@@ -91,7 +91,15 @@ const ClientInvoiceDetails = () => {
             return;
           }
           
-          setInvoice(data);
+          // Ensure statut_paiement is one of the allowed types
+          const validStatus = ['en_attente', 'payée', 'annulée'].includes(data.statut_paiement)
+            ? data.statut_paiement as "en_attente" | "payée" | "annulée"
+            : "en_attente";
+          
+          setInvoice({
+            ...data,
+            statut_paiement: validStatus
+          });
         }
       } catch (error: any) {
         console.error("Erreur lors du chargement de la facture:", error);
@@ -207,13 +215,13 @@ const ClientInvoiceDetails = () => {
           <CardHeader className="border-b">
             <div className="flex justify-between">
               <div>
-                <CardTitle>Facture: FAC-{invoice.id.split('-')[0]}</CardTitle>
+                <CardTitle>Facture: FAC-{invoice?.id.split('-')[0]}</CardTitle>
                 <p className="text-sm text-muted-foreground mt-1">
-                  Date d'émission: {formatDate(invoice.date_facturation)}
+                  Date d'émission: {formatDate(invoice?.date_facturation)}
                 </p>
               </div>
               <div>
-                {getStatusBadge(invoice.statut_paiement)}
+                {invoice && getStatusBadge(invoice.statut_paiement)}
               </div>
             </div>
           </CardHeader>
@@ -240,7 +248,7 @@ const ClientInvoiceDetails = () => {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {invoice.details && invoice.details.map((detail) => (
+                        {invoice?.details && invoice.details.map((detail) => (
                           <TableRow key={detail.id}>
                             <TableCell>{detail.description}</TableCell>
                             <TableCell>{detail.heures_travaillees}h</TableCell>
@@ -263,12 +271,12 @@ const ClientInvoiceDetails = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="border rounded-md p-4">
                       <p className="text-sm font-medium text-muted-foreground mb-1">Localisation</p>
-                      <p>{invoice.intervention?.localisation || "Non définie"}</p>
+                      <p>{invoice?.intervention?.localisation || "Non définie"}</p>
                     </div>
                     
                     <div className="border rounded-md p-4">
                       <p className="text-sm font-medium text-muted-foreground mb-1">Date de fin d'intervention</p>
-                      <p>{formatDate(invoice.intervention?.date_fin)}</p>
+                      <p>{formatDate(invoice?.intervention?.date_fin)}</p>
                     </div>
                   </div>
                 </div>
@@ -279,12 +287,12 @@ const ClientInvoiceDetails = () => {
           <CardFooter className="border-t flex justify-between pt-6">
             <div>
               <p className="text-sm font-medium text-muted-foreground">
-                Référence: FAC-{invoice.id.split('-')[0]}
+                Référence: FAC-{invoice?.id.split('-')[0]}
               </p>
             </div>
             <div className="text-right">
               <p className="text-sm font-medium text-muted-foreground">Total</p>
-              <p className="text-xl font-bold">{invoice.montant_total.toLocaleString('fr-FR')} €</p>
+              <p className="text-xl font-bold">{invoice?.montant_total.toLocaleString('fr-FR')} €</p>
             </div>
           </CardFooter>
         </Card>
