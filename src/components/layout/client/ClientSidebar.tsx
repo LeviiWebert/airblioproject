@@ -1,5 +1,6 @@
+
 import { Link } from "react-router-dom";
-import { Home, FileText, Clock, User, FileCheck } from "lucide-react";
+import { Home, FileText, Clock, User, FileCheck, Receipt } from "lucide-react";
 
 interface ClientSidebarProps {
   sidebarOpen: boolean;
@@ -59,6 +60,15 @@ export const ClientSidebar = ({ sidebarOpen, toggleSidebar }: ClientSidebarProps
               >
                 <FileCheck className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
                 <span>Mes Procès-Verbaux</span>
+              </Link>
+            </li>
+            <li>
+              <Link
+                to="/client/invoices"
+                className="flex items-center px-4 py-3 text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-md group transition-colors"
+              >
+                <Receipt className="h-5 w-5 mr-3 text-gray-500 dark:text-gray-400" />
+                <span>Mes Factures</span>
               </Link>
             </li>
           </ul>

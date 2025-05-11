@@ -1,3 +1,4 @@
+
 import { RouteObject } from "react-router-dom";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import ClientDashboard from "@/pages/client/ClientDashboard";
@@ -12,7 +13,9 @@ import NotFound from "@/pages/NotFound";
 import RequestIntervention from "@/pages/intervention/RequestIntervention";
 import InterventionDetails from "@/pages/intervention/InterventionDetails";
 import InterventionSchedule from "@/pages/intervention/InterventionSchedule";
-import PVClientPage from "@/pages/client/PVClientPage";  // New page for PV management
+import PVClientPage from "@/pages/client/PVClientPage";
+import ClientInvoices from "@/pages/client/ClientInvoices";
+import ClientInvoiceDetails from "@/pages/client/ClientInvoiceDetails";
 
 // Helper function to wrap client components with protection and layout
 const withClientProtection = (Component: React.ComponentType<any>) => (
@@ -77,6 +80,15 @@ export const clientRoutes: RouteObject[] = [
   },
   {
     path: "/client/pv/:id",
-    element: withClientProtection(PVClientPage)  // New route for individual PV page
+    element: withClientProtection(PVClientPage)
+  },
+  // Nouvelles routes pour les factures
+  {
+    path: "/client/invoices",
+    element: withClientProtection(ClientInvoices)
+  },
+  {
+    path: "/client/invoice/:id",
+    element: withClientProtection(ClientInvoiceDetails)
   }
 ];
